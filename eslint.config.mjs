@@ -15,6 +15,7 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".next/**",
+      ".next-*/**", // NEXT_DIST_DIR build dirs of parallel test runs
       "out/**",
       "build/**",
       "next-env.d.ts",
