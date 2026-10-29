@@ -20,13 +20,14 @@ export const PERMISSIONS = [
   'audit.read',
   'integrations.manage',
   'xero.actions.configure',
+  'xero.read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
-  staff: ['admin.access', 'forms.read', 'entries.read', 'entries.write', 'entries.export', 'tasks.read'],
-  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read'],
+  staff: ['admin.access', 'forms.read', 'entries.read', 'entries.write', 'entries.export', 'tasks.read', 'xero.read'],
+  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read', 'xero.read'],
   inspector: ['forms.read'],
 };
 

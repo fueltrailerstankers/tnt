@@ -12,9 +12,11 @@ const ORG_READABLE = [
   'forms', 'form_statuses', 'form_roles', 'form_counters', 'entries', 'entry_reads', 'entry_files',
   'entry_events', 'entry_links', 'email_log', 'entry_documents', 'audit_log',
   'notification_recipients', 'app_settings', 'memberships', 'orgs',
+  'xero_contacts', 'xero_quotes', 'xero_quote_lines', 'xero_invoices', 'xero_invoice_lines', 'xero_payments',
+  'xero_attachments', 'xero_sync_state', 'deal_files',
 ];
 // Service-role-only tables: no client may read them at all.
-const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections'];
+const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
 
 let db: Client;
 let entryA: string;
@@ -43,6 +45,17 @@ beforeAll(async () => {
   await db.query(`insert into public.app_settings(org_id, key, value) values ($1,'k','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_connections(org_id, tenant_id) values ($1,'tenant-test')`, [ORG_A]);
   await db.query(`insert into public.integration_events(org_id, source, signature_ok, payload) values ($1,'xero',true,'{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_oauth_states(state_hash, org_id, user_id, expires_at) values ('h', $1, $2, now())`, [ORG_A, ADMIN_A]);
+  // Synthetic Xero mirror rows (M2).
+  await db.query(`insert into public.xero_contacts(org_id, tenant_id, contact_id, name, raw) values ($1,'t','c1','Test Contact','{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_quotes(org_id, tenant_id, quote_id, quote_number, quote_no, currency_code, total, raw) values ($1,'t','q1','QU-90001','90001','ZAR',100,'{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_quote_lines(org_id, quote_id, line_no, description) values ($1,'q1',1,'x')`, [ORG_A]);
+  await db.query(`insert into public.xero_invoices(org_id, tenant_id, invoice_id, invoice_number, currency_code, total, raw) values ($1,'t','i1','INV-90001','ZAR',100,'{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_invoice_lines(org_id, invoice_id, line_no, description) values ($1,'i1',1,'x')`, [ORG_A]);
+  await db.query(`insert into public.xero_payments(org_id, tenant_id, payment_id, invoice_id, amount, currency_code, raw) values ($1,'t','p1','i1',100,'ZAR','{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_attachments(org_id, attachment_id, parent_type, parent_id, raw) values ($1,'a1','Invoice','i1','{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_sync_state(org_id, entity) values ($1,'invoices')`, [ORG_A]);
+  await db.query(`insert into public.deal_files(org_id, quote_no, quote_id) values ($1,'90001','q1')`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });
@@ -156,6 +169,26 @@ describe('anon and service-only tables', () => {
   it('authenticated users cannot call the entry numbering function directly', async () => {
     const f = (await db.query(`select id from public.forms limit 1`)).rows[0].id;
     await expect(as(db, 'authenticated', ADMIN_A, () => db.query(`select public.next_entry_number($1)`, [f]))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe('Xero mirror (M2)', () => {
+  it('members cannot write the mirror or deal files; only the server does', async () => {
+    for (const sql of [
+      `update public.xero_invoices set total = 1`,
+      `insert into public.xero_quotes(org_id, tenant_id, quote_id, raw) values ('${ORG_A}','t','qx','{}')`,
+      `delete from public.deal_files`,
+      `update public.xero_sync_state set backfill_done = true`,
+    ]) {
+      await expect(as(db, 'authenticated', ADMIN_A, () => db.query(sql))).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it('the refresh claim is exclusive and service-only', async () => {
+    const c = (await db.query(`select id from public.xero_connections limit 1`)).rows[0].id;
+    expect((await db.query(`select public.xero_claim_refresh($1) as ok`, [c])).rows[0].ok).toBe(true);
+    expect((await db.query(`select public.xero_claim_refresh($1) as ok`, [c])).rows[0].ok).toBe(false);
+    await expect(as(db, 'authenticated', ADMIN_A, () => db.query(`select public.xero_claim_refresh($1)`, [c]))).rejects.toThrow(/permission denied/);
   });
 });
 
