@@ -2,10 +2,11 @@ import { notFound } from 'next/navigation';
 import { FormRenderer } from '@/components/form-engine/FormRenderer';
 import { appEnv, publicEnv } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
+import { quoteFieldOf } from '@/lib/forms/quote-fields';
 import { defaultData } from '@/lib/spec/values';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { allowedActions, NEW_ENTRY_STATUS, publicRole } from '@/lib/workflow/rules';
-import { findLookupPublic, requestUploadPublic, submitPublic } from './actions';
+import { checkQuotePublic, findLookupPublic, requestUploadPublic, submitPublic } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         upload={requestUploadPublic.bind(null, slug)}
         supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         lookup={hasLookup ? { mode: 'exact', find: findLookupPublic.bind(null, slug) } : undefined}
+        quotes={quoteFieldOf(spec) ? { mode: 'check', check: checkQuotePublic.bind(null, slug) } : undefined}
         honeypot
       />
     </>

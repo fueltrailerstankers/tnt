@@ -6,6 +6,7 @@ import type { SubmitState, UploadTicket } from '@/components/form-engine/types';
 import { appEnv } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
 import { customerPanel, lookupExact } from '@/lib/forms/lookup';
+import { checkableQuoteNo, quoteFieldOf } from '@/lib/forms/quote-fields';
 import { issueUploads } from '@/lib/forms/storage';
 import { validateUploadRequest } from '@/lib/forms/uploads';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
@@ -58,4 +59,18 @@ export async function findLookupPublic(slug: string, value: string): Promise<{ o
   const hit = await lookupExact(ctx.db, ctx.form.orgId, field.lookup.sourceForm, field.lookup.displayField, value);
   if (!hit) return null;
   return { option: hit, panel: await customerPanel(ctx.db, ctx.form.orgId, field.lookup.sourceForm, hit.id, true) };
+}
+
+/**
+ * Public quote check: only says whether the typed number exists in this form's org. Never returns the
+ * quote list, customer names or amounts. Advisory only: submission never depends on it.
+ */
+export async function checkQuotePublic(slug: string, value: string): Promise<{ found: boolean }> {
+  if (await limited('quote', 10)) return { found: false };
+  const no = checkableQuoteNo(value);
+  if (!no) return { found: false };
+  const ctx = await publicForm(slug);
+  if (!ctx || !quoteFieldOf(ctx.form.spec)) return { found: false };
+  const { data } = await ctx.db.from('xero_quotes').select('id').eq('org_id', ctx.form.orgId).eq('quote_no', no).limit(1);
+  return { found: !!data?.length };
 }

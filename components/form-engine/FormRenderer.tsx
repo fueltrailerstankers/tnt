@@ -5,9 +5,11 @@ import { contentBlocks, type Block } from '@/lib/spec/content';
 import { pages, type Cell } from '@/lib/spec/layout';
 import type { FormSpec } from '@/lib/spec/types';
 import type { ChecklistRow, EntryData } from '@/lib/spec/values';
+import { isQuoteField } from '@/lib/forms/quote-fields';
 import { FileField } from './FileField';
+import { QuoteField } from './QuoteField';
 import { SignaturePad } from './SignaturePad';
-import type { ActionButton, ExistingFile, LookupConfig, SubmitState, UploadFn } from './types';
+import type { ActionButton, ExistingFile, LookupConfig, QuoteConfig, SubmitState, UploadFn } from './types';
 
 export interface FormRendererProps {
   spec: FormSpec;
@@ -21,6 +23,8 @@ export interface FormRendererProps {
   supabase: { url: string; anonKey: string };
   lookup?: LookupConfig;
   lookupPanel?: Array<[string, string]>;
+  /** Xero quote picker for the form's quote field (staff search or public check). Absent = plain text. */
+  quotes?: QuoteConfig;
   hidden?: Record<string, string>;
   /** Public forms carry a honeypot field that real people never see. */
   honeypot?: boolean;
@@ -164,6 +168,16 @@ function FieldView(p: ViewProps) {
   const v = p.initial[name];
   const errProps = err ? { 'aria-invalid': true, 'aria-describedby': `${id}-err` } : {};
   const label = 'label' in f ? f.label.trim() || name : name;
+
+  if (f.type === 'text' && p.quotes && isQuoteField(p.spec.slug, name)) {
+    return (
+      <QuoteField
+        id={id} name={name} label={label} hideLabel={'hideLabel' in f && !!f.hideLabel}
+        value={v === undefined || v === null ? '' : String(v)} err={err} disabled={p.readOnly}
+        config={p.quotes} inputClassName={inputCls(err)}
+      />
+    );
+  }
 
   switch (f.type) {
     case 'text':
