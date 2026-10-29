@@ -1,4 +1,5 @@
 import type { LookupOption } from '@/lib/forms/lookup-types';
+import type { QuoteOption } from '@/lib/forms/quote-fields';
 
 export interface SubmitState {
   message?: string;
@@ -31,3 +32,11 @@ export interface ActionButton {
   name: string;
   label: string;
 }
+
+/**
+ * Xero quote picker on the form's quote field (lib/forms/quote-fields.ts). Staff search the mirror;
+ * public forms may only check that a typed number exists (no list, no customer names).
+ */
+export type QuoteConfig =
+  | { mode: 'search'; search: (q: string) => Promise<QuoteOption[]> }
+  | { mode: 'check'; check: (value: string) => Promise<{ found: boolean }> };
