@@ -11,14 +11,17 @@
     "test": "vitest run --project unit",
     "test:db": "vitest run --project db",
     "test:e2e": "playwright test",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "build:content": "tsx scripts/build-content.ts"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@sentry/nextjs": "^11.10.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.64.0",
     "next": "15.5.28",
     "react": "19.1.0",
