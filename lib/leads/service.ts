@@ -7,6 +7,7 @@ import {
   INVOICE_START_SETTING, invoiceStartFrom, matchChanged, matchColumns, matchLead, NO_MATCH,
   type ContactRow, type InvoiceRow, type LeadMatch, type QuoteRow,
 } from './matching';
+import { notifyClaimKey, NOTIFY_CLAIM_STALE_MS, pendingStages } from './intake';
 import { normEmail, normPhone } from './normalise';
 import { recipientsFor, routeLead, type RoutingRule } from './routing';
 import { leadEmail } from './notify';
@@ -37,8 +38,11 @@ export interface CreateResult {
   created: boolean;
   duplicateOf: string | null;
   eventKey: string;
-  emailed: 'sent' | 'failed' | 'skipped' | null;
+  /** Notification outcome when this call recorded it; `unknown` when an earlier send was interrupted. */
+  emailed: EmailOutcome | null;
 }
+
+export type EmailOutcome = 'sent' | 'failed' | 'skipped' | 'unknown';
 
 type Db = SupabaseClient;
 
@@ -100,80 +104,140 @@ export async function matchAndStore(db: Db, orgId: string, lead: Record<string, 
   return true;
 }
 
+const LEAD_COLUMNS = `id, source_form, name, email, email_norm, phone, phone_norm, product, message, branch, duplicate_of, ${MATCH_COLUMNS}`;
+
+type LeadRow = Record<string, unknown> & {
+  id: string; source_form: string | null; name: string | null; email: string | null; email_norm: string | null;
+  phone: string | null; phone_norm: string | null; product: string | null; message: string | null; branch: string | null;
+  duplicate_of: string | null;
+};
+
+async function leadByExternalId(db: Db, orgId: string, source: string, externalId: string): Promise<LeadRow | null> {
+  const { data, error } = await db.from('leads').select(LEAD_COLUMNS)
+    .eq('org_id', orgId).eq('source', source).eq('external_id', externalId).maybeSingle();
+  if (error) throw new Error('could not read lead');
+  return (data as unknown as LeadRow | null) ?? null;
+}
+
+/**
+ * Sends the lead's intake notification at most once. The send is claimed in action_claims first; a later
+ * attempt that finds the claim only records the `emailed` event (from the claim's result or email_log) and
+ * never sends again. A claim with no result yet is either still sending (young: retry later) or a crash
+ * mid-send (old: recorded as `unknown`, not re-sent).
+ */
+async function notifyOnce(db: Db, orgId: string, lead: LeadRow, sourceName: string, eventKey: string): Promise<EmailOutcome> {
+  const key = notifyClaimKey(lead.id);
+  const claim = await db.from('action_claims').insert({ org_id: orgId, action_key: key }).select('id');
+  if (claim.error) {
+    if (claim.error.code !== '23505' && !/duplicate/i.test(claim.error.message ?? '')) throw new Error('could not claim lead notification');
+    const { data: held } = await db.from('action_claims').select('result, claimed_at').eq('org_id', orgId).eq('action_key', key).maybeSingle();
+    const result = (held?.result ?? null) as { status?: EmailOutcome; recipients?: number } | null;
+    let status = result?.status ?? null;
+    let recipients = result?.recipients ?? null;
+    if (!status) {
+      const { data: logged } = await db.from('email_log').select('status, to_addresses').eq('lead_id', lead.id).eq('action', 'lead.new').limit(1);
+      status = (logged?.[0]?.status as EmailOutcome | undefined) ?? null;
+      recipients = Array.isArray(logged?.[0]?.to_addresses) ? (logged[0].to_addresses as unknown[]).length : null;
+    }
+    if (!status) {
+      const age = held?.claimed_at ? Date.now() - new Date(held.claimed_at as string).getTime() : Infinity;
+      if (age < NOTIFY_CLAIM_STALE_MS) throw new Error('lead notification in progress');
+      status = 'unknown';
+    }
+    await event(db, lead.id, 'emailed', null, { event_key: eventKey, status, ...(recipients === null ? {} : { recipients }), resumed: true });
+    return status;
+  }
+
+  const { data: rcpt } = await db.from('notification_recipients').select('event_key, address, active').eq('org_id', orgId).like('event_key', 'leads.*');
+  const to = recipientsFor(eventKey, rcpt ?? []);
+  const built = leadEmail({
+    id: lead.id, source_form: lead.source_form, name: lead.name, email: lead.email, phone: lead.phone,
+    product: lead.product, message: lead.message, branch: lead.branch, duplicate_of: lead.duplicate_of,
+  }, sourceName, appEnv().APP_URL, to);
+  const status = await sendEmail(db, { ...built, entryId: null, leadId: lead.id, action: 'lead.new', eventKey, attachments: [] });
+  await db.from('action_claims').update({ result: { status, recipients: to.length } }).eq('org_id', orgId).eq('action_key', key);
+  await event(db, lead.id, 'emailed', null, { event_key: eventKey, recipients: to.length, status });
+  return status;
+}
+
 /**
  * Creates a lead: normalise, link duplicates, route, insert (idempotent on org + source + external id),
  * match against the Xero mirror, record events and, when asked, send ONE notification to the routed inboxes.
+ *
+ * Resumable: when the lead for this external id already exists (a retry after a partial failure, or a replay),
+ * only the stages without their lead_events row run (created, duplicate, routed, matched, emailed), so each
+ * completes exactly once. The notification is additionally claimed in action_claims and is never sent twice.
  */
 export async function createLead(db: Db, orgId: string, input: NewLead, opts: { actor: string | null; notify: boolean }): Promise<CreateResult> {
   const email_norm = normEmail(input.email);
   const phone_norm = normPhone(input.phone);
-
-  if (input.external_id) {
-    const { data: existing } = await db.from('leads').select('id, duplicate_of')
-      .eq('org_id', orgId).eq('source', input.source).eq('external_id', input.external_id).maybeSingle();
-    if (existing) return { id: existing.id, created: false, duplicateOf: existing.duplicate_of, eventKey: '', emailed: null };
-  }
 
   const [{ data: rules }, { data: src }] = await Promise.all([
     db.from('routing_rules').select('id, name, priority, match_source, match_product, match_branch, assign_branch, notify_event_key, active, created_at').eq('org_id', orgId).eq('active', true),
     db.from('lead_sources').select('key, name, active').eq('org_id', orgId).eq('key', input.source).maybeSingle(),
   ]);
   if (!src || !src.active) throw new Error('unknown or inactive lead source');
-
   const route = routeLead({ source: input.source, product: input.product ?? null, branch: input.branch ?? null }, (rules ?? []) as RoutingRule[]);
-  const dup = await duplicateOf(db, orgId, { email_norm, phone_norm });
 
-  const { data: lead, error } = await db.from('leads').insert({
-    org_id: orgId,
-    source: input.source,
-    source_form: input.source_form ?? null,
-    external_id: input.external_id ?? null,
-    name: input.name ?? null,
-    email: input.email ?? null,
-    email_norm,
-    phone: input.phone ?? null,
-    phone_norm,
-    product: input.product ?? null,
-    message: input.message ?? null,
-    branch: route.branch,
-    gclid: input.gclid ?? null,
-    fbclid: input.fbclid ?? null,
-    utm: input.utm ?? {},
-    duplicate_of: dup,
-    routing_rule_id: route.ruleId,
-    raw: input.raw ?? {},
-    created_by: opts.actor,
-  }).select('id').single();
-  if (error || !lead) {
-    if (error?.code === '23505' && input.external_id) {
-      // Lost a race with an identical post: the other request owns the lead and its notification.
-      const { data: other } = await db.from('leads').select('id, duplicate_of').eq('org_id', orgId).eq('source', input.source).eq('external_id', input.external_id).single();
-      if (other) return { id: other.id, created: false, duplicateOf: other.duplicate_of, eventKey: '', emailed: null };
+  let lead = input.external_id ? await leadByExternalId(db, orgId, input.source, input.external_id) : null;
+  let created = false;
+  if (!lead) {
+    const dup = await duplicateOf(db, orgId, { email_norm, phone_norm });
+    const { data, error } = await db.from('leads').insert({
+      org_id: orgId,
+      source: input.source,
+      source_form: input.source_form ?? null,
+      external_id: input.external_id ?? null,
+      name: input.name ?? null,
+      email: input.email ?? null,
+      email_norm,
+      phone: input.phone ?? null,
+      phone_norm,
+      product: input.product ?? null,
+      message: input.message ?? null,
+      branch: route.branch,
+      gclid: input.gclid ?? null,
+      fbclid: input.fbclid ?? null,
+      utm: input.utm ?? {},
+      duplicate_of: dup,
+      routing_rule_id: route.ruleId,
+      raw: input.raw ?? {},
+      created_by: opts.actor,
+    }).select(LEAD_COLUMNS).single();
+    if (error || !data) {
+      // Lost a race with an identical post: resume on the lead the other request created.
+      if (error?.code === '23505' && input.external_id) lead = await leadByExternalId(db, orgId, input.source, input.external_id);
+      if (!lead) throw new Error('could not create lead');
+    } else {
+      lead = data as unknown as LeadRow;
+      created = true;
     }
-    throw new Error('could not create lead');
   }
 
-  const fields = Object.entries({ name: input.name, email: input.email, phone: input.phone, product: input.product, message: input.message, branch: input.branch })
-    .filter(([, v]) => v).map(([k]) => k);
-  await event(db, lead.id, 'created', opts.actor, { source: input.source, fields });
-  if (dup) await event(db, lead.id, 'duplicate', null, { duplicate_of: dup });
-  await event(db, lead.id, 'routed', null, { rule_id: route.ruleId, event_key: route.eventKey, branch_set: Boolean(route.branch) });
+  const { data: evs, error: evErr } = await db.from('lead_events').select('kind, meta').eq('lead_id', lead.id);
+  if (evErr) throw new Error('could not read lead events');
+  const events = (evs ?? []) as Array<{ kind: string; meta: Record<string, unknown> | null }>;
+  const todo = pendingStages(events.map((e) => e.kind), { duplicate: Boolean(lead.duplicate_of), notify: opts.notify });
 
-  const start = await invoiceStart(db, orgId);
-  await matchAndStore(db, orgId, { id: lead.id, email_norm, phone_norm, matched_contact_ids: [], invoice_count: 0 }, start, null);
-
-  let emailed: CreateResult['emailed'] = null;
-  if (opts.notify) {
-    const { data: rcpt } = await db.from('notification_recipients').select('event_key, address, active').eq('org_id', orgId).like('event_key', 'leads.*');
-    const to = recipientsFor(route.eventKey, rcpt ?? []);
-    const built = leadEmail({
-      id: lead.id, source_form: input.source_form ?? null, name: input.name ?? null, email: input.email ?? null, phone: input.phone ?? null,
-      product: input.product ?? null, message: input.message ?? null, branch: route.branch, duplicate_of: dup,
-    }, src.name, appEnv().APP_URL, to);
-    emailed = await sendEmail(db, { ...built, entryId: null, leadId: lead.id, action: 'lead.new', eventKey: route.eventKey, attachments: [] });
-    await event(db, lead.id, 'emailed', null, { event_key: route.eventKey, recipients: to.length, status: emailed });
+  if (todo.created) {
+    const fields = Object.entries({ name: lead.name, email: lead.email, phone: lead.phone, product: lead.product, message: lead.message, branch: input.branch })
+      .filter(([, v]) => v).map(([k]) => k);
+    await event(db, lead.id, 'created', opts.actor, { source: input.source, fields });
   }
-  return { id: lead.id, created: true, duplicateOf: dup, eventKey: route.eventKey, emailed };
+  if (todo.duplicate) await event(db, lead.id, 'duplicate', null, { duplicate_of: lead.duplicate_of });
+
+  // The routed key decided the first time wins, so a retry notifies the same inboxes.
+  const routedKey = events.find((e) => e.kind === 'routed')?.meta?.event_key;
+  const eventKey = typeof routedKey === 'string' ? routedKey : route.eventKey;
+  if (todo.routed) await event(db, lead.id, 'routed', null, { rule_id: route.ruleId, event_key: route.eventKey, branch_set: Boolean(route.branch) });
+
+  if (todo.matched) {
+    const start = await invoiceStart(db, orgId);
+    await matchAndStore(db, orgId, lead, start, null);
+  }
+
+  const emailed = todo.emailed ? await notifyOnce(db, orgId, lead, src.name, eventKey) : null;
+  return { id: lead.id, created, duplicateOf: lead.duplicate_of, eventKey, emailed };
 }
 
 /**
