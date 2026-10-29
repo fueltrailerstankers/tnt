@@ -100,11 +100,25 @@ describe('HttpCognitoSource', () => {
     const src = new HttpCognitoSource({ apiKey: 'secret', fetch: f, sleep: noSleep, maxNumber: 1 });
     await expect(src.downloadFile({ id: null, url: 'http://www.cognitoforms.com/file/F-3', inline: null })).rejects.toThrow(/not an https Cognito URL/);
     await expect(src.downloadFile({ id: null, url: 'https://internal.example.invalid/x', inline: null })).rejects.toThrow(/not an https Cognito URL/);
+    await expect(src.downloadFile({ id: null, url: null, inline: null })).rejects.toThrow(/has no source/);
     expect(calls).toHaveLength(0);
     const err = await collect(src.listEntries(FORM, {})).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(CognitoApiError);
     expect((err as Error).message).toMatch(/invalid JSON/);
     expect((err as Error).message).not.toContain('someone');
+  });
+
+  it('a file URL that is not an https Cognito URL falls back to the Id route and is never fetched', async () => {
+    const { f, calls } = fakeFetch(() => new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), { headers: { 'content-type': 'application/pdf' } }));
+    const src = new HttpCognitoSource({ apiKey: 'secret', fetch: f, sleep: noSleep });
+    for (const url of ['http://www.cognitoforms.com/file/F-4', 'https://internal.example.invalid/x']) {
+      const got = await src.downloadFile({ id: 'F-4', url, inline: null });
+      expect(got.bytes.length).toBe(5);
+    }
+    expect(calls).toEqual([
+      { url: 'https://www.cognitoforms.com/api/files/F-4', auth: 'Bearer secret' },
+      { url: 'https://www.cognitoforms.com/api/files/F-4', auth: 'Bearer secret' },
+    ]);
   });
 
   it('refuses to start without a key', () => {

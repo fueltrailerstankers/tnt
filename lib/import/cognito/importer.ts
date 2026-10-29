@@ -11,7 +11,7 @@
 // After each form, form_counters.last_number is set to the highest entry number (never lowered).
 import { createHash, randomUUID } from 'node:crypto';
 import type { FormRecord } from '@/lib/forms/forms';
-import { displayFileName, safeObjectName, sniff, storedContentType } from '@/lib/security/files';
+import { displayFileName, safeObjectName, safeSignatureSvg, sniff, storedContentType } from '@/lib/security/files';
 import { MAX_FILE_BYTES, renderSummary, type EntryData } from '@/lib/spec/values';
 import { mapEntry, type MappedEntry, type MappedFile } from './map';
 import { bump, emptyFormReport, type FailReason, type FormReport, type ImportReport } from './report';
@@ -110,8 +110,10 @@ async function importOne(ctx: Ctx, m: MappedEntry, data: EntryData, existing: En
     const sniffed = sniff(dl.bytes.subarray(0, 16));
     const declared = f.contentType ?? dl.contentType ?? '';
     // Unrecognised bytes are kept but never served with a type Cognito declared (e.g. text/html, image/svg+xml).
-    const contentType = sniffed ? storedContentType(sniffed, declared) : 'application/octet-stream';
-    if (!sniffed) bump(report.issues, `${f.field}:file_type_unrecognised`);
+    // The one exception: an inline SVG-only signature (A7) whose markup passes safeSignatureSvg, so it renders in <img>.
+    const svg = !sniffed && f.kind === 'signature' && f.ref.inline?.contentType === 'image/svg+xml' && safeSignatureSvg(dl.bytes);
+    const contentType = sniffed ? storedContentType(sniffed, declared) : svg ? 'image/svg+xml' : 'application/octet-stream';
+    if (!sniffed && !svg) bump(report.issues, `${f.field}:file_type_unrecognised`);
     await stage('upload_failed', () => sink.upload(path, dl.bytes, contentType));
     const ext = f.contentType === 'image/svg+xml' ? 'svg' : 'png';
     await stage('write_failed', () => sink.insertFile({

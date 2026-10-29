@@ -122,7 +122,9 @@ describe('cognito importer', () => {
     expect(dnFiles.find((f) => f.field_key === 'Signature4')).toMatchObject({ file_name: 'Signature4.png', content_type: 'image/png' });
     expect(dnFiles.find((f) => f.field_key === 'NATIS')).toMatchObject({ content_type: 'application/pdf', size_bytes: 6000, file_name: 'fake-natis.pdf' });
     const svg = sink.entries.find((e) => e.form_id === dnForm.id && e.number === 3)!;
-    expect(sink.files.find((f) => f.entry_id === svg.id)).toMatchObject({ kind: 'signature', file_name: 'Signature4.svg' });
+    // A7: an SVG-only signature whose markup passes safeSignatureSvg keeps image/svg+xml, so it renders in <img>.
+    expect(sink.files.find((f) => f.entry_id === svg.id)).toMatchObject({ kind: 'signature', file_name: 'Signature4.svg', content_type: 'image/svg+xml' });
+    expect(form(rep, 'delivery-note').issues).not.toHaveProperty('Signature4:file_type_unrecognised');
     const insp = sink.entries.find((e) => e.cognito_entry_id === '13-1')!;
     expect(sink.files.find((f) => f.entry_id === insp.id)).toMatchObject({ field_key: 'InspectorSignature', kind: 'signature', content_type: 'image/png' });
 
@@ -198,6 +200,18 @@ describe('cognito importer', () => {
     sink.counters.set(f.id, 7);
     const rep = await runImport({ source: new FakeSource(allFixtures()), sink, seal: sealData }, { forms: ['release-form'], apply: true });
     expect(form(rep, 'release-form')).toMatchObject({ imported: 1, failed: { number_taken: 1 }, counterSetTo: 7 });
+  });
+
+  it('an SVG-only signature with unsafe markup is stored as application/octet-stream and reported', async () => {
+    const fixtures = allFixtures();
+    const dn3 = fixtures['delivery-note'].find((e) => e.Id === '5-3')! as Record<string, unknown>;
+    dn3.Signature4 = { Png: null, Svg: "<svg xmlns='http://www.w3.org/2000/svg' onload='go()'><path d='M0 0L1 1'/></svg>" };
+    const sink = platform();
+    const rep = await runImport({ source: new FakeSource(fixtures), sink, seal: sealData }, { forms: ['request-for-invoice', 'delivery-note'], apply: true, newId: counter() });
+    const dnForm = (await sink.loadForms()).find((f) => f.slug === 'delivery-note')!;
+    const dn = sink.entries.find((e) => e.form_id === dnForm.id && e.number === 3)!;
+    expect(sink.files.find((f) => f.entry_id === dn.id)).toMatchObject({ kind: 'signature', file_name: 'Signature4.svg', content_type: 'application/octet-stream' });
+    expect(form(rep, 'delivery-note').issues).toMatchObject({ 'Signature4:file_type_unrecognised': 1 });
   });
 
   it('delivery note alone: unresolved RFI lookups skip by default, or import without the link when allowed', async () => {

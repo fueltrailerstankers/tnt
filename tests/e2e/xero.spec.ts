@@ -314,3 +314,23 @@ test('no writes: the mock saw only GETs to the Accounting API', async ({ request
   const after = await mock<LogLine[]>(request, '/__log');
   expect(after.filter((l) => l.api && l.method !== 'GET')).toEqual([{ method: 'PUT', path: '/api.xro/2.0/Invoices', api: true }]);
 });
+
+test('actions page: an action without Xero writes set to dry run says it currently does nothing', async ({ page }) => {
+  const key = 'xero.action.release.on_paid';
+  const prior = await sql<{ value: unknown }>(`select value from public.app_settings where org_id = $1 and key = $2`, [ORG, key]);
+  await sql(`insert into public.app_settings(org_id, key, value) values ($1, $2, $3::jsonb) on conflict (org_id, key) do update set value = excluded.value`, [ORG, key, JSON.stringify('dry_run')]);
+  try {
+    await signIn(page);
+    await page.goto('/admin/integrations/xero/actions'); // a cold dev compile can outlast signIn's URL wait
+    const release = page.getByTestId('action-release.on_paid');
+    await expect(release.getByTestId('dry-run-note-release.on_paid')).toContainText('currently does nothing');
+    await expect(release).toContainText('no Xero writes; dry run only records the entries/emails it would make, live applies them');
+    await expect(release).not.toContainText('behave the same');
+    // Off, or an action that records Xero requests in dry run: no note.
+    await expect(page.getByTestId('dry-run-note-deal.import_quote')).toHaveCount(0);
+    await expect(page.getByTestId('dry-run-note-rfi.create_invoice')).toHaveCount(0);
+  } finally {
+    if (prior.length) await sql(`update public.app_settings set value = $3::jsonb where org_id = $1 and key = $2`, [ORG, key, JSON.stringify(prior[0].value)]);
+    else await sql(`delete from public.app_settings where org_id = $1 and key = $2`, [ORG, key]);
+  }
+});

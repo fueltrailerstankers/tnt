@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { findDuplicateOf } from '@/lib/leads/duplicates';
 import {
-  declaredTooLarge, intakeEventKey, invalidFields, MAX_BODY_BYTES, notifyClaimKey, pendingStages, priorEventAction, secretMatches, usableSecret,
+  declaredTooLarge, intakeEventKey, invalidFields, MAX_BODY_BYTES, notifyClaimKey, pendingStages, priorEventAction, secretMatches, stageAlreadyRecorded, usableSecret,
 } from '@/lib/leads/intake';
 import {
   countsAsInvoice, DEFAULT_INVOICE_START, invoiceStartFrom, isGoneOut, matchChanged, matchColumns, matchContacts, matchLead, NO_MATCH,
@@ -188,6 +188,12 @@ describe('intake', () => {
     expect(pendingStages(['created', 'duplicate', 'routed', 'matched', 'emailed'], { duplicate: true, notify: true })).toEqual({ created: false, duplicate: false, routed: false, matched: false, emailed: false });
     expect(pendingStages([], { duplicate: false, notify: false }).emailed).toBe(false);
     expect(notifyClaimKey('abc')).toBe('lead.notify:abc');
+  });
+  it('treats a unique violation as done only for the one-time stages', () => {
+    for (const k of ['created', 'duplicate', 'routed', 'emailed']) expect(stageAlreadyRecorded(k, { code: '23505' })).toBe(true);
+    for (const k of ['matched', 'status', 'assigned', 'note']) expect(stageAlreadyRecorded(k, { code: '23505' })).toBe(false);
+    expect(stageAlreadyRecorded('created', { code: 'XX000' })).toBe(false);
+    expect(stageAlreadyRecorded('created', null)).toBe(false);
   });
   it('reports invalid field names, never values', () => {
     const r = IntakePayload.safeParse({ source: 'test', source_id: 't-1', email: 'Secret Value' });
