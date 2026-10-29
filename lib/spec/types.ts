@@ -14,7 +14,8 @@ export const EmailField = z.object({
   ...grid, ...named, type: z.literal('email'),
   required: z.boolean().optional(), default: z.string().optional(), protected: z.boolean().optional(),
 });
-export const DateField = z.object({ ...grid, ...named, type: z.literal('date') });
+// default 'today': pre-filled with today's date in the org timezone on a new entry; still editable.
+export const DateField = z.object({ ...grid, ...named, type: z.literal('date'), default: z.literal('today').optional() });
 export const NumberField = z.object({ ...grid, ...named, type: z.literal('number'), integer: z.boolean().optional(), decimals: z.number().int().optional() });
 export const ChoiceField = z.object({
   ...grid, ...named, type: z.literal('choice'),
