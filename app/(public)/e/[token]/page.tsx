@@ -15,7 +15,7 @@ export const metadata = { title: 'Entry · Trailers & Tankers', referrer: 'no-re
 
 function Invalid() {
   return (
-    <div className="rounded border bg-white p-6" role="status">
+    <div className="rounded border bg-surface p-6" role="status">
       <h1 className="text-xl font-semibold">Link not valid</h1>
       <p className="mt-2">This link has expired or is no longer valid. Ask the office to send a new one.</p>
     </div>
@@ -47,8 +47,8 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">{form.spec.name}</h1>
-      <p className="mb-4 text-sm text-neutral-600">
+      <h1 className="text-h1">{form.spec.name}</h1>
+      <p className="mb-4 text-sm text-fg-muted">
         Entry #{entry.number} · {entry.status}
         {actions.length === 0 ? ' · No action is available for you at this stage.' : ''}
       </p>

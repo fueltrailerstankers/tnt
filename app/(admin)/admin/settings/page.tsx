@@ -22,43 +22,43 @@ export default async function Settings({ searchParams }: { searchParams: Promise
 
   return (
     <section className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
-      {sp.saved ? <p role="status" className="rounded bg-green-50 p-3 text-sm">Saved.</p> : null}
-      {sp.error ? <p role="alert" className="rounded bg-red-50 p-3 text-sm">Check the values and try again.</p> : null}
+      <h1 className="text-h1">Settings</h1>
+      {sp.saved ? <p role="status" className="rounded bg-status-green-bg p-3 text-sm">Saved.</p> : null}
+      {sp.error ? <p role="alert" className="rounded bg-status-red-bg p-3 text-sm">Check the values and try again.</p> : null}
 
-      <form action={saveOrg} className="space-y-3 rounded-lg border bg-white p-4 text-sm">
+      <form action={saveOrg} className="space-y-3 rounded-md border bg-surface shadow-card p-4 text-sm">
         <h2 className="font-semibold">Organisation</h2>
         <label className="block">
-          <span className="text-xs text-neutral-600">Name</span>
-          <input name="name" defaultValue={org.name} required maxLength={120} className="w-full rounded border px-2 py-1" />
+          <span className="text-xs text-fg-muted">Name</span>
+          <input name="name" defaultValue={org.name} required maxLength={120} className="w-full rounded-sm border px-2 py-1" />
         </label>
         <label className="block">
-          <span className="text-xs text-neutral-600">Display timezone</span>
-          <select name="timezone" defaultValue={org.timezone} className="w-full rounded border px-2 py-1">
+          <span className="text-xs text-fg-muted">Display timezone</span>
+          <select name="timezone" defaultValue={org.timezone} className="w-full rounded-sm border px-2 py-1">
             {zones.map((z) => <option key={z} value={z}>{z}</option>)}
           </select>
         </label>
         <label className="block">
-          <span className="text-xs text-neutral-600">Default currency (display and entry fallback; money rows keep their own code)</span>
-          <input name="currency" defaultValue={org.currency} required pattern="[A-Z]{3}" maxLength={3} className="w-24 rounded border px-2 py-1 uppercase" />
+          <span className="text-xs text-fg-muted">Default currency (display and entry fallback; money rows keep their own code)</span>
+          <input name="currency" defaultValue={org.currency} required pattern="[A-Z]{3}" maxLength={3} className="w-24 rounded-sm border px-2 py-1 uppercase" />
         </label>
-        <button className="rounded bg-neutral-900 px-3 py-1 text-white">Save</button>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Save</button>
       </form>
 
-      <div className="rounded-lg border bg-white p-4 text-sm">
+      <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
         <h2 className="mb-2 font-semibold">Users and roles</h2>
-        <p className="mb-2 text-neutral-600">One admin for now. Roles (admin, staff, reviewer, inspector) are modelled; inviting users comes with access setup.</p>
+        <p className="mb-2 text-fg-muted">One admin for now. Roles (admin, staff, reviewer, inspector) are modelled; inviting users comes with access setup.</p>
         <ul className="divide-y">
           {(members ?? []).map((m) => (
             <li key={m.user_id} className="flex justify-between py-2">
               <span>{(profiles ?? []).find((p) => p.id === m.user_id)?.full_name ?? 'User'}</span>
-              <span className="text-neutral-600">{m.role}{m.branch ? ` · ${m.branch}` : ''}</span>
+              <span className="text-fg-muted">{m.role}{m.branch ? ` · ${m.branch}` : ''}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="rounded-lg border bg-white p-4 text-sm">
+      <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
         <h2 className="mb-2 font-semibold">Forms</h2>
         <ul className="divide-y">
           {forms.map((f) => (

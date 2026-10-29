@@ -78,17 +78,17 @@ export function FileField({ name, label, multi, maxFiles, accept, existing, uplo
       <span className="mb-1 block text-sm font-medium">{label}</span>
       <ul className="mb-2 space-y-1">
         {items.map((i, idx) => (
-          <li key={i.kind === 'existing' ? i.id : i.kind === 'staged' ? i.path : i.key} className="flex items-center justify-between rounded border bg-white px-2 py-1 text-sm">
+          <li key={i.kind === 'existing' ? i.id : i.kind === 'staged' ? i.path : i.key} className="flex items-center justify-between rounded border bg-surface px-2 py-1 text-sm">
             <span className="truncate">
               {i.kind === 'existing' && i.url ? (
                 <a href={i.url} target="_blank" rel="noreferrer" className="underline">{i.name}</a>
               ) : (
                 i.name
               )}
-              {i.kind === 'uploading' ? <span className="ml-2 text-neutral-500">uploading…</span> : null}
+              {i.kind === 'uploading' ? <span className="ml-2 text-fg-muted">uploading…</span> : null}
             </span>
             {!disabled && i.kind !== 'uploading' ? (
-              <button type="button" className="ml-2 text-xs text-red-700 underline" onClick={() => setItems((cur) => cur.filter((_, j) => j !== idx))}>
+              <button type="button" className="ml-2 text-xs text-status-red-fg underline" onClick={() => setItems((cur) => cur.filter((_, j) => j !== idx))}>
                 Remove
               </button>
             ) : null}
@@ -107,12 +107,12 @@ export function FileField({ name, label, multi, maxFiles, accept, existing, uplo
             void onPick(e.currentTarget.files);
             e.currentTarget.value = '';
           }}
-          className="block w-full text-sm file:mr-3 file:rounded file:border file:bg-neutral-50 file:px-3 file:py-2"
+          className="block w-full text-sm file:mr-3 file:rounded file:border file:bg-surface-2 file:px-3 file:py-2"
         />
       ) : null}
       <input type="hidden" name={`file.${name}`} value={value} />
       {busy ? <input type="hidden" name="__uploading" value="1" /> : null}
-      {problem || error ? <p className="mt-1 text-sm text-red-700">{problem ?? error}</p> : null}
+      {problem || error ? <p className="mt-1 text-sm text-status-red-fg">{problem ?? error}</p> : null}
     </div>
   );
 }

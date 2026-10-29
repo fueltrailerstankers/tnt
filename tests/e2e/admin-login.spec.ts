@@ -33,7 +33,8 @@ test('admin signs in, sees /admin with 7 forms, and can sign out', async ({ page
   await page.reload();
   await expect(page.getByTestId('forms-count')).toHaveText('7');
 
-  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: /^User menu/ }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/admin');
   await expect(page).toHaveURL(/\/login/);

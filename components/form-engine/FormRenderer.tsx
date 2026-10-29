@@ -77,19 +77,19 @@ export function FormRenderer(props: FormRendererProps) {
       {multiPage ? (
         <ol className="flex gap-2 text-xs" aria-label="Progress">
           {allPages.map((p) => (
-            <li key={p.index} className={`rounded-full px-3 py-1 ${p.index === page ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'}`}>
+            <li key={p.index} className={`rounded-full px-3 py-1 ${p.index === page ? 'bg-accent text-accent-fg' : 'bg-surface-2 text-fg-muted'}`}>
               {p.title ?? `Page ${p.index + 1}`}
             </li>
           ))}
         </ol>
       ) : null}
       {state.message ? (
-        <p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-800">{state.message}</p>
+        <p role="alert" className="rounded bg-status-red-bg p-3 text-sm text-status-red-fg">{state.message}</p>
       ) : null}
 
       {allPages.map((p) => (
         <fieldset key={p.index} hidden={p.index !== page} disabled={readOnly} className="space-y-3">
-          {p.title && multiPage ? <legend className="mb-2 text-lg font-semibold">{p.title}</legend> : null}
+          {p.title && multiPage ? <legend className="mb-2 text-h2">{p.title}</legend> : null}
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-24">
             {p.rows.flatMap((r) =>
               r.cells.map((c, i) => (
@@ -101,17 +101,17 @@ export function FormRenderer(props: FormRendererProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             {p.backButton ? (
-              <button type="button" className="rounded border px-4 py-2" onClick={() => setPage((x) => Math.max(0, x - 1))}>
+              <button type="button" className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-4 py-2" onClick={() => setPage((x) => Math.max(0, x - 1))}>
                 {p.backButton}
               </button>
             ) : null}
             {p.index < allPages.length - 1 ? (
-              <button type="button" className="rounded bg-neutral-900 px-4 py-2 text-white" onClick={() => { setPage((x) => x + 1); top.current?.scrollIntoView(); }}>
+              <button type="button" className="rounded-pill bg-accent px-5 py-2.5 font-semibold text-accent-fg" onClick={() => { setPage((x) => x + 1); top.current?.scrollIntoView(); }}>
                 {p.nextButton}
               </button>
             ) : (
               props.actions.map((a) => (
-                <button key={a.name} type="submit" name="__action" value={a.name} disabled={pending} className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-60">
+                <button key={a.name} type="submit" name="__action" value={a.name} disabled={pending} className="rounded-pill bg-accent px-5 py-2.5 font-semibold text-accent-fg disabled:opacity-60">
                   {pending ? 'Saving…' : a.label}
                 </button>
               ))
@@ -132,7 +132,7 @@ type ViewProps = FormRendererProps & {
 };
 
 const inputCls = (err?: string) =>
-  `w-full rounded border px-3 py-2 text-base md:text-sm bg-white disabled:bg-neutral-100 ${err ? 'border-red-500' : 'border-neutral-300'}`;
+  `w-full rounded border px-3 py-2 text-base md:text-sm bg-surface disabled:bg-surface-2 ${err ? 'border-danger' : 'border-border-strong'}`;
 
 function Label({ htmlFor, text, hidden }: { htmlFor: string; text: string; hidden?: boolean }) {
   return (
@@ -143,12 +143,12 @@ function Label({ htmlFor, text, hidden }: { htmlFor: string; text: string; hidde
 }
 
 function ErrorText({ msg, id }: { msg?: string; id: string }) {
-  return msg ? <p id={id} className="mt-1 text-sm text-red-700">{msg}</p> : null;
+  return msg ? <p id={id} className="mt-1 text-sm text-status-red-fg">{msg}</p> : null;
 }
 
 export function ContentView({ blocks, scroll }: { blocks: Block[]; scroll: boolean }) {
   return (
-    <div className={`rounded border border-neutral-300 bg-neutral-50 p-3 text-sm leading-relaxed ${scroll ? 'max-h-80 overflow-y-auto' : ''}`} tabIndex={scroll ? 0 : undefined}>
+    <div className={`rounded border border-border-strong bg-surface-2 p-3 text-sm leading-relaxed ${scroll ? 'max-h-80 overflow-y-auto' : ''}`} tabIndex={scroll ? 0 : undefined}>
       {blocks.map((b, i) => (
         <p key={i} className="mb-2 last:mb-0">
           {b.spans.map((s, j) => (s.bold ? <strong key={j}>{s.text}</strong> : <span key={j}>{s.text}</span>))}
@@ -250,7 +250,7 @@ function FieldView(p: ViewProps) {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {f.parts.map((part) => (
               <div key={part} className={f.type === 'address' && part.startsWith('Line') ? 'sm:col-span-2' : ''}>
-                <label htmlFor={`${id}-${part}`} className="text-xs text-neutral-600">{partLabel[part] ?? part}</label>
+                <label htmlFor={`${id}-${part}`} className="text-xs text-fg-muted">{partLabel[part] ?? part}</label>
                 <input id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)} />
               </div>
             ))}
@@ -265,16 +265,16 @@ function FieldView(p: ViewProps) {
       return (
         <div aria-live="polite">
           <span className="mb-1 block text-sm font-medium">Customer details</span>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded border border-neutral-300 bg-neutral-50 p-3 text-sm" data-testid="customer-panel">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded border border-border-strong bg-surface-2 p-3 text-sm" data-testid="customer-panel">
             {p.panel.length ? (
               p.panel.map(([k, val]) => (
                 <div key={k} className="contents">
-                  <dt className="text-neutral-600">{k}</dt>
+                  <dt className="text-fg-muted">{k}</dt>
                   <dd>{val || '-'}</dd>
                 </div>
               ))
             ) : (
-              <dd className="col-span-2 text-neutral-600">Choose a quote no to show the customer.</dd>
+              <dd className="col-span-2 text-fg-muted">Choose a quote no to show the customer.</dd>
             )}
           </dl>
         </div>
@@ -347,7 +347,7 @@ function LookupView(p: ViewProps & { id: string; name: string; label: string; er
         </button>
       </div>
       <input type="hidden" name={`f.${p.name}`} value={value} />
-      {msg ? <p className="mt-1 text-sm text-neutral-700">{msg}</p> : null}
+      {msg ? <p className="mt-1 text-sm text-fg-muted">{msg}</p> : null}
       <ErrorText msg={p.err} id={`${p.id}-err`} />
     </div>
   );
@@ -360,7 +360,7 @@ function ChecklistView({ spec, rows, label }: { spec: FormSpec; rows: ChecklistR
       {(spec.checklist ?? []).map((item) => {
         const r = rows.find((x) => x.itemNo === item.itemNo);
         return (
-          <div key={item.itemNo} className="rounded border border-neutral-300 bg-white p-3">
+          <div key={item.itemNo} className="rounded border border-border-strong bg-surface p-3">
             <p className="mb-2 text-sm font-medium">{item.label}</p>
             <div className="mb-2 grid grid-cols-2 gap-2">
               <label className="flex items-center gap-2 text-sm">
@@ -370,7 +370,7 @@ function ChecklistView({ spec, rows, label }: { spec: FormSpec; rows: ChecklistR
                 <input type="checkbox" name={`cl.${item.itemNo}.pass`} defaultChecked={r?.pass} className="h-5 w-5" /> Pass
               </label>
             </div>
-            <label htmlFor={`cl-${item.itemNo}-c`} className="text-xs text-neutral-600">Comments</label>
+            <label htmlFor={`cl-${item.itemNo}-c`} className="text-xs text-fg-muted">Comments</label>
             <textarea id={`cl-${item.itemNo}-c`} name={`cl.${item.itemNo}.comments`} rows={2} defaultValue={r?.comments ?? ''} className={inputCls()} />
           </div>
         );

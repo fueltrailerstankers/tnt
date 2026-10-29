@@ -15,11 +15,11 @@ export default async function Thanks({ params, searchParams }: { params: Promise
   // The message always comes from the spec, never from the URL.
   const message = (form && a ? findAction(form.spec, a)?.confirmation : undefined) ?? DEFAULT;
   return (
-    <div className="space-y-4 rounded border bg-white p-6" role="status">
+    <div className="space-y-4 rounded border bg-surface p-6" role="status">
       <h1 className="text-xl font-semibold">{form?.spec.name ?? 'Thank you'}</h1>
       <p>{message}</p>
       {form?.isActive ? (
-        <Link href={`/f/${slug}`} className="inline-block rounded border px-4 py-2">
+        <Link href={`/f/${slug}`} className="inline-block rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-4 py-2">
           Fill in another
         </Link>
       ) : null}

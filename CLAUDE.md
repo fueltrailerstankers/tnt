@@ -38,3 +38,13 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Role-link tokens are stored as sha256 hex in `entry_links.token`. Internal roles never use bearer links; they go to `/admin`.
 - Generated PDFs are immutable versions in the `documents` bucket with sha256; the Delivery Note PDF is the signed customer record.
 - Legal text: edit the kit's `content/*.md`, then `pnpm build:content`.
+
+## Repo notes (UI handoff, step 1)
+- Design handoff: `tt-platform-handoff` (HANDOFF.md, `styles/`, `design/*.dc.html`). Staff routes keep the `/admin` prefix; handoff `/x` maps to `/admin/x` (quotes/invoices are `/admin/xero/*`, deals are `/admin/deal-files`).
+- Tokens live in `app/globals.css` (`:root`, `[data-theme="dark"]`, OS dark fallback) and are mapped to Tailwind names in its `@theme inline` block (`bg-surface`, `text-fg-muted`, `bg-accent text-accent-fg`, `bg-status-red-bg`, `rounded-pill`, `shadow-card`, `text-h1`...). Never hard-code hex or Tailwind palette colours (`neutral-*`, `red-*`) in components. `tests/unit/contrast.test.ts` checks AA on token pairs.
+- Text on orange is `text-accent-fg` (near-black), never white. Orange as text is `text-accent-text`.
+- Theme: `ThemeToggle` sets `data-theme` on `<html>` and stores it in localStorage (`tt-theme`); an inline script in `app/layout.tsx` applies it before paint. No stored value follows the OS.
+- Shell: `components/shell/AppShell.tsx` (server: nav, badges, Xero status) renders `ShellFrame` (client: desktop sidebar + top bar at >= 1024px, phone top bar + drawer + bottom tabs below). Nav is `NAV` in `lib/ui/nav.ts`; set `built: true` when a page exists so no dead links show.
+- Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
+- Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
+- e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.

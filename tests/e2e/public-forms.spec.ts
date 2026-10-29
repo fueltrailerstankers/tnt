@@ -148,7 +148,7 @@ test('DEAL: defaults, multi-choice, POP upload, manual Total; encrypted at rest;
   expect(await sql(`select 1 from email_log l join entries e on e.id = l.entry_id where e.summary = 'QTEST-5005'`)).toHaveLength(0);
 
   await signIn(page, `/admin/forms/deal/entries/${e.number}`);
-  await expect(page.getByLabel('QUOTE NO')).toHaveValue('QTEST-5005'); // decrypted for staff
+  await expect(page.getByRole('main').getByLabel('QUOTE NO')).toHaveValue('QTEST-5005'); // decrypted for staff
   await expect(page.getByLabel('CPT')).toBeChecked();
   for (const t of [1, 3, 4]) {
     const res = await page.request.get(`/admin/forms/deal/entries/${e.number}/documents/${t}`);

@@ -31,19 +31,19 @@ export default async function Quotes({ searchParams }: { searchParams: Promise<R
 
   return (
     <section className="space-y-4">
-      <p className="text-xs text-neutral-600"><Link href="/admin/integrations/xero" className="underline">Xero</Link> / Quotes</p>
-      <h1 className="text-2xl font-semibold">Quotes</h1>
-      <p className="text-sm text-neutral-600">{count ?? 0} quotes mirrored from Xero (read only).</p>
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-lg border bg-white p-3 text-sm">
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Search</span>
-          <input name="q" defaultValue={q ?? ''} placeholder="Quote no, customer or reference" className="rounded border px-2 py-1" /></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Status</span>
-          <select name="status" defaultValue={status ?? ''} className="rounded border px-2 py-1"><option value="">All</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
-        <button className="rounded bg-neutral-900 px-3 py-1 text-white">Apply</button>
+      <p className="text-xs text-fg-muted"><Link href="/admin/integrations/xero" className="underline">Xero</Link> / Quotes</p>
+      <h1 className="text-h1">Quotes</h1>
+      <p className="text-sm text-fg-muted">{count ?? 0} quotes mirrored from Xero (read only).</p>
+      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface shadow-card p-3 text-sm">
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Search</span>
+          <input name="q" defaultValue={q ?? ''} placeholder="Quote no, customer or reference" className="rounded-sm border px-2 py-1" /></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Status</span>
+          <select name="status" defaultValue={status ?? ''} className="rounded-sm border px-2 py-1"><option value="">All</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Apply</button>
       </form>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-100 text-left"><tr><th className="p-2">Quote</th><th className="p-2">Date</th><th className="p-2">Customer</th><th className="p-2">Reference</th><th className="p-2">Status</th><th className="p-2 text-right">Total</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted"><tr><th className="p-2">Quote</th><th className="p-2">Date</th><th className="p-2">Customer</th><th className="p-2">Reference</th><th className="p-2">Status</th><th className="p-2 text-right">Total</th></tr></thead>
           <tbody>
             {(data ?? []).map((r) => (
               <tr key={r.quote_id} className="border-t">
@@ -55,7 +55,7 @@ export default async function Quotes({ searchParams }: { searchParams: Promise<R
                 <td className="p-2 text-right tabular-nums">{formatMoney(r.total, r.currency_code)}</td>
               </tr>
             ))}
-            {!data?.length ? <tr><td colSpan={6} className="p-6 text-center text-neutral-600">No quotes.</td></tr> : null}
+            {!data?.length ? <tr><td colSpan={6} className="p-6 text-center text-fg-muted">No quotes.</td></tr> : null}
           </tbody>
         </table>
       </div>

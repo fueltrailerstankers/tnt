@@ -27,7 +27,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold">{spec.name}</h1>
+      <h1 className="mb-4 text-h1">{spec.name}</h1>
       <FormRenderer
         spec={spec}
         initial={defaultData(spec)}

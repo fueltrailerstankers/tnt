@@ -45,17 +45,17 @@ export default async function DealFilePage({ params }: { params: Promise<{ quote
 
   return (
     <section className="max-w-4xl space-y-4">
-      <p className="text-xs text-neutral-600"><Link href="/admin/deal-files" className="underline">Deal files</Link> / {file.quote_no}</p>
-      <h1 className="text-2xl font-semibold">Deal file {file.quote_no}</h1>
-      <dl className="grid grid-cols-2 gap-3 rounded-lg border bg-white p-4 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-neutral-600">Customer</dt><dd>{file.customer_name ?? '-'}</dd></div>
-        <div><dt className="text-xs text-neutral-600">VIN</dt><dd className="break-all font-mono text-xs">{file.vin ?? '-'}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Branch</dt><dd>{file.branch ?? '-'}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Rep</dt><dd>{file.rep ?? '-'}</dd></div>
+      <p className="text-xs text-fg-muted"><Link href="/admin/deal-files" className="underline">Deal files</Link> / {file.quote_no}</p>
+      <h1 className="text-h1">Deal file {file.quote_no}</h1>
+      <dl className="grid grid-cols-2 gap-3 rounded-md border bg-surface shadow-card p-4 text-sm sm:grid-cols-4">
+        <div><dt className="text-xs text-fg-muted">Customer</dt><dd>{file.customer_name ?? '-'}</dd></div>
+        <div><dt className="text-xs text-fg-muted">VIN</dt><dd className="break-all font-mono text-xs">{file.vin ?? '-'}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Branch</dt><dd>{file.branch ?? '-'}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Rep</dt><dd>{file.rep ?? '-'}</dd></div>
       </dl>
 
       <ol className="space-y-3" data-testid="deal-timeline">
-        <li className="rounded-lg border bg-white p-4 text-sm">
+        <li className="rounded-md border bg-surface shadow-card p-4 text-sm">
           <h2 className="mb-1 font-semibold">Xero quote</h2>
           {quote ? (
             <p className="flex flex-wrap gap-x-4 gap-y-1">
@@ -63,15 +63,15 @@ export default async function DealFilePage({ params }: { params: Promise<{ quote
               <span>{quote.status}</span>
               <span className="tabular-nums">{formatMoney(quote.total, quote.currency_code)}</span>
             </p>
-          ) : <p className="text-neutral-600">Not yet</p>}
+          ) : <p className="text-fg-muted">Not yet</p>}
         </li>
 
-        <li className="rounded-lg border bg-white p-4 text-sm">
+        <li className="rounded-md border bg-surface shadow-card p-4 text-sm">
           <h2 className="mb-1 font-semibold">Invoices</h2>
           {invoices.length ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="text-left text-xs text-neutral-600"><tr><th className="py-1 pr-2">Invoice</th><th className="py-1 pr-2">Status</th><th className="py-1 pr-2 text-right">Total</th><th className="py-1 text-right">Amount due</th></tr></thead>
+                <thead className="text-left text-xs text-fg-muted"><tr><th className="py-1 pr-2">Invoice</th><th className="py-1 pr-2">Status</th><th className="py-1 pr-2 text-right">Total</th><th className="py-1 text-right">Amount due</th></tr></thead>
                 <tbody>
                   {invoices.map((i) => (
                     <tr key={i.invoice_id} className="border-t">
@@ -84,24 +84,24 @@ export default async function DealFilePage({ params }: { params: Promise<{ quote
                 </tbody>
               </table>
             </div>
-          ) : <p className="text-neutral-600">Not yet</p>}
+          ) : <p className="text-fg-muted">Not yet</p>}
         </li>
 
         {timeline.map((s) => (
-          <li key={s.key} className="rounded-lg border bg-white p-4 text-sm" data-testid={`stage-${s.key}`}>
+          <li key={s.key} className="rounded-md border bg-surface shadow-card p-4 text-sm" data-testid={`stage-${s.key}`}>
             <h2 className="mb-1 font-semibold">{s.label}</h2>
             {s.entry ? (
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <Link href={s.entry.href} className="underline">#{s.entry.number}{s.entry.summary ? ` · ${s.entry.summary}` : ''}</Link>
                 <span>{s.entry.status}</span>
-                <span className="text-neutral-600">Created {formatDateTime(s.entry.createdAt, tz)}</span>
-                <span className="text-neutral-600">Updated {formatDateTime(s.entry.updatedAt, tz)}</span>
+                <span className="text-fg-muted">Created {formatDateTime(s.entry.createdAt, tz)}</span>
+                <span className="text-fg-muted">Updated {formatDateTime(s.entry.updatedAt, tz)}</span>
               </div>
-            ) : <p className="text-neutral-600">Not yet</p>}
+            ) : <p className="text-fg-muted">Not yet</p>}
           </li>
         ))}
       </ol>
-      <p className="text-xs text-neutral-600">Last linked {formatDateTime(file.updated_at, tz)}. Xero data is a read-only mirror.</p>
+      <p className="text-xs text-fg-muted">Last linked {formatDateTime(file.updated_at, tz)}. Xero data is a read-only mirror.</p>
     </section>
   );
 }

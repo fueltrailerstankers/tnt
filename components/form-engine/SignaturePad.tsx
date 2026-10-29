@@ -45,7 +45,7 @@ export function SignaturePad({ name, label, existing, error, disabled }: Props) 
         {!disabled && mode === 'draw' ? (
           <button
             type="button"
-            className="text-xs text-neutral-600 underline"
+            className="text-xs text-fg-muted underline"
             onClick={() => {
               const c = canvas.current!;
               c.getContext('2d')!.clearRect(0, 0, c.width, c.height);
@@ -56,18 +56,18 @@ export function SignaturePad({ name, label, existing, error, disabled }: Props) 
           </button>
         ) : null}
         {!disabled && mode === 'existing' ? (
-          <button type="button" className="text-xs text-neutral-600 underline" onClick={() => { setMode('draw'); setValue(''); }}>
+          <button type="button" className="text-xs text-fg-muted underline" onClick={() => { setMode('draw'); setValue(''); }}>
             Sign again
           </button>
         ) : null}
       </div>
       {mode === 'existing' ? (
-        <div className="flex h-32 items-center justify-center rounded border bg-white">
+        <div className="flex h-32 items-center justify-center rounded border bg-surface">
           {existing?.url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={existing.url} alt={`${label} (signed)`} className="max-h-28" />
           ) : (
-            <span className="text-sm text-neutral-600">Signed</span>
+            <span className="text-sm text-fg-muted">Signed</span>
           )}
         </div>
       ) : (
@@ -75,7 +75,7 @@ export function SignaturePad({ name, label, existing, error, disabled }: Props) 
           ref={canvas}
           aria-label={`${label}: draw your signature`}
           data-testid={`sig-${name}`}
-          className={`h-32 w-full touch-none rounded border bg-white ${error ? 'border-red-500' : ''}`}
+          className={`h-32 w-full touch-none rounded border bg-surface ${error ? 'border-danger' : ''}`}
           onPointerDown={(e) => {
             if (disabled) return;
             drawing.current = true;
@@ -102,7 +102,7 @@ export function SignaturePad({ name, label, existing, error, disabled }: Props) 
         />
       )}
       <input type="hidden" name={`sig.${name}`} value={value} />
-      {error ? <p className="mt-1 text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="mt-1 text-sm text-status-red-fg">{error}</p> : null}
     </div>
   );
 }

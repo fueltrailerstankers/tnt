@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { StatusChip } from '@/components/admin/StatusChip';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { formatDateTime } from '@/lib/admin/grid';
 import { loadForms } from '@/lib/forms/forms';
 import { loadOrg } from '@/lib/forms/org';
@@ -28,12 +28,12 @@ export default async function Tasks() {
 
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Tasks</h1>
-      <p className="text-sm text-neutral-600">{total} entr{total === 1 ? 'y waits' : 'ies wait'} on staff, oldest first.</p>
+      <h1 className="text-h1">Tasks</h1>
+      <p className="text-sm text-fg-muted">{total} entr{total === 1 ? 'y waits' : 'ies wait'} on staff, oldest first.</p>
       {open.map(({ form, statuses, rows }) => (
-        <div key={form.id} className="rounded-lg border bg-white" data-testid={`tasks-${form.slug}`}>
+        <div key={form.id} className="rounded-md border bg-surface shadow-card" data-testid={`tasks-${form.slug}`}>
           <h2 className="border-b p-3 font-semibold">
-            {form.spec.name} <span className="text-sm font-normal text-neutral-600">· {statuses.join(', ')}</span>
+            {form.spec.name} <span className="text-sm font-normal text-fg-muted">· {statuses.join(', ')}</span>
           </h2>
           {rows.length ? (
             <ul>
@@ -42,13 +42,13 @@ export default async function Tasks() {
                   <Link href={`/admin/forms/${form.slug}/entries/${e.number}`} className="underline">
                     #{e.number} {e.summary ?? ''}
                   </Link>
-                  <span className="flex items-center gap-2 text-xs text-neutral-600">
+                  <span className="flex items-center gap-2 text-xs text-fg-muted">
                     <StatusChip status={e.status} color={statusColor(form.spec, e.status)} /> since {formatDateTime(e.updated_at, org.timezone)}
                   </span>
                 </li>
               ))}
             </ul>
-          ) : <p className="p-3 text-sm text-neutral-600">Nothing waiting.</p>}
+          ) : <p className="p-3 text-sm text-fg-muted">Nothing waiting.</p>}
         </div>
       ))}
     </section>

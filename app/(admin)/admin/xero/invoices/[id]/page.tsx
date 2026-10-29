@@ -35,32 +35,32 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
 
   return (
     <section className="max-w-4xl space-y-4">
-      <p className="text-xs text-neutral-600"><Link href="/admin/xero/invoices" className="underline">Invoices</Link> / {title}</p>
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <dl className="grid grid-cols-2 gap-3 rounded-lg border bg-white p-4 text-sm sm:grid-cols-4">
-        <div><dt className="text-xs text-neutral-600">{inv.invoice_type === 'ACCPAY' ? 'Supplier' : 'Customer'}</dt><dd>{inv.contact_name}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Status</dt><dd>{inv.status}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Type</dt><dd>{inv.invoice_type === 'ACCPAY' ? 'Bill (ACCPAY)' : inv.invoice_type === 'ACCREC' ? 'Sales (ACCREC)' : inv.invoice_type}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Reference</dt><dd className="break-words">{inv.reference}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Date</dt><dd>{inv.invoice_date}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Due</dt><dd>{inv.due_date}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Fully paid on</dt><dd>{inv.fully_paid_on ?? '-'}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Currency</dt><dd>{cur}</dd></div>
+      <p className="text-xs text-fg-muted"><Link href="/admin/xero/invoices" className="underline">Invoices</Link> / {title}</p>
+      <h1 className="text-h1">{title}</h1>
+      <dl className="grid grid-cols-2 gap-3 rounded-md border bg-surface shadow-card p-4 text-sm sm:grid-cols-4">
+        <div><dt className="text-xs text-fg-muted">{inv.invoice_type === 'ACCPAY' ? 'Supplier' : 'Customer'}</dt><dd>{inv.contact_name}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Status</dt><dd>{inv.status}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Type</dt><dd>{inv.invoice_type === 'ACCPAY' ? 'Bill (ACCPAY)' : inv.invoice_type === 'ACCREC' ? 'Sales (ACCREC)' : inv.invoice_type}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Reference</dt><dd className="break-words">{inv.reference}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Date</dt><dd>{inv.invoice_date}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Due</dt><dd>{inv.due_date}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Fully paid on</dt><dd>{inv.fully_paid_on ?? '-'}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Currency</dt><dd>{cur}</dd></div>
       </dl>
-      <dl className="grid grid-cols-2 gap-3 rounded-lg border bg-white p-4 text-sm sm:grid-cols-3" data-testid="invoice-amounts">
-        <div><dt className="text-xs text-neutral-600">Subtotal</dt><dd className="tabular-nums">{formatMoney(inv.sub_total, cur)}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Tax</dt><dd className="tabular-nums">{formatMoney(inv.total_tax, cur)}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Total</dt><dd className="font-semibold tabular-nums">{formatMoney(inv.total, cur)}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Paid</dt><dd className="tabular-nums">{formatMoney(inv.amount_paid, cur)}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Credited</dt><dd className="tabular-nums">{formatMoney(inv.amount_credited, cur)}</dd></div>
-        <div><dt className="text-xs text-neutral-600">Amount due</dt><dd className="font-semibold tabular-nums">{formatMoney(inv.amount_due, cur)}</dd></div>
+      <dl className="grid grid-cols-2 gap-3 rounded-md border bg-surface shadow-card p-4 text-sm sm:grid-cols-3" data-testid="invoice-amounts">
+        <div><dt className="text-xs text-fg-muted">Subtotal</dt><dd className="tabular-nums">{formatMoney(inv.sub_total, cur)}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Tax</dt><dd className="tabular-nums">{formatMoney(inv.total_tax, cur)}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Total</dt><dd className="font-semibold tabular-nums">{formatMoney(inv.total, cur)}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Paid</dt><dd className="tabular-nums">{formatMoney(inv.amount_paid, cur)}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Credited</dt><dd className="tabular-nums">{formatMoney(inv.amount_credited, cur)}</dd></div>
+        <div><dt className="text-xs text-fg-muted">Amount due</dt><dd className="font-semibold tabular-nums">{formatMoney(inv.amount_due, cur)}</dd></div>
       </dl>
       {deal ? <p className="text-sm"><Link href={`/admin/deal-files/${encodeURIComponent(deal.quote_no)}`} className="underline">Open the deal file ({deal.quote_no})</Link></p> : null}
 
       <h2 className="font-semibold">Lines</h2>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-100 text-left"><tr><th className="p-2">#</th><th className="p-2">Item</th><th className="p-2">Description</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Unit</th><th className="p-2 text-right">Amount</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted"><tr><th className="p-2">#</th><th className="p-2">Item</th><th className="p-2">Description</th><th className="p-2 text-right">Qty</th><th className="p-2 text-right">Unit</th><th className="p-2 text-right">Amount</th></tr></thead>
           <tbody>
             {(lines ?? []).map((l) => (
               <tr key={l.line_no} className="border-t">
@@ -69,15 +69,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                 <td className="p-2 text-right tabular-nums whitespace-nowrap">{formatMoney(l.line_amount, cur)}</td>
               </tr>
             ))}
-            {!lines?.length ? <tr><td colSpan={6} className="p-4 text-center text-neutral-600">No lines.</td></tr> : null}
+            {!lines?.length ? <tr><td colSpan={6} className="p-4 text-center text-fg-muted">No lines.</td></tr> : null}
           </tbody>
         </table>
       </div>
 
       <h2 className="font-semibold">Payments</h2>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm" data-testid="invoice-payments">
-          <thead className="bg-neutral-100 text-left"><tr><th className="p-2">Date</th><th className="p-2">Type</th><th className="p-2">Reference</th><th className="p-2">Status</th><th className="p-2 text-right">Amount</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted"><tr><th className="p-2">Date</th><th className="p-2">Type</th><th className="p-2">Reference</th><th className="p-2">Status</th><th className="p-2 text-right">Amount</th></tr></thead>
           <tbody>
             {(payments ?? []).map((p) => (
               <tr key={p.payment_id} className="border-t">
@@ -85,15 +85,15 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                 <td className="p-2">{p.status}</td><td className="p-2 text-right tabular-nums whitespace-nowrap">{formatMoney(p.amount, p.currency_code ?? cur)}</td>
               </tr>
             ))}
-            {!payments?.length ? <tr><td colSpan={5} className="p-4 text-center text-neutral-600">No payments.</td></tr> : null}
+            {!payments?.length ? <tr><td colSpan={5} className="p-4 text-center text-fg-muted">No payments.</td></tr> : null}
           </tbody>
         </table>
       </div>
 
       <h2 className="font-semibold">Attachments</h2>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm" data-testid="invoice-attachments">
-          <thead className="bg-neutral-100 text-left"><tr><th className="p-2">File</th><th className="p-2">Type</th><th className="p-2 text-right">Size</th></tr></thead>
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted"><tr><th className="p-2">File</th><th className="p-2">Type</th><th className="p-2 text-right">Size</th></tr></thead>
           <tbody>
             {(files ?? []).map((f) => (
               <tr key={f.attachment_id} className="border-t">
@@ -101,14 +101,14 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               </tr>
             ))}
             {!files?.length ? (
-              <tr><td colSpan={3} className="p-4 text-center text-neutral-600">
+              <tr><td colSpan={3} className="p-4 text-center text-fg-muted">
                 {inv.has_attachments && !inv.attachments_synced_at ? 'Xero has attachments; their details are not synced yet.' : 'No attachments.'}
               </td></tr>
             ) : null}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-600">Attachment details only. Files stay in Xero.</p>
+      <p className="text-xs text-fg-muted">Attachment details only. Files stay in Xero.</p>
     </section>
   );
 }
