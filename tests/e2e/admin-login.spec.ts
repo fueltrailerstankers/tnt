@@ -39,10 +39,11 @@ test('admin signs in, sees /admin with 7 forms, and can sign out', async ({ page
   await expect(page).toHaveURL(/\/login/);
 });
 
-test('open-redirect attempts via next are ignored', async ({ page }) => {
+test('open-redirect attempts via next are ignored', async ({ page, baseURL }) => {
   await page.goto('/login?next=//evil.example');
   await page.getByLabel('Email').fill(EMAIL);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/127\.0\.0\.1:3100\/admin$/);
+  // Exactly our own origin (port from E2E_APP_PORT), never evil.example.
+  await expect(page).toHaveURL(`${baseURL}/admin`);
 });

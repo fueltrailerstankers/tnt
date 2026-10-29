@@ -140,6 +140,10 @@ function clause(key, raw, values, qual) {
     case 'like': sql = `${col}::text like ${p(arg.replaceAll('*', '%'))}`; break;
     case 'ilike': sql = `${col}::text ilike ${p(arg.replaceAll('*', '%'))}`; break;
     case 'in': sql = `${col}::text = any(${p(parseList(arg))}::text[])`; break;
+    case 'cs':
+      // Array containment only ({a,b}); cs on jsonb or ranges is not supported.
+      if (!/^\{.*\}$/.test(arg)) throw new HttpError(400, { message: `unsupported cs.${arg}` });
+      sql = `${col} @> ${p(arg === '{}' ? [] : parseList(arg.slice(1, -1)))}::text[]`; break;
     case 'is':
       if (!['null', 'true', 'false'].includes(arg)) throw new HttpError(400, { message: `unsupported is.${arg}` });
       sql = `${col} is ${arg}`; break;
@@ -232,7 +236,8 @@ async function rest(req, url, body) {
         // Like PostgREST: a scalar (non-set, non-composite) function returns the bare value.
         const kind = await c.query(`select p.proretset, t.typtype from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_type t on t.oid = p.prorettype where n.nspname = 'public' and p.proname = $1 limit 1`, [parts[1]]);
         const k = kind.rows[0];
-        if (k && !k.proretset && k.typtype !== 'c' && k.typtype !== 'p') return { status: 200, json: r.rows[0].j[0]?.[parts[1]] ?? null };
+        // json_agg over a scalar function aggregates the bare values ([true]), not {fn: value} objects.
+        if (k && !k.proretset && k.typtype !== 'c' && k.typtype !== 'p') return { status: 200, json: r.rows[0].j[0] ?? null };
         return { status: 200, json: r.rows[0].j };
       }
       const table = `public.${ident(parts[0])}`;
