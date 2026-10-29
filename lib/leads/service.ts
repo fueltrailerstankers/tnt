@@ -7,7 +7,7 @@ import {
   INVOICE_START_SETTING, invoiceStartFrom, matchChanged, matchColumns, matchLead, NO_MATCH,
   type ContactRow, type InvoiceRow, type LeadMatch, type QuoteRow,
 } from './matching';
-import { notifyClaimKey, NOTIFY_CLAIM_STALE_MS, pendingStages } from './intake';
+import { notifyClaimKey, NOTIFY_CLAIM_STALE_MS, pendingStages, stageAlreadyRecorded } from './intake';
 import { normEmail, normPhone } from './normalise';
 import { recipientsFor, routeLead, type RoutingRule } from './routing';
 import { leadEmail } from './notify';
@@ -48,7 +48,7 @@ type Db = SupabaseClient;
 
 async function event(db: Db, leadId: string, kind: string, actor: string | null, meta: Record<string, unknown> = {}, body?: string) {
   const { error } = await db.from('lead_events').insert({ lead_id: leadId, kind, actor, meta, ...(body ? { body } : {}) });
-  if (error) throw new Error(`could not record lead event ${kind}`);
+  if (error && !stageAlreadyRecorded(kind, error)) throw new Error(`could not record lead event ${kind}`);
 }
 
 /** Value for a PostgREST or=() filter, or null when it holds characters we never expect in a match key. */
@@ -60,8 +60,9 @@ async function duplicateOf(db: Db, orgId: string, lead: { id?: string; email_nor
     orValue(lead.phone_norm) ? `phone_norm.eq.${orValue(lead.phone_norm)}` : null,
   ].filter(Boolean);
   if (!parts.length) return null;
-  const { data } = await db.from('leads').select('id, email_norm, phone_norm, created_at, duplicate_of')
+  const { data, error } = await db.from('leads').select('id, email_norm, phone_norm, created_at, duplicate_of')
     .eq('org_id', orgId).or(parts.join(',')).order('created_at', { ascending: true }).limit(50);
+  if (error) throw new Error('could not read leads for duplicates');
   return findDuplicateOf(lead, (data ?? []) as DupCandidate[]);
 }
 
@@ -127,6 +128,15 @@ async function leadByExternalId(db: Db, orgId: string, source: string, externalI
  */
 async function notifyOnce(db: Db, orgId: string, lead: LeadRow, sourceName: string, eventKey: string): Promise<EmailOutcome> {
   const key = notifyClaimKey(lead.id);
+  // Recipients and the email are prepared before the claim, so a failed read never uses up the one-time send.
+  const { data: rcpt, error: rcptError } = await db.from('notification_recipients').select('event_key, address, active').eq('org_id', orgId).like('event_key', 'leads.*');
+  if (rcptError) throw new Error('could not read notification recipients');
+  const to = recipientsFor(eventKey, rcpt ?? []);
+  const built = leadEmail({
+    id: lead.id, source_form: lead.source_form, name: lead.name, email: lead.email, phone: lead.phone,
+    product: lead.product, message: lead.message, branch: lead.branch, duplicate_of: lead.duplicate_of,
+  }, sourceName, appEnv().APP_URL, to);
+
   const claim = await db.from('action_claims').insert({ org_id: orgId, action_key: key }).select('id');
   if (claim.error) {
     if (claim.error.code !== '23505' && !/duplicate/i.test(claim.error.message ?? '')) throw new Error('could not claim lead notification');
@@ -148,12 +158,6 @@ async function notifyOnce(db: Db, orgId: string, lead: LeadRow, sourceName: stri
     return status;
   }
 
-  const { data: rcpt } = await db.from('notification_recipients').select('event_key, address, active').eq('org_id', orgId).like('event_key', 'leads.*');
-  const to = recipientsFor(eventKey, rcpt ?? []);
-  const built = leadEmail({
-    id: lead.id, source_form: lead.source_form, name: lead.name, email: lead.email, phone: lead.phone,
-    product: lead.product, message: lead.message, branch: lead.branch, duplicate_of: lead.duplicate_of,
-  }, sourceName, appEnv().APP_URL, to);
   const status = await sendEmail(db, { ...built, entryId: null, leadId: lead.id, action: 'lead.new', eventKey, attachments: [] });
   await db.from('action_claims').update({ result: { status, recipients: to.length } }).eq('org_id', orgId).eq('action_key', key);
   await event(db, lead.id, 'emailed', null, { event_key: eventKey, recipients: to.length, status });
@@ -172,10 +176,11 @@ export async function createLead(db: Db, orgId: string, input: NewLead, opts: { 
   const email_norm = normEmail(input.email);
   const phone_norm = normPhone(input.phone);
 
-  const [{ data: rules }, { data: src }] = await Promise.all([
+  const [{ data: rules, error: rulesError }, { data: src }] = await Promise.all([
     db.from('routing_rules').select('id, name, priority, match_source, match_product, match_branch, assign_branch, notify_event_key, active, created_at').eq('org_id', orgId).eq('active', true),
     db.from('lead_sources').select('key, name, active').eq('org_id', orgId).eq('key', input.source).maybeSingle(),
   ]);
+  if (rulesError) throw new Error('could not read routing rules'); // never route by default on a failed read
   if (!src || !src.active) throw new Error('unknown or inactive lead source');
   const route = routeLead({ source: input.source, product: input.product ?? null, branch: input.branch ?? null }, (rules ?? []) as RoutingRule[]);
 

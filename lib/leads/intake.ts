@@ -31,10 +31,12 @@ export function declaredTooLarge(contentLength: string | null | undefined, max =
 }
 
 /**
- * What a post does when an integration_events row with the same key already exists:
+ * What a VALID post does when an integration_events row with the same key already exists (an invalid post is
+ * answered 400 before this and never touches the stored row):
  * - `replace`: the stored body never became a lead (it was invalid and `ignored`, or stored but never queued):
- *   accept the new body and queue it;
- * - `requeue`: processing failed; queue the stored event again (the lead service resumes where it stopped);
+ *   accept the new body (conditionally on that status) and queue it;
+ * - `requeue`: processing failed; claim the row (failed -> queued) and queue the stored event again (the lead
+ *   service resumes where it stopped);
  * - `duplicate`: already queued or processed, nothing to do.
  */
 export type PriorEventAction = 'replace' | 'requeue' | 'duplicate';
@@ -46,6 +48,18 @@ export function priorEventAction(status: string): PriorEventAction {
 
 /** Lead intake stages recorded in lead_events. */
 export type LeadStage = 'created' | 'duplicate' | 'routed' | 'matched' | 'emailed';
+
+/**
+ * Stages recorded at most once per lead (unique index lead_events_once, migration 0012). When two intake jobs
+ * for the same lead race, the loser's insert fails with 23505 and the stage counts as done. `matched` is not
+ * one of them: it is logged again whenever the Xero match changes.
+ */
+export const ONCE_STAGES: ReadonlySet<string> = new Set<LeadStage>(['created', 'duplicate', 'routed', 'emailed']);
+
+/** True when a failed lead_events insert means another job already recorded this one-time stage. */
+export function stageAlreadyRecorded(kind: string, error: { code?: string } | null | undefined): boolean {
+  return ONCE_STAGES.has(kind) && error?.code === '23505';
+}
 
 /**
  * Which stages still need to run for a lead, given the lead_events kinds it already has. A retry after a

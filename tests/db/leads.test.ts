@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 import { as, connect } from './helpers';
@@ -113,6 +115,35 @@ describe('integrity', () => {
     expect(e.rows[0].org_id).toBe(ORG_A);
     const m = await db.query(`insert into public.email_log(lead_id, org_id, to_addresses, subject, status) values ($1,$2,array['sales@example.invalid'],'New lead','skipped') returning org_id`, [leadA, ORG_D]);
     expect(m.rows[0].org_id).toBe(ORG_A);
+  });
+
+  it('0012: one-time intake events are recorded once per lead; matched and staff events repeat', async () => {
+    const lead = (await db.query(`insert into public.leads(org_id, source, external_id) values ($1,'test','db-once-1') returning id`, [ORG_A])).rows[0].id;
+    for (const kind of ['created', 'duplicate', 'routed', 'emailed']) {
+      await db.query(`insert into public.lead_events(lead_id, kind) values ($1,$2)`, [lead, kind]);
+      await expect(db.query(`insert into public.lead_events(lead_id, kind) values ($1,$2)`, [lead, kind])).rejects.toMatchObject({ code: '23505' });
+    }
+    for (const kind of ['matched', 'status', 'assigned', 'note']) {
+      await db.query(`insert into public.lead_events(lead_id, kind) values ($1,$2), ($1,$2)`, [lead, kind]);
+    }
+    expect(await count(`select count(*) as n from public.lead_events where lead_id = $1`, [lead])).toBe(12);
+  });
+
+  it('0012 stops with a clear message and deletes nothing when a lead already has a repeated one-time event', async () => {
+    const migration = readFileSync(path.resolve(__dirname, '../../supabase/migrations/0012_lead_events_once.sql'), 'utf8');
+    await db.query('begin');
+    try {
+      await db.query('drop index public.lead_events_once'); // as before 0012
+      await db.query(`insert into public.lead_events(lead_id, kind) values ($1,'routed'), ($1,'routed')`, [leadA]);
+      const before = await count(`select count(*) as n from public.lead_events`);
+      await db.query('savepoint again');
+      await expect(db.query(migration)).rejects.toThrow(/0012_lead_events_once: 1 lead\/kind pair\(s\) already have a repeated/);
+      await db.query('rollback to savepoint again');
+      expect(await count(`select count(*) as n from public.lead_events`)).toBe(before);
+    } finally {
+      await db.query('rollback');
+    }
+    expect(await count(`select count(*) as n from pg_indexes where indexname = 'lead_events_once'`)).toBe(1);
   });
 
   it('the source id is unique per org and source; manual leads without one are not', async () => {
