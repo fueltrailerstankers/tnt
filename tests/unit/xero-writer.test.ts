@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const { Claim, ClaimHeld, executePlan, WriterRefused, XeroWriteError, XeroWriter } = await import('@/lib/integrations/xero/write/writer');
+const { ClaimHeld, executePlan, WriterRefused, XeroWriteError, XeroWriter } = await import('@/lib/integrations/xero/write/writer');
 type WriterDeps = ConstructorParameters<typeof XeroWriter>[0];
 import type { Plan } from '@/lib/integrations/xero/write/types';
+import type { Claim } from '@/lib/integrations/xero/write/writer';
 
 type Row = Record<string, unknown>;
 
@@ -100,7 +101,7 @@ describe('live', () => {
   it('refuses to send without a claimed key, with a forged claim, or with another request\'s claim', async () => {
     const w = writer('live');
     await expect(w.send(req, null)).rejects.toBeInstanceOf(WriterRefused);
-    const forged = { orgId: ORG, key: req.claimKey } as unknown as InstanceType<typeof Claim>;
+    const forged = { orgId: ORG, key: req.claimKey } as unknown as Claim;
     await expect(w.send(req, forged)).rejects.toBeInstanceOf(WriterRefused);
     const other = await w.claim('rfi.create_invoice:90001#other');
     if (!('claim' in other)) throw new Error('expected a claim');
