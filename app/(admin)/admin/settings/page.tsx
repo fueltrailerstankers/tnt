@@ -47,7 +47,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
 
       <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
         <h2 className="mb-2 font-semibold">Users and roles</h2>
-        <p className="mb-2 text-fg-muted">One admin for now. Roles (admin, staff, reviewer, inspector) are modelled; inviting users comes with access setup.</p>
+        <p className="mb-2 text-fg-muted">One admin for now. Roles (admin, staff, reviewer, inspector, factory) are modelled; inviting users comes with access setup.</p>
         <ul className="divide-y">
           {(members ?? []).map((m) => (
             <li key={m.user_id} className="flex justify-between py-2">
