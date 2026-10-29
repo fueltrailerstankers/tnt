@@ -34,7 +34,7 @@ beforeAll(async () => {
   entryA = e.rows[0].id;
   await db.query(`insert into public.entry_files(entry_id, field_key, storage_path, file_name) values ($1,'X','release-form/x/a.txt','a.txt')`, [entryA]);
   await db.query(`insert into public.entry_events(entry_id, action) values ($1,'Submit')`, [entryA]);
-  await db.query(`insert into public.entry_links(entry_id, role_name) values ($1,'Reviewer')`, [entryA]);
+  await db.query(`insert into public.entry_links(token, entry_id, role_name) values (repeat('a', 64), $1,'Reviewer')`, [entryA]);
   await db.query(`insert into public.entry_reads(entry_id, user_id) values ($1,$2)`, [entryA, ADMIN_A]);
   await db.query(`insert into public.email_log(entry_id, to_addresses, subject) values ($1, array['sales@example.invalid'], 'test')`, [entryA]);
   await db.query(`insert into public.entry_documents(entry_id, template_number, storage_path) values ($1, 1, 'release-form/x/doc.pdf')`, [entryA]);
