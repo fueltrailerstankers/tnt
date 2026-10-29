@@ -12,7 +12,8 @@
     "test:db": "vitest run --project db",
     "test:e2e": "playwright test",
     "create-admin": "tsx scripts/create-admin.ts",
-    "build:content": "tsx scripts/build-content.ts"
+    "build:content": "tsx scripts/build-content.ts",
+    "import:cognito": "tsx --conditions=react-server scripts/import-cognito.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

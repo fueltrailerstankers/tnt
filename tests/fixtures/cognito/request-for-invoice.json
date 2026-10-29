@@ -1,0 +1,123 @@
+[
+  {
+    "Id": "4-1",
+    "Form": {
+      "Id": "4",
+      "InternalName": "RequestForInvoice",
+      "Name": "Request For Invoice"
+    },
+    "QuoteNo": "QU-90001",
+    "DATE": "2026-01-05",
+    "SalesRep": "Fake Rep One",
+    "CostomerVatNo": "FAKE-VAT-0001",
+    "BusinessRegNo": null,
+    "CONTACTNO": "000 000 0001",
+    "Name": {
+      "First": "Testy",
+      "Last": "Fakeperson",
+      "FirstAndLast": "Testy Fakeperson",
+      "Middle": "Q",
+      "Prefix": null,
+      "Suffix": null
+    },
+    "IDNO": "FAKE-ID-0000000000001",
+    "Address": {
+      "Line1": "1 Example Street",
+      "Line2": null,
+      "City": "Testville",
+      "State": "Nowhere",
+      "PostalCode": "0000",
+      "Country": "Testland",
+      "FullAddress": "1 Example Street, Testville",
+      "Type": "International"
+    },
+    "_1stDeposit": [
+      {
+        "Id": "F-rfi1-a",
+        "Name": "fake-proof-of-payment.pdf",
+        "ContentType": "application/pdf",
+        "Size": 2048,
+        "File": "https://www.cognitoforms.com/file/F-rfi1-a"
+      }
+    ],
+    "_2ndDeposit": [
+      {
+        "Id": "F-rfi1-b",
+        "Name": "fake-second-deposit.jpg",
+        "ContentType": "image/jpeg",
+        "Size": 1024,
+        "File": "https://www.cognitoforms.com/file/F-rfi1-b"
+      }
+    ],
+    "_3rdDeposit": [],
+    "_4thPayment": null,
+    "Entry": {
+      "Number": 1,
+      "Status": "Submitted",
+      "DateCreated": "2026-01-05T08:00:00Z",
+      "DateSubmitted": "2026-01-05T08:01:00Z",
+      "DateUpdated": "2026-01-06T09:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/1",
+      "Version": 1
+    }
+  },
+  {
+    "Id": "4-2",
+    "Form": {
+      "Id": "4",
+      "InternalName": "RequestForInvoice",
+      "Name": "Request For Invoice"
+    },
+    "QuoteNo": "QU-90002",
+    "DATE": "1/7/2026",
+    "SalesRep": "Fake Rep Two",
+    "Name": {
+      "First": "Sample",
+      "Last": "Nobody"
+    },
+    "IDNO": "FAKE-ID-0000000000002",
+    "Address": null,
+    "_1stDeposit": [
+      {
+        "Id": "F-rfi2-a",
+        "Name": "fake-deposit-two.pdf",
+        "ContentType": "application/pdf",
+        "Size": 4096,
+        "File": "https://www.cognitoforms.com/file/F-rfi2-a"
+      }
+    ],
+    "LegacyVinAsOnUnit": "FAKEVIN-LEGACY-1",
+    "OldNotes": null,
+    "Entry": {
+      "Number": 2,
+      "Status": "submitted",
+      "DateCreated": "2026-01-07T10:00:00",
+      "DateSubmitted": "2026-01-07T10:05:00",
+      "DateUpdated": "2026-01-07T10:05:00",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/2",
+      "Version": 1
+    }
+  },
+  {
+    "Id": "4-3",
+    "Form": {
+      "Id": "4",
+      "InternalName": "RequestForInvoice",
+      "Name": "Request For Invoice"
+    },
+    "QuoteNo": "QU-90003",
+    "Name": {
+      "First": "Skipped",
+      "Last": "Fakestatus"
+    },
+    "Entry": {
+      "Number": 3,
+      "Status": "Archived Somehow",
+      "DateCreated": "2026-01-08T10:00:00Z",
+      "DateSubmitted": null,
+      "DateUpdated": "2026-01-08T10:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/3",
+      "Version": 1
+    }
+  }
+]
