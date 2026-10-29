@@ -106,6 +106,12 @@ test('admin connects Xero through the consent flow; tokens are stored encrypted'
 
 test('full sync mirrors the mock: counts, totals, ZAR kept; month check matches', async ({ page, request }) => {
   test.setTimeout(240_000);
+  // Other specs (leads, quote picker) seed synthetic mirror rows under their own tenant ids in the shared
+  // e2e database. Count only what this mock's sync wrote: drop rows from any other tenant first.
+  const [{ tenant_id: tenant }] = await sql<{ tenant_id: string }>(`select tenant_id from xero_connections where org_id = $1 and status = 'connected'`, [ORG]);
+  for (const t of ['xero_contacts', 'xero_quotes', 'xero_invoices', 'xero_payments']) await sql(`delete from ${t} where org_id = $1 and tenant_id <> $2`, [ORG, tenant]);
+  await sql(`delete from xero_quote_lines l where org_id = $1 and not exists (select 1 from xero_quotes q where q.org_id = l.org_id and q.quote_id = l.quote_id)`, [ORG]);
+  await sql(`delete from xero_invoice_lines l where org_id = $1 and not exists (select 1 from xero_invoices i where i.org_id = l.org_id and i.invoice_id = l.invoice_id)`, [ORG]);
   await fullSyncUntilDone(request);
 
   // What the mirror must hold: everything updated since the backfill start, plus open invoices and quotes
