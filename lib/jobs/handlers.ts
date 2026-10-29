@@ -2,9 +2,12 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { rebuildDealFiles } from '@/lib/deal-files/job';
 import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sync';
+import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
 
 export const HANDLERS: Record<string, Handler> = {
+  // M3 Xero actions ("xero.<action>"); each checks its mode (off / dry_run / live) itself.
+  ...XERO_ACTION_HANDLERS,
   // A webhook named a changed invoice/contact: fetch it, then refresh deal files once.
   'xero.fetch': async (db, job) => {
     const { entity, id, event_id } = job.payload as { entity: 'invoices' | 'contacts'; id: string; event_id?: string };

@@ -14,6 +14,7 @@ const ORG_READABLE = [
   'notification_recipients', 'app_settings', 'memberships', 'orgs',
   'xero_contacts', 'xero_quotes', 'xero_quote_lines', 'xero_invoices', 'xero_invoice_lines', 'xero_payments',
   'xero_attachments', 'xero_sync_state', 'deal_files',
+  'xero_action_runs', // M3: org admins only
 ];
 // Service-role-only tables: no client may read them at all.
 const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
@@ -56,6 +57,8 @@ beforeAll(async () => {
   await db.query(`insert into public.xero_attachments(org_id, attachment_id, parent_type, parent_id, raw) values ($1,'a1','Invoice','i1','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_sync_state(org_id, entity) values ($1,'invoices')`, [ORG_A]);
   await db.query(`insert into public.deal_files(org_id, quote_no, quote_id) values ($1,'90001','q1')`, [ORG_A]);
+  // M3 action run (redacted plan only).
+  await db.query(`insert into public.xero_action_runs(org_id, action, idempotency_key, mode, status) values ($1,'rfi.create_invoice','rfi.create_invoice:90001','dry_run','planned')`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });
