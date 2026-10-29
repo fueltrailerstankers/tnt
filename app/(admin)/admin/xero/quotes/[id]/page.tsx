@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatMoney } from '@/lib/admin/format';
+import { UUID_PARAM } from '@/lib/deal-files/timeline';
 import { requirePerm } from '@/lib/security/require';
 import { createClient } from '@/lib/supabase/server';
 
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const member = await requirePerm('xero.read');
   const { id } = await params;
+  if (!UUID_PARAM.test(id)) notFound();
   const db = await createClient();
   const { data: q } = await db.from('xero_quotes').select('quote_id, quote_number, quote_no, reference, status, contact_name, quote_date, expiry_date, currency_code, sub_total, total_tax, total, updated_utc').eq('org_id', member.orgId).eq('quote_id', id).maybeSingle();
   if (!q) notFound();
