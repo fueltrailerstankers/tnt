@@ -129,7 +129,7 @@ export default async function XeroHealth({ searchParams }: { searchParams: Promi
       ) : null}
 
       <p className="text-sm">
-        <Link href="/admin/xero/quotes" className="underline">Quotes</Link> · <Link href="/admin/xero/invoices" className="underline">Invoices</Link> · <Link href="/admin/deal-files" className="underline">Deal files</Link>
+        <Link href="/admin/xero/quotes" className="underline">Quotes</Link> · <Link href="/admin/xero/invoices" className="underline">Invoices</Link> · <Link href="/admin/deal-files" className="underline">Deal files</Link> · <Link href="/admin/integrations/xero/actions" className="underline">Xero actions</Link>
       </p>
     </section>
   );
