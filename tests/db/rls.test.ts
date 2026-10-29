@@ -15,6 +15,7 @@ const ORG_READABLE = [
   'xero_contacts', 'xero_quotes', 'xero_quote_lines', 'xero_invoices', 'xero_invoice_lines', 'xero_payments',
   'xero_attachments', 'xero_sync_state', 'deal_files',
   'lead_sources', 'routing_rules', 'leads', 'lead_events',
+  'xero_action_runs', // M3: org admins only
 ];
 // Service-role-only tables: no client may read them at all.
 const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
@@ -60,6 +61,8 @@ beforeAll(async () => {
   // Synthetic lead (M4); lead_sources and routing_rules are seeded by 0008 for the default org.
   const lead = await db.query(`insert into public.leads(org_id, source, name, email, email_norm) values ($1,'test','Test Lead','lead@example.invalid','lead@example.invalid') returning id`, [ORG_A]);
   await db.query(`insert into public.lead_events(lead_id, kind, meta) values ($1,'created','{}')`, [lead.rows[0].id]);
+  // M3 action run (redacted plan only).
+  await db.query(`insert into public.xero_action_runs(org_id, action, idempotency_key, mode, status) values ($1,'rfi.create_invoice','rfi.create_invoice:90001','dry_run','planned')`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });
