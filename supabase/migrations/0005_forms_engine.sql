@@ -75,6 +75,37 @@ revoke all on function public.form_overview() from public, anon;
 grant execute on function public.form_overview() to authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
+-- Entries grid: one page of a form's entries with filters, the caller's read state and the total.
+-- p_view: 'all' | 'unread' | 'status' (with p_status). p_q matches search_text (caller escapes % and _).
+-- Runs as the caller (RLS applies).
+-- ---------------------------------------------------------------------------
+create or replace function public.list_entries(
+  p_form uuid, p_view text default 'all', p_status text default null, p_q text default null,
+  p_from timestamptz default null, p_to timestamptz default null, p_limit int default 50, p_offset int default 0
+)
+returns table (id uuid, number int, status text, summary text, data jsonb, data_encrypted bytea,
+               created_at timestamptz, updated_at timestamptz, submitted_at timestamptz, is_read boolean, total bigint)
+language sql stable security invoker set search_path = public as $$
+  with base as (
+    select e.*, exists (select 1 from public.entry_reads r where r.entry_id = e.id and r.user_id = auth.uid()) as read
+    from public.entries e
+    where e.form_id = p_form
+      and (p_q is null or e.search_text like '%' || lower(p_q) || '%')
+      and (p_from is null or e.created_at >= p_from)
+      and (p_to is null or e.created_at < p_to)
+      and (p_view <> 'status' or e.status = p_status)
+  )
+  select b.id, b.number, b.status, b.summary, b.data, b.data_encrypted, b.created_at, b.updated_at, b.submitted_at,
+         b.read, count(*) over ()
+  from base b
+  where p_view <> 'unread' or (not b.read and b.status <> 'Incomplete')
+  order by b.number desc
+  limit least(greatest(p_limit, 1), 10000) offset greatest(p_offset, 0)
+$$;
+revoke all on function public.list_entries(uuid, text, text, text, timestamptz, timestamptz, int, int) from public, anon;
+grant execute on function public.list_entries(uuid, text, text, text, timestamptz, timestamptz, int, int) to authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
 -- Storage: per-object size limits on the private buckets (uploads go straight to Storage via signed URLs).
 -- ---------------------------------------------------------------------------
 update storage.buckets set file_size_limit = 20 * 1024 * 1024 where id = 'entry-files';

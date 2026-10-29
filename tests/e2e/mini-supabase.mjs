@@ -122,11 +122,11 @@ function parseList(v) {
   return out;
 }
 
-function where(params, values) {
+function where(params, values, qual = '') {
   const clauses = [];
   for (const [key, raw] of params) {
     if (RESERVED.has(key)) continue;
-    const col = column(key);
+    const col = qual + column(key);
     let v = raw, neg = false;
     if (v.startsWith('not.')) { neg = true; v = v.slice(4); }
     const dot = v.indexOf('.');
@@ -218,7 +218,7 @@ async function rest(req, url, body) {
       }
       const table = `public.${ident(parts[0])}`;
       const cols = selectList(url.searchParams.get('select'));
-      const filter = where(params, values);
+      const filter = req.method === 'PATCH' ? where(params, values, `${table}.`) : where(params, values);
 
       if (req.method === 'GET' || req.method === 'HEAD') {
         let limit = url.searchParams.get('limit');

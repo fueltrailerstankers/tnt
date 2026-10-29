@@ -86,3 +86,18 @@ describe('0005 forms engine', () => {
     ]);
   });
 });
+
+describe('list_entries', () => {
+  it('pages, searches and filters by read state as the caller', async () => {
+    const form = (await db.query(`select id from public.forms where slug = 'job-card' and org_id = $1`, [ORG_A])).rows[0].id;
+    const rows = await as(db, 'authenticated', STAFF_A, async () =>
+      (await db.query(`select number, is_read, total::int from public.list_entries($1, 'all', null, 'qtest-9001')`, [form])).rows);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].total).toBe(1);
+    const unread = await as(db, 'authenticated', STAFF_A, async () =>
+      (await db.query(`select id from public.list_entries($1, 'unread')`, [form])).rows.map((r) => r.id));
+    expect(unread).not.toContain(entry); // marked read in the form_overview test
+    const other = await as(db, 'authenticated', ADMIN_C, async () => (await db.query(`select * from public.list_entries($1)`, [form])).rows);
+    expect(other).toEqual([]);
+  });
+});

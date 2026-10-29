@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { signOut } from '../login/actions';
 import { can } from '@/lib/security/can';
 import { getMember } from '@/lib/security/require';
@@ -21,14 +22,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="flex items-center justify-between border-b bg-white px-4 py-3">
-        <span className="font-semibold">Trailers &amp; Tankers · Admin</span>
-        <form action={signOut}>
-          <button className="rounded border px-3 py-1 text-sm">Sign out</button>
-        </form>
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      <header className="border-b bg-white">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <nav aria-label="Main" className="flex flex-wrap items-center gap-4 text-sm">
+            <Link href="/admin" className="font-semibold">Trailers &amp; Tankers · Admin</Link>
+            <Link href="/admin" className="hover:underline">Home</Link>
+            {can(member, 'tasks.read') ? <Link href="/admin/tasks" className="hover:underline">Tasks</Link> : null}
+            {can(member, 'settings.manage') ? <Link href="/admin/settings" className="hover:underline">Settings</Link> : null}
+          </nav>
+          <form action={signOut}>
+            <button className="rounded border px-3 py-1 text-sm">Sign out</button>
+          </form>
+        </div>
       </header>
-      <div className="mx-auto max-w-5xl p-4">{children}</div>
+      <div className="mx-auto max-w-6xl p-4">{children}</div>
     </div>
   );
 }
