@@ -229,6 +229,26 @@ describe('createLead', () => {
     expect(again.duplicateOf).toBe(f.tables.leads[0].id);
   });
 
+  it('a failed read of the held claim throws instead of recording the email as unknown for good', async () => {
+    const f = fakeDb();
+    failSend = true;
+    await expect(createLead(f.db, ORG, input(), { actor: null, notify: true })).rejects.toThrow('mail transport crashed');
+    failSend = false;
+    f.tables.action_claims[0].claimed_at = new Date(Date.now() - 11 * 60_000).toISOString();
+
+    f.failOnce((t, op) => t === 'action_claims' && op === 'select');
+    await expect(createLead(f.db, ORG, input(), { actor: null, notify: true })).rejects.toThrow('could not read lead notification claim');
+    expect(f.tables.lead_events.filter((e) => e.kind === 'emailed')).toHaveLength(0);
+
+    f.failOnce((t, op) => t === 'email_log' && op === 'select');
+    await expect(createLead(f.db, ORG, input(), { actor: null, notify: true })).rejects.toThrow('could not read lead notification log');
+    expect(f.tables.lead_events.filter((e) => e.kind === 'emailed')).toHaveLength(0);
+
+    const r = await createLead(f.db, ORG, input(), { actor: null, notify: true });
+    expect(r.emailed).toBe('unknown');
+    expect(sends).toHaveLength(0);
+  });
+
   it('a failed recipients read throws without using up the one-time notification claim', async () => {
     const f = fakeDb();
     f.failOnce((t, op) => t === 'notification_recipients' && op === 'select');

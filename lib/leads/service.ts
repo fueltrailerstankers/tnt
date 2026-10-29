@@ -67,7 +67,9 @@ async function duplicateOf(db: Db, orgId: string, lead: { id?: string; email_nor
 }
 
 export async function invoiceStart(db: Db, orgId: string): Promise<string> {
-  const { data } = await db.from('app_settings').select('value').eq('org_id', orgId).eq('key', INVOICE_START_SETTING).maybeSingle();
+  const { data, error } = await db.from('app_settings').select('value').eq('org_id', orgId).eq('key', INVOICE_START_SETTING).maybeSingle();
+  // A failed read must not silently fall back to the default start date (it would change the match totals).
+  if (error) throw new Error('could not read the invoice match start date');
   return invoiceStartFrom(data?.value);
 }
 
@@ -140,12 +142,15 @@ async function notifyOnce(db: Db, orgId: string, lead: LeadRow, sourceName: stri
   const claim = await db.from('action_claims').insert({ org_id: orgId, action_key: key }).select('id');
   if (claim.error) {
     if (claim.error.code !== '23505' && !/duplicate/i.test(claim.error.message ?? '')) throw new Error('could not claim lead notification');
-    const { data: held } = await db.from('action_claims').select('result, claimed_at').eq('org_id', orgId).eq('action_key', key).maybeSingle();
+    // Read errors must not be mistaken for "nothing recorded": that would log the email as 'unknown' for good.
+    const { data: held, error: heldError } = await db.from('action_claims').select('result, claimed_at').eq('org_id', orgId).eq('action_key', key).maybeSingle();
+    if (heldError) throw new Error('could not read lead notification claim');
     const result = (held?.result ?? null) as { status?: EmailOutcome; recipients?: number } | null;
     let status = result?.status ?? null;
     let recipients = result?.recipients ?? null;
     if (!status) {
-      const { data: logged } = await db.from('email_log').select('status, to_addresses').eq('lead_id', lead.id).eq('action', 'lead.new').limit(1);
+      const { data: logged, error: loggedError } = await db.from('email_log').select('status, to_addresses').eq('lead_id', lead.id).eq('action', 'lead.new').limit(1);
+      if (loggedError) throw new Error('could not read lead notification log');
       status = (logged?.[0]?.status as EmailOutcome | undefined) ?? null;
       recipients = Array.isArray(logged?.[0]?.to_addresses) ? (logged[0].to_addresses as unknown[]).length : null;
     }
