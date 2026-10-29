@@ -1,0 +1,69 @@
+{
+  "slug": "deal",
+  "cognitoFormId": 9,
+  "name": "DEAL",
+  "internalName": "DEAL",
+  "entryCountAtExport": 550,
+  "settings": {
+    "encryptEntries": true,
+    "entrySummary": "[QUOTENO]",
+    "preventLookup": true,
+    "progressBar": "Steps"
+  },
+  "fields": [
+    { "name": "MONTH", "label": "MONTH", "type": "choice", "style": "dropdown", "row": 1, "col": 1, "span": 10,
+      "options": ["JAN", "FEB", "MARCH", "APR", "MAY", "JUNE", "JULY", "AUG", "SEP", "OCT", "NOV", "DEC"], "default": "JAN" },
+    { "name": "DATECREATED", "label": "DATE CREATED ", "type": "date", "row": 2, "col": 1, "span": 10 },
+    { "name": "COLLECTIONLOCATION", "label": "COLLECTION LOCATION ", "type": "choice", "style": "checkboxes", "multi": true, "row": 3, "col": 1, "span": 12,
+      "options": ["JHB", "DUR", "CPT"] },
+    { "name": "QUOTENO", "label": "QUOTE NO", "type": "text", "row": 4, "col": 1, "span": 10 },
+    { "name": "SALESREP", "label": "SALES REP", "type": "choice", "style": "dropdown", "row": 5, "col": 1, "span": 10,
+      "options": ["MELINDA", "THANDIWE", "KULANI", "RICUS", "ZAANIE", "GERALD"], "default": "MELINDA" },
+    { "name": "POP", "label": "POP", "type": "file", "multi": true, "row": 6, "col": 1, "span": 12 },
+    { "name": "PARTNO1", "label": "PART NO 1", "type": "text", "row": 7, "col": 1, "span": 10 },
+    { "name": "LINE1", "label": "LINE 1 ", "type": "text", "row": 8, "col": 1, "span": 10 },
+    { "name": "PARTNO2", "label": "PART NO 2", "type": "text", "row": 9, "col": 1, "span": 10 },
+    { "name": "LINE2", "label": "LINE 2", "type": "text", "row": 10, "col": 1, "span": 10 },
+    { "name": "PARTNO3", "label": "PART NO 3", "type": "text", "row": 11, "col": 1, "span": 10 },
+    { "name": "LINE3", "label": "LINE 3", "type": "text", "row": 12, "col": 1, "span": 10 },
+    { "name": "PARTNO4", "label": "PART NO 4", "type": "text", "row": 13, "col": 1, "span": 10 },
+    { "name": "LINE4", "label": "LINE 4", "type": "text", "row": 14, "col": 1, "span": 10 },
+    { "name": "PARTNO5", "label": "PART NO 5", "type": "text", "row": 15, "col": 1, "span": 10 },
+    { "name": "LINE5", "label": "LINE 5", "type": "text", "row": 16, "col": 1, "span": 10 },
+    { "name": "PARTNO6", "label": "PART NO 6", "type": "text", "row": 17, "col": 1, "span": 10 },
+    { "name": "LINE6", "label": "LINE 6 ", "type": "text", "row": 18, "col": 1, "span": 10 },
+    { "name": "PARTNO7", "label": "PART NO 7", "type": "text", "row": 19, "col": 1, "span": 10 },
+    { "name": "LINE7", "label": "LINE 7", "type": "text", "row": 20, "col": 1, "span": 10 },
+    { "name": "PARTNO8", "label": "PART NO 8", "type": "text", "row": 21, "col": 1, "span": 10 },
+    { "name": "LINE8", "label": "LINE 8", "type": "text", "row": 22, "col": 1, "span": 10 },
+    { "name": "Total", "label": "Total", "type": "number", "integer": true, "decimals": 0, "row": 23, "col": 1, "span": 12,
+      "note": "Manual entry - NOT a calculated field in Cognito" },
+    { "type": "pagebreak", "row": 24, "nextButton": "Submit" }
+  ],
+  "workflow": {
+    "roles": [
+      { "id": 0, "name": "Public", "public": true },
+      { "id": 1, "name": "Internal", "internal": true }
+    ],
+    "statuses": [
+      { "id": 0, "name": "Incomplete", "color": "gray" },
+      { "id": 1, "name": "Submitted", "color": "teal" }
+    ],
+    "actions": [
+      { "id": 1, "name": "Submit", "button": "Submit", "allowedWhen": "status == 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [] },
+      { "id": 2, "name": "Update", "button": "Update", "allowedWhen": "status != 'Incomplete'",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [] },
+      { "id": 3, "name": "Action", "button": "Action", "allowedWhen": "always",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [],
+        "note": "Generic extra action, no status change, no email. Actions 4-6 were deleted in Cognito and are omitted." }
+    ]
+  },
+  "documents": [
+    { "number": 1, "mode": "view", "name": "DEAL - [Entry.Number]", "output": "pdf", "includeBlankFields": true, "includeLogo": true, "includeTitle": true },
+    { "number": 2, "mode": "edit", "name": "DEAL - [Entry.Number]", "output": "pdf" },
+    { "number": 3, "mode": "custom", "name": "DEAL - [Entry.Number]", "output": "pdf",
+      "template": "DEAL - [Entry.Number](1).docx (16,645 bytes, Word merge template)",
+      "note": "Custom Word template - download it from Cognito (DEAL > Publish/Documents) and place in /content/templates/deal.docx; rebuild as an HTML->PDF template" }
+  ]
+}

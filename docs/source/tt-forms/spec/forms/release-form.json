@@ -1,0 +1,36 @@
+{
+  "slug": "release-form",
+  "cognitoFormId": 8,
+  "name": "RELEASE FORM",
+  "internalName": "RELEASEFORM",
+  "entryCountAtExport": 1525,
+  "settings": { "entrySummary": "[VINNO]", "progressBar": "Steps" },
+  "fields": [
+    { "name": "VINNO", "label": "VIN NO ", "type": "text", "row": 1, "col": 1, "span": 12 },
+    { "name": "Email", "label": "Email", "type": "email", "hideLabel": true, "row": 1, "col": 13, "span": 12 },
+    { "name": "INVNO", "label": "INV NO", "type": "text", "row": 2, "col": 1, "span": 12 },
+    { "name": "COSTOMERDETAILS", "label": "COSTOMER DETAILS ", "type": "text", "row": 3, "col": 1, "span": 12 },
+    { "type": "pagebreak", "row": 4, "nextButton": "Submit" }
+  ],
+  "workflow": {
+    "roles": [
+      { "id": 0, "name": "Public", "public": true },
+      { "id": 1, "name": "Internal", "internal": true }
+    ],
+    "statuses": [
+      { "id": 0, "name": "Incomplete", "color": "gray" },
+      { "id": 1, "name": "Submitted", "color": "teal" }
+    ],
+    "actions": [
+      { "id": 1, "name": "Submit", "button": "Submit", "allowedWhen": "status == 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [ { "to": ["sales@fueltrailers.co.za"], "body": "<p>&nbsp;<a href=\"[Entry.AdminLink]\">View full entry at CognitoForms.com.</a>&nbsp;</p>", "includeReceipt": true } ] },
+      { "id": 2, "name": "Update", "button": "Update", "allowedWhen": "status != 'Incomplete'",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [] }
+    ]
+  },
+  "documents": [
+    { "number": 1, "mode": "view", "output": "pdf" },
+    { "number": 2, "mode": "edit", "output": "pdf" }
+  ]
+}

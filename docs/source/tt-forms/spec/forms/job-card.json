@@ -1,0 +1,41 @@
+{
+  "slug": "job-card",
+  "cognitoFormId": 6,
+  "name": "JOB CARD",
+  "internalName": "JOBCARD",
+  "entryCountAtExport": null,
+  "settings": { "entrySummary": "[QuoteNo]", "progressBar": "Steps" },
+  "fields": [
+    { "name": "Date", "label": "Untitled", "type": "date", "row": 1, "col": 1, "span": 12, "note": "Label is literally 'Untitled' in Cognito - consider renaming to 'Date'" },
+    { "name": "QuoteNo", "label": "Quote no", "type": "text", "row": 1, "col": 13, "span": 12 },
+    { "name": "Line1", "label": "Line 1", "type": "text", "row": 2, "col": 1, "span": 24 },
+    { "name": "Text", "label": "Text", "type": "text", "row": 3, "col": 1, "span": 12 },
+    { "name": "Text4", "label": "Text4", "type": "text", "row": 3, "col": 13, "span": 12 },
+    { "name": "Text2", "label": "Text2", "type": "text", "row": 4, "col": 1, "span": 12 },
+    { "name": "Text5", "label": "Text5", "type": "text", "row": 4, "col": 13, "span": 12 },
+    { "name": "Text3", "label": "Text3", "type": "text", "row": 5, "col": 1, "span": 12 },
+    { "name": "Text6", "label": "Text6", "type": "text", "row": 5, "col": 13, "span": 12 },
+    { "type": "pagebreak", "row": 6, "nextButton": "Submit" }
+  ],
+  "workflow": {
+    "roles": [
+      { "id": 0, "name": "Public", "public": true },
+      { "id": 1, "name": "Internal", "internal": true }
+    ],
+    "statuses": [
+      { "id": 0, "name": "Incomplete", "color": "gray" },
+      { "id": 1, "name": "Submitted", "color": "teal" }
+    ],
+    "actions": [
+      { "id": 1, "name": "Submit", "button": "Submit", "allowedWhen": "status == 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [ { "to": ["sales@fueltrailers.co.za"], "body": "<p>&nbsp;<a href=\"[Entry.AdminLink]\">View full entry at CognitoForms.com.</a>&nbsp;</p>", "includeReceipt": true } ] },
+      { "id": 2, "name": "Update", "button": "Update", "allowedWhen": "status != 'Incomplete'",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [] }
+    ]
+  },
+  "documents": [
+    { "number": 1, "mode": "view", "output": "pdf" },
+    { "number": 2, "mode": "edit", "output": "pdf" }
+  ]
+}

@@ -1,0 +1,505 @@
+{
+  "slug": "store-room",
+  "cognitoFormId": 12,
+  "name": "STORE ROOM",
+  "internalName": "STOREROOM",
+  "entryCountAtExport": 8,
+  "settings": {
+    "entrySummary": "[_14INCX5HoleTIRESMIN50]",
+    "progressBar": "Steps",
+    "showPageNumbers": true,
+    "showPageTitles": true,
+    "pages": [
+      "Page 1",
+      "Page 2",
+      "Page 3"
+    ]
+  },
+  "fields": [
+    {
+      "name": "_14INCX5HoleTIRESMIN50",
+      "label": "14INC x 5 hole TIRES MIN 50",
+      "type": "text",
+      "row": 1,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_13INCH4HOLETIRESMIN10",
+      "label": "13INCH4 HOLE TIRES MIN 10",
+      "type": "text",
+      "row": 2,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_16INCHX6HOLETIRES5",
+      "label": "16INCH X 6 HOLE TIRES 5",
+      "type": "text",
+      "row": 3,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "OTHER",
+      "label": "OTHER ",
+      "type": "text",
+      "row": 4,
+      "col": 1,
+      "span": 18,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "type": "pagebreak",
+      "row": 5,
+      "pageTitle": "Page 1",
+      "nextButton": "Next"
+    },
+    {
+      "name": "_1450455HOLEBRAKEDMOQ12",
+      "label": "1450 45 5 HOLE BRAKED MOQ 12",
+      "type": "text",
+      "row": 6,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_2100455HOLEBRAKEDMOQ6",
+      "label": "2100 45 5 HOLE BRAKED MOQ 6",
+      "type": "text",
+      "row": 6,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_1850455HOLEBRAKEDONLYIFCHASSIS",
+      "label": "1850 45 5 HOLE BRAKED ONLY IF CHASSIS ",
+      "type": "text",
+      "row": 7,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+      "label": "1150 40 4 HOLE NO BRAKE ONLY IF LIGHT TOWER",
+      "type": "text",
+      "row": 7,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_1350404HOLENOBRAKEONLYCHASSIS",
+      "label": "1350 40 4 HOLE NO BRAKE ONLY CHASSIS",
+      "type": "text",
+      "row": 8,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "OTHER2",
+      "label": "OTHER ",
+      "type": "text",
+      "row": 8,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_8BLADELEAFSPRINGSMOQ30",
+      "label": "8 BLADE LEAF SPRINGS MOQ 30",
+      "type": "text",
+      "row": 9,
+      "col": 1,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_2TONCOUPLERMINONSHELF10",
+      "label": "2 TON COUPLER MIN ON SHELF 10",
+      "type": "text",
+      "row": 9,
+      "col": 9,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_3TONCOUPLERMINONSHELF6",
+      "label": "3 TON COUPLER MIN ON SHELF 6",
+      "type": "text",
+      "row": 9,
+      "col": 17,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_48MMSINGELWHEELJOCKEYMIN10",
+      "label": "48 MM SINGEL WHEEL JOCKEY MIN 10",
+      "type": "text",
+      "row": 10,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_60MMDOUBBELWHEELJOCKEYMIN7",
+      "label": "60 MM DOUBBEL WHEEL JOCKEY MIN 7",
+      "type": "text",
+      "row": 10,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "RECTANGULARLAMPS6INONEMIN100",
+      "label": "RECTANGULAR LAMPS 6 IN ONE MIN 100",
+      "type": "text",
+      "row": 11,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_45KGSFIREEXTINGUISHERSMIN20",
+      "label": "4.5 KGS FIRE EXTINGUISHERS MIN 20",
+      "type": "text",
+      "row": 11,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_5COREWIREMIN5",
+      "label": "5 CORE WIRE MIN 5",
+      "type": "text",
+      "row": 12,
+      "col": 1,
+      "span": 7,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "YELLOWTAPEMIN5",
+      "label": "YELLOW TAPE MIN 5",
+      "type": "text",
+      "row": 12,
+      "col": 8,
+      "span": 10,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "READYBARMIN30",
+      "label": "READY BAR MIN 30",
+      "type": "text",
+      "row": 12,
+      "col": 18,
+      "span": 7,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "BRAKECABLELONGMIN20",
+      "label": "BRAKE CABLE LONG MIN 20",
+      "type": "text",
+      "row": 13,
+      "col": 1,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "BRAKECABLESHORTMIN20",
+      "label": "BRAKE CABLE SHORT MIN 20",
+      "type": "text",
+      "row": 13,
+      "col": 9,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "WELDONUSCHACELSMIN100",
+      "label": "WELD ON U SCHACELS MIN 100",
+      "type": "text",
+      "row": 13,
+      "col": 17,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_3HOLEWELDONPLATEFORBRAKESMIN50",
+      "label": "3 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+      "type": "text",
+      "row": 14,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_5HOLEWELDONPLATEFORBRAKESMIN50",
+      "label": "5 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+      "type": "text",
+      "row": 14,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "SINGLECOMPENSATORMIN30",
+      "label": "SINGLE COMPENSATOR MIN 30",
+      "type": "text",
+      "row": 15,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "TWINCOMPENSATORMIN30",
+      "label": "TWIN COMPENSATOR MIN 30",
+      "type": "text",
+      "row": 15,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "CHEVRONSHORTSTICKONMIN20",
+      "label": "CHEVRON SHORT STICK ON MIN 20",
+      "type": "text",
+      "row": 16,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "WHITEREFLECTORSMIN100",
+      "label": "WHITE REFLECTORS MIN 100",
+      "type": "text",
+      "row": 16,
+      "col": 13,
+      "span": 6,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "REDREFLECTORMIN100",
+      "label": "RED REFLECTOR MIN 100",
+      "type": "text",
+      "row": 16,
+      "col": 19,
+      "span": 6,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "DROPSIDEHINGESHONGPINMIN50",
+      "label": "DROPSIDE HINGES HONG PIN MIN 50",
+      "type": "text",
+      "row": 17,
+      "col": 1,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_45MMUBOLTMIN100",
+      "label": "45 MM U BOLT MIN 100",
+      "type": "text",
+      "row": 17,
+      "col": 9,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_5HOLE45MMPLATEMIN50",
+      "label": "5 HOLE 45 MM PLATE MIN 50",
+      "type": "text",
+      "row": 17,
+      "col": 17,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_40MMUBOLTMIN100",
+      "label": "40 MM U BOLT MIN 100",
+      "type": "text",
+      "row": 18,
+      "col": 1,
+      "span": 6,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_40MM5HOLEPLATEMIN50",
+      "label": "40 MM 5 HOLE PLATE MIN 50",
+      "type": "text",
+      "row": 18,
+      "col": 7,
+      "span": 8,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "_7PINTRAILERPLUGMIN50",
+      "label": "7 PIN TRAILER PLUG MIN 50",
+      "type": "text",
+      "row": 18,
+      "col": 15,
+      "span": 10,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "SINGLEDISCHOLDER1BOLTMIN50",
+      "label": "SINGLE DISC HOLDER 1 BOLT MIN 50",
+      "type": "text",
+      "row": 19,
+      "col": 1,
+      "span": 24,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "type": "pagebreak",
+      "row": 20,
+      "pageTitle": "Page 2",
+      "nextButton": "Next",
+      "showBackButton": true,
+      "backButton": "Back"
+    },
+    {
+      "name": "NUTS12MM",
+      "label": "NUTS 12MM",
+      "type": "text",
+      "row": 21,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "BOLT50X12",
+      "label": "BOLT 50X12",
+      "type": "text",
+      "row": 21,
+      "col": 13,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "NUTS6MM",
+      "label": "NUTS 6MM",
+      "type": "text",
+      "row": 22,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "NUTS8MM",
+      "label": "NUTS 8 MM",
+      "type": "text",
+      "row": 23,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "name": "WASHER6X10X2",
+      "label": "WASHER 6X10X2",
+      "type": "text",
+      "row": 24,
+      "col": 1,
+      "span": 12,
+      "note": "Stock count; label carries the minimum / MOQ"
+    },
+    {
+      "type": "pagebreak",
+      "row": 25,
+      "pageTitle": "Page 3",
+      "nextButton": "Submit",
+      "showBackButton": true,
+      "backButton": "Back"
+    }
+  ],
+  "workflow": {
+    "roles": [
+      {
+        "id": 0,
+        "name": "Public",
+        "public": true
+      },
+      {
+        "id": 1,
+        "name": "Internal",
+        "internal": true
+      }
+    ],
+    "statuses": [
+      {
+        "id": 0,
+        "name": "Incomplete",
+        "color": "gray"
+      },
+      {
+        "id": 1,
+        "name": "Submitted",
+        "color": "teal",
+        "archived": true,
+        "replacedBy": "APPROVAL"
+      },
+      {
+        "id": 2,
+        "name": "APPROVAL",
+        "color": "red"
+      },
+      {
+        "id": 3,
+        "name": "APPROVED EMAILED",
+        "color": "green",
+        "note": "No action sets this - changed manually by staff"
+      }
+    ],
+    "actions": [
+      {
+        "id": 1,
+        "name": "Submit",
+        "button": "Submit",
+        "allowedWhen": "status == 'Incomplete'",
+        "newStatus": "APPROVAL",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "includeEntryDetails": true,
+        "emails": [
+          {
+            "to": [
+              "factory@fueltrailers.co.za"
+            ],
+            "body": "<p>&nbsp;<a href=\"[Entry.AdminLink]\">View full entry at CognitoForms.com.</a>&nbsp;</p>",
+            "includeReceipt": true,
+            "includeEntryDetails": true,
+            "attachDocuments": [
+              1
+            ]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Update",
+        "button": "Update",
+        "allowedWhen": "status != 'Incomplete'",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": []
+      }
+    ]
+  },
+  "documents": [
+    {
+      "number": 1,
+      "mode": "view",
+      "name": "STORE ROOM - [Entry.Number]",
+      "output": "pdf"
+    },
+    {
+      "number": 2,
+      "mode": "edit",
+      "name": "STORE ROOM - [Entry.Number]",
+      "output": "pdf"
+    }
+  ]
+}

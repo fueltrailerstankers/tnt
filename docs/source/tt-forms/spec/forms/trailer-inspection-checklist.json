@@ -1,0 +1,936 @@
+{
+  "slug": "trailer-inspection-checklist",
+  "cognitoFormId": 13,
+  "name": "Trailer Inspection Checklist",
+  "internalName": "TrailerInspectionChecklist",
+  "entryCountAtExport": 690,
+  "settings": {
+    "entrySummary": "[InspectedByName]",
+    "progressBar": "Steps"
+  },
+  "fields": [
+    {
+      "name": "TRAILERVINNUMBER",
+      "label": "TRAILER VIN NUMBER ",
+      "type": "text",
+      "row": 1,
+      "col": 1,
+      "span": 12
+    },
+    {
+      "name": "_1STDATEINSPECTION",
+      "label": "1ST DATE INSPECTION ",
+      "type": "date",
+      "row": 1,
+      "col": 13,
+      "span": 12
+    },
+    {
+      "name": "InspectedByName",
+      "label": "Inspected By (Name)",
+      "type": "name",
+      "parts": [
+        "First",
+        "Last"
+      ],
+      "required": true,
+      "row": 2,
+      "col": 1,
+      "span": 24
+    },
+    {
+      "name": "InspectorEmail",
+      "label": "Inspector Email",
+      "type": "email",
+      "required": true,
+      "default": "admin@trailersandtankers.co.za",
+      "row": 3,
+      "col": 1,
+      "span": 24
+    },
+    {
+      "name": "TrailerInspectionResults",
+      "label": "Trailer Inspection Results",
+      "type": "section",
+      "row": 4,
+      "col": 1,
+      "span": 24,
+      "children": "checklist (20 sub-sections, each = Fail checkbox | Pass checkbox | Comments)"
+    },
+    {
+      "name": "InspectorSignature",
+      "label": "Inspector Signature",
+      "type": "signature",
+      "mode": "draw",
+      "row": 5,
+      "col": 1,
+      "span": 24
+    },
+    {
+      "name": "InspectionDate",
+      "label": "Inspection Date",
+      "type": "date",
+      "row": 6,
+      "col": 1,
+      "span": 24
+    },
+    {
+      "type": "pagebreak",
+      "row": 7,
+      "nextButton": "Submit"
+    }
+  ],
+  "checklist": [
+    {
+      "itemNo": 1,
+      "label": "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+      "cognitoFieldSetId": "Form.4.2",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 2,
+      "label": "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+      "cognitoFieldSetId": "Form.4.3",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass1",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments1",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 3,
+      "label": "3. Wheel bearings checked and correctly adjusted/lubricated.",
+      "cognitoFieldSetId": "Form.4.4",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass2",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments2",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 4,
+      "label": "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+      "cognitoFieldSetId": "Form.4.5",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass3",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments3",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 5,
+      "label": "5. Tyres inspected for correct size, pressure, condition and tread.",
+      "cognitoFieldSetId": "Form.4.6",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass4",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments4",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 6,
+      "label": "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+      "cognitoFieldSetId": "Form.4.7",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass5",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments5",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 7,
+      "label": "7. Safety chains correctly fitted, securely attached and undamaged.",
+      "cognitoFieldSetId": "Form.4.8",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass6",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments6",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 8,
+      "label": "8. Jockey wheel fitted correctly and operates smoothly.",
+      "cognitoFieldSetId": "Form.4.9",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass7",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments7",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 9,
+      "label": "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+      "cognitoFieldSetId": "Form.4.10",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass8",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments8",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 10,
+      "label": "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+      "cognitoFieldSetId": "Form.4.11",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass9",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments9",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 11,
+      "label": "11. Electrical wiring secured and protected against chafing or damage.",
+      "cognitoFieldSetId": "Form.4.12",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments10",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 12,
+      "label": "12. Trailer plug tested and all electrical functions operate correctly.",
+      "cognitoFieldSetId": "Form.4.13",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass11",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments11",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 13,
+      "label": "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+      "cognitoFieldSetId": "Form.4.14",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass12",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments12",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 14,
+      "label": "14. Mudguards, fenders and mounting brackets securely fitted.",
+      "cognitoFieldSetId": "Form.4.15",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass13",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments13",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 15,
+      "label": "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+      "cognitoFieldSetId": "Form.4.16",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass14",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments14",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 16,
+      "label": "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+      "cognitoFieldSetId": "Form.4.17",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass15",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments15",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 17,
+      "label": "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+      "cognitoFieldSetId": "Form.4.18",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass16",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments16",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 18,
+      "label": "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+      "cognitoFieldSetId": "Form.4.19",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass17",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments17",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 19,
+      "label": "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+      "cognitoFieldSetId": "Form.4.20",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass18",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments18",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    },
+    {
+      "itemNo": 20,
+      "label": "20. Road test completed (where applicable) and final quality inspection passed.",
+      "cognitoFieldSetId": "Form.4.21",
+      "fields": [
+        {
+          "name": "fail",
+          "cognitoName": "Fail",
+          "label": "Fail",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 1,
+          "span": 12
+        },
+        {
+          "name": "pass",
+          "cognitoName": "Pass19",
+          "label": "Pass",
+          "type": "yesno",
+          "style": "checkbox",
+          "row": 1,
+          "col": 13,
+          "span": 12
+        },
+        {
+          "name": "comments",
+          "cognitoName": "Comments19",
+          "label": "Comments",
+          "type": "textarea",
+          "row": 2,
+          "col": 1,
+          "span": 24
+        }
+      ]
+    }
+  ],
+  "workflow": {
+    "roles": [
+      {
+        "id": 0,
+        "name": "Inspector",
+        "public": true
+      },
+      {
+        "id": 1,
+        "name": "Form Creator / Internal Reviewer",
+        "internal": true
+      }
+    ],
+    "statuses": [
+      {
+        "id": 0,
+        "name": "Incomplete",
+        "color": "gray"
+      },
+      {
+        "id": 1,
+        "name": "Submitted",
+        "color": "teal"
+      },
+      {
+        "id": 2,
+        "name": "Reviewed",
+        "color": "yellow"
+      },
+      {
+        "id": 3,
+        "name": "Approved",
+        "color": "green"
+      }
+    ],
+    "actions": [
+      {
+        "id": 0,
+        "name": "SubmitInspection",
+        "button": "SubmitInspection",
+        "allowedWhen": "status == 'Incomplete' AND role == 'Inspector'",
+        "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [
+          {
+            "from": "sales@fueltrailers.co.za",
+            "to": [
+              "sales@fueltrailers.co.za"
+            ],
+            "subject": "Trailer Inspection Submitted",
+            "body": "An inspector has submitted the Trailer Inspection Checklist. Please review the inspection results.",
+            "includeEntryDetails": true,
+            "linkForRole": "Form Creator / Internal Reviewer"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "name": "RequestReviewChanges",
+        "button": "RequestReviewChanges",
+        "allowedWhen": "status == 'Submitted' AND role == 'Form Creator / Internal Reviewer'",
+        "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "note": "Cognito keeps status at Submitted (probably intended to go back to Incomplete so the Inspector can edit - confirm with client)",
+        "emails": [
+          {
+            "from": "sales@fueltrailers.co.za",
+            "to": [
+              "[InspectorEmail]"
+            ],
+            "subject": "Trailer Inspection Needs Changes",
+            "body": "Your Trailer Inspection Checklist submission requires changes. Please update the inspection details and resubmit.",
+            "includeEntryDetails": true,
+            "linkForRole": "Inspector"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "MarkReviewed",
+        "button": "MarkReviewed",
+        "allowedWhen": "status == 'Submitted' AND role == 'Form Creator / Internal Reviewer'",
+        "newStatus": "Reviewed",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [
+          {
+            "from": "sales@fueltrailers.co.za",
+            "to": [
+              "[InspectorEmail]"
+            ],
+            "subject": "Trailer Inspection Reviewed",
+            "body": "Your Trailer Inspection Checklist has been reviewed.",
+            "includeEntryDetails": true,
+            "linkForRole": "Inspector"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "ApproveInspection",
+        "button": "ApproveInspection",
+        "allowedWhen": "status == 'Reviewed' AND role == 'Form Creator / Internal Reviewer'",
+        "newStatus": "Approved",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [
+          {
+            "from": "sales@fueltrailers.co.za",
+            "to": [
+              "[InspectorEmail]"
+            ],
+            "subject": "Trailer Inspection Approved",
+            "body": "Your Trailer Inspection Checklist has been approved.",
+            "includeEntryDetails": true,
+            "linkForRole": "Inspector"
+          }
+        ]
+      }
+    ]
+  },
+  "documents": [
+    {
+      "number": 1,
+      "mode": "view",
+      "output": "pdf"
+    },
+    {
+      "number": 2,
+      "mode": "edit",
+      "output": "pdf"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "slug": "request-for-invoice",
+  "cognitoFormId": 4,
+  "name": "Request For Invoice",
+  "internalName": "RequestForInvoice",
+  "entryCountAtExport": 1345,
+  "settings": {
+    "entrySummary": "[Name]",
+    "progressBar": "Steps",
+    "isLookupSourceFor": ["delivery-note"]
+  },
+  "fields": [
+    { "name": "QuoteNo", "label": "Quote no", "type": "text", "row": 1, "col": 1, "span": 12 },
+    { "name": "DATE", "label": "DATE", "type": "date", "row": 1, "col": 13, "span": 12 },
+    { "name": "SalesRep", "label": "Sales Rep", "type": "text", "row": 2, "col": 1, "span": 12 },
+    { "name": "CostomerVatNo", "label": "Costomer Vat no", "type": "text", "row": 2, "col": 13, "span": 12 },
+    { "name": "BusinessRegNo", "label": "Business reg no ", "type": "text", "row": 3, "col": 1, "span": 12 },
+    { "name": "CONTACTNO", "label": "CONTACT NO", "type": "text", "row": 3, "col": 13, "span": 12 },
+    { "name": "Name", "label": "Name", "type": "name", "parts": ["First", "Last"], "row": 4, "col": 1, "span": 12 },
+    { "name": "IDNO", "label": "ID NO", "type": "text", "row": 4, "col": 13, "span": 12 },
+    { "name": "Address", "label": "Address", "type": "address", "parts": ["Line1", "Line2", "City", "State", "PostalCode", "Country"], "row": 5, "col": 1, "span": 24 },
+    { "name": "_1stDeposit", "label": "1st deposit ", "type": "file", "multi": true, "maxFiles": 5, "row": 6, "col": 1, "span": 12,
+      "customError": { "when": "QuoteNo is empty AND _1stDeposit has 0 files", "cognitoExpr": "=(QuoteNo = null and _1stDeposit.Count() = 0)",
+        "message": "NO PAYMENT LOADED FORM NOT SUBMITTED" } },
+    { "name": "_2ndDeposit", "label": "2nd deposit ", "type": "file", "multi": true, "row": 6, "col": 13, "span": 12 },
+    { "name": "_3rdDeposit", "label": "3rd deposit", "type": "file", "multi": true, "row": 7, "col": 1, "span": 12 },
+    { "name": "_4thPayment", "label": "4th payment ", "type": "file", "multi": true, "row": 7, "col": 13, "span": 12 },
+    { "type": "pagebreak", "row": 8, "nextButton": "Submit" }
+  ],
+  "workflow": {
+    "roles": [
+      { "id": 0, "name": "Public", "public": true },
+      { "id": 1, "name": "Internal", "internal": true }
+    ],
+    "statuses": [
+      { "id": 0, "name": "Incomplete", "color": "gray" },
+      { "id": 1, "name": "Submitted", "color": "teal" }
+    ],
+    "actions": [
+      { "id": 1, "name": "Submit", "button": "Submit", "allowedWhen": "status == 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [ { "to": ["sales@fueltrailers.co.za"], "body": "<p>&nbsp;<a href=\"[Entry.AdminLink]\">View full entry at CognitoForms.com.</a>&nbsp;</p>", "includeReceipt": true } ] },
+      { "id": 2, "name": "Update", "button": "Update", "allowedWhen": "status != 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [ { "to": ["accounts@fueltrailers.co.za"], "body": "(default entry email)", "includeAttachments": true, "includeDocumentAttachments": true } ] }
+    ]
+  },
+  "documents": [
+    { "number": 1, "mode": "view", "output": "pdf" },
+    { "number": 2, "mode": "edit", "output": "pdf" }
+  ]
+}

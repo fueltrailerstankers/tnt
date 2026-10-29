@@ -1,0 +1,79 @@
+{
+  "slug": "delivery-note",
+  "cognitoFormId": 5,
+  "name": "Delivery Note , Terms and Conditions",
+  "internalName": "DeliveryNoteTermsAndConditions",
+  "entryCountAtExport": 1095,
+  "settings": {
+    "encryptEntries": true,
+    "entrySummary": "[TrailerVinNO]",
+    "hasLookups": true,
+    "progressBar": "Steps"
+  },
+  "fields": [
+    { "name": "TrailerVinNO", "label": "Trailer Vin NO", "type": "text", "row": 1, "col": 1, "span": 12,
+      "customError": { "when": "TrailerVinNO is empty AND Email is empty", "cognitoExpr": "=(TrailerVinNO = null and Email = null)",
+        "message": "(Cognito default - no custom message set) suggest: 'Enter the Trailer VIN or an Email'" } },
+    { "name": "QuoteNo", "label": "Quote no:", "type": "lookup", "style": "dropdown", "row": 2, "col": 1, "span": 12,
+      "lookup": { "sourceForm": "request-for-invoice", "cognitoSourceFormId": 4, "displayField": "QuoteNo",
+        "note": "Dropdown of Request For Invoice entries, label = RFI field #1 (Quote no)" } },
+    { "name": "INVOICENO", "label": "INVOICE NO", "type": "text", "row": 2, "col": 13, "span": 12,
+      "customError": { "when": "TrailerVinNO is empty AND INVOICENO is empty", "cognitoExpr": "=(TrailerVinNO = null and INVOICENO = null)",
+        "message": "(Cognito default) suggest: 'Enter the Trailer VIN or the Invoice No'" } },
+    { "name": "CustomerDetailsFromQuote", "type": "table", "row": 3, "col": 1, "span": 24,
+      "cognitoFieldName": "QuoteNoNameQuoteNoNameFirst...QuoteNoVINASONUNIT",
+      "label": "[QuoteNo.Name] [QuoteNo.Name.First] [QuoteNo.Name.Last] [QuoteNo.IDNO] [QuoteNo.Address] [QuoteNo.Address.Line1][QuoteNo.Address.Line2] [QuoteNo.Address.Line2] [QuoteNo.Address.City] [QuoteNo.Address.State] [QuoteNo.Address.Country] [QuoteNo.VINASONUNIT] ",
+      "columns": [],
+      "rebuildAs": "Read-only 'Customer details' panel that renders the selected Request For Invoice entry: Name (First Last), ID NO, Address (Line1, Line2, City, State, Country). In Cognito this is an empty repeating table used only to show the merged label.",
+      "note": "QuoteNo.VINASONUNIT references a field that no longer exists on Request For Invoice - drop it or add 'VIN AS ON UNIT' to RFI (confirm with client)" },
+    { "name": "Signature4", "label": "Signature", "type": "signature", "mode": "draw", "row": 4, "col": 1, "span": 6,
+      "purpose": "Customer signs acceptance of Standard Trading Terms + Warranty" },
+    { "type": "content", "row": 4, "col": 7, "span": 18, "contentRef": "content/terms-and-conditions.md",
+      "note": "Long scrollable T&C block (Standard Trading Terms, CPA s49 notice, 365-day carry-in warranty, payment/production, tank usage, pump, shipping, additional terms)" },
+    { "name": "Signature", "label": "Signature", "type": "signature", "mode": "draw", "row": 5, "col": 1, "span": 12 },
+    { "type": "content", "row": 5, "col": 13, "span": 12,
+      "html": "<p>the above documetns have been ready by myself the signatory and ID provided is that of myself&nbsp;</p>" },
+    { "type": "content", "row": 6, "col": 1, "span": 24, "contentRef": "content/polyurethane-tanks-waiver.md" },
+    { "name": "Signature2", "label": "Signature", "type": "signature", "mode": "draw", "row": 7, "col": 1, "span": 8,
+      "purpose": "Customer signs Polyurethane Tanks Waiver" },
+    { "type": "content", "row": 8, "col": 1, "span": 24,
+      "html": "<p>the above individual confirms that they have received as set out in the above quote and the above invoice no on this date recorded </p>" },
+    { "name": "Signature3", "label": "Signature", "type": "signature", "mode": "draw", "row": 9, "col": 1, "span": 8,
+      "purpose": "Customer signs receipt of goods" },
+    { "name": "COPYOfSignatoryID", "label": "COPY of Signatory ID ", "type": "file", "multi": true, "row": 9, "col": 9, "span": 8 },
+    { "name": "NATIS", "label": "NATIS ", "type": "file", "multi": true, "row": 9, "col": 17, "span": 8 },
+    { "name": "PAYMENT", "label": "PAYMENT ", "type": "file", "multi": true, "row": 10, "col": 1, "span": 12 },
+    { "name": "Payment2", "label": "Payment 2", "type": "file", "multi": true, "row": 10, "col": 13, "span": 12 },
+    { "name": "DeliveryDate", "label": "Delivery Date ", "type": "date", "row": 11, "col": 1, "span": 12 },
+    { "name": "Email", "label": "Email", "type": "email", "protected": true, "row": 12, "col": 1, "span": 12,
+      "note": "Protected field: masked in entry list/emails, visible only to authorised staff" },
+    { "name": "SalesRepSignature", "label": "Sales Rep Signature", "type": "signature", "mode": "draw", "row": 13, "col": 1, "span": 6 },
+    { "name": "RELEASENOTE", "label": "RELEASE NOTE", "type": "file", "multi": true, "row": 13, "col": 7, "span": 8 },
+    { "name": "Pic1FRONT", "label": "Pic 1 FRONT", "type": "file", "multi": true, "accept": "image/*", "row": 14, "col": 1, "span": 8 },
+    { "name": "PIC2LEFT", "label": "PIC 2 LEFT ", "type": "file", "multi": true, "accept": "image/*", "row": 15, "col": 1, "span": 12 },
+    { "name": "PIC3RIGHT", "label": "PIC 3 RIGHT ", "type": "file", "multi": true, "accept": "image/*", "row": 16, "col": 1, "span": 12 },
+    { "name": "Pic4REAR", "label": "Pic 4 REAR ", "type": "file", "multi": true, "accept": "image/*", "row": 17, "col": 1, "span": 12 },
+    { "type": "pagebreak", "row": 18, "nextButton": "Submit" }
+  ],
+  "workflow": {
+    "roles": [
+      { "id": 0, "name": "Public", "public": true },
+      { "id": 1, "name": "Internal", "internal": true }
+    ],
+    "statuses": [
+      { "id": 0, "name": "Incomplete", "color": "gray" },
+      { "id": 1, "name": "Submitted", "color": "teal" }
+    ],
+    "actions": [
+      { "id": 1, "name": "Submit", "button": "Submit", "allowedWhen": "status == 'Incomplete'", "newStatus": "Submitted",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.",
+        "emails": [ { "to": ["sales@fueltrailers.co.za"], "body": "<p>&nbsp;<a href=\"[Entry.AdminLink]\">View full entry at CognitoForms.com.</a>&nbsp;</p>", "includeReceipt": true } ] },
+      { "id": 2, "name": "Update", "button": "Update", "allowedWhen": "status != 'Incomplete'",
+        "confirmation": "Thank you for filling out the form. Your response has been recorded.", "emails": [] }
+    ]
+  },
+  "documents": [
+    { "number": 1, "mode": "view", "output": "pdf", "note": "Must render T&C, waiver and all signature images - this PDF is the signed delivery note" },
+    { "number": 2, "mode": "edit", "output": "pdf" }
+  ]
+}
