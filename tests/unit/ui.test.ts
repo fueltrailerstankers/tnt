@@ -52,6 +52,10 @@ describe('navigation', () => {
     expect(visibleNav(member('staff')).map((n) => n.key)).not.toContain('settings');
     expect(visibleNav(null)).toEqual([]);
   });
+  it('factory staff see no forms, tasks, deals, Xero, leads or settings', () => {
+    const keys = visibleNav(member('factory')).map((n) => n.key);
+    for (const k of ['tasks', 'forms', 'deals', 'quotes', 'invoices', 'leads', 'integrations', 'settings']) expect(keys).not.toContain(k);
+  });
   it('picks the longest matching prefix', () => {
     const defs = NAV.filter((n) => n.built);
     expect(activeKey('/admin', defs)).toBe('home');

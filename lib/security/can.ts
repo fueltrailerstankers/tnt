@@ -1,7 +1,8 @@
 // Pure permission model. Roles and permissions exist from day one; only `admin` is used today.
 // Add a permission here before using it anywhere, and cover it in tests/unit/can.test.ts.
+// Roles mirror the app_role enum (0001, plus `factory` from 0010). `factory` is dispatch staff: stock only.
 
-export const ROLES = ['admin', 'staff', 'reviewer', 'inspector'] as const;
+export const ROLES = ['admin', 'staff', 'reviewer', 'inspector', 'factory'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const PERMISSIONS = [
@@ -24,14 +25,21 @@ export const PERMISSIONS = [
   'leads.read',
   'leads.manage',
   'import.run',
+  'stock.read',
+  'stock.dispatch',
+  'stock.export',
+  'stock.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
-  staff: ['admin.access', 'forms.read', 'entries.read', 'entries.write', 'entries.export', 'tasks.read', 'xero.read', 'leads.read', 'leads.manage'],
-  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read', 'xero.read'],
+  staff: ['admin.access', 'forms.read', 'entries.read', 'entries.write', 'entries.export', 'tasks.read', 'xero.read', 'leads.read', 'leads.manage',
+    'stock.read', 'stock.dispatch', 'stock.export'],
+  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read', 'xero.read', 'stock.read'],
   inspector: ['forms.read'],
+  // Factory staff: stock register and dispatch only. Never entries, forms or Xero (RLS agrees: 0011).
+  factory: ['admin.access', 'stock.read', 'stock.dispatch'],
 };
 
 export interface Member {

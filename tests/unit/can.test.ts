@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertPerm, can, ForbiddenError, PERMISSIONS, ROLES, type Member, type Role } from '@/lib/security/can';
+import { assertPerm, can, ForbiddenError, PERMISSIONS, ROLES, type Member, type Permission, type Role } from '@/lib/security/can';
 
 const member = (role: Role): Member => ({ userId: 'u1', orgId: 'o1', role, branch: null });
 
@@ -30,6 +30,21 @@ describe('can', () => {
 
   it('inspector has no admin access', () => {
     expect(can(member('inspector'), 'admin.access')).toBe(false);
+  });
+
+  it('stock permissions follow docs/M6.md section 7', () => {
+    const holders = (p: Permission) => ROLES.filter((r) => can(member(r), p));
+    expect(holders('stock.read')).toEqual(['admin', 'staff', 'reviewer', 'factory']);
+    expect(holders('stock.dispatch')).toEqual(['admin', 'staff', 'factory']);
+    expect(holders('stock.export')).toEqual(['admin', 'staff']);
+    expect(holders('stock.manage')).toEqual(['admin']);
+  });
+
+  it('factory holds admin access, stock read and dispatch only: no entries, forms, tasks, Xero or leads', () => {
+    expect(PERMISSIONS.filter((p) => can(member('factory'), p))).toEqual(['admin.access', 'stock.read', 'stock.dispatch']);
+    for (const p of ['entries.read', 'entries.write', 'forms.read', 'tasks.read', 'xero.read', 'leads.read', 'stock.export', 'stock.manage'] as const) {
+      expect(can(member('factory'), p), p).toBe(false);
+    }
   });
 
   it('ignores an unknown role instead of granting anything', () => {

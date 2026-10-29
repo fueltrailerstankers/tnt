@@ -6,9 +6,9 @@ export async function connect(): Promise<Client> {
   return c;
 }
 
-type Role = 'anon' | 'authenticated';
+type Role = 'anon' | 'authenticated' | 'service_role';
 
-/** Runs fn inside a transaction as an API role with the given JWT subject, then rolls back. */
+/** Runs fn inside a transaction as an API role with the given JWT subject (null for anon/service_role), then rolls back. */
 export async function as<T>(c: Client, role: Role, userId: string | null, fn: () => Promise<T>): Promise<T> {
   await c.query('begin');
   try {
