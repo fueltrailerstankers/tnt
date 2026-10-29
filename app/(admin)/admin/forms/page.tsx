@@ -1,0 +1,46 @@
+import Link from 'next/link';
+import { buttonClass, cardClass } from '@/components/ui/styles';
+import { requirePerm } from '@/lib/security/require';
+import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Forms · Trailers & Tankers' };
+
+interface Overview {
+  form_id: string;
+  slug: string;
+  name: string;
+  is_active: boolean;
+  entries: number;
+  unread: number;
+}
+
+export default async function FormsIndex() {
+  await requirePerm('forms.read');
+  const db = await createClient();
+  const { data } = await db.rpc('form_overview');
+  const forms = (data ?? []) as Overview[];
+
+  return (
+    <section className="space-y-5">
+      <h1 className="text-h1">Forms</h1>
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {forms.map((f) => (
+          <li key={f.form_id} className={`${cardClass} flex flex-col gap-3 p-4`} data-testid={`form-card-${f.slug}`}>
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/admin/forms/${f.slug}`} className="text-h2 text-fg no-underline hover:underline">{f.name}</Link>
+              {f.unread ? <span className="text-small font-semibold text-accent-text">{f.unread} new</span> : null}
+            </div>
+            <p className="text-small text-fg-muted">
+              <span className="font-mono">{f.entries}</span> entries · {f.is_active ? 'Public link on' : 'Internal'}
+            </p>
+            <div className="mt-auto flex flex-wrap gap-2">
+              <Link href={`/admin/forms/${f.slug}/new`} className={buttonClass('primary', 36)}>New entry</Link>
+              <Link href={`/admin/forms/${f.slug}`} className={buttonClass('secondary', 36)}>Entries</Link>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

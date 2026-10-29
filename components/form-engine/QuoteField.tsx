@@ -31,7 +31,7 @@ export function QuoteField(p: Props) {
       ) : (
         <CheckInput {...p} check={p.config.check} errProps={errProps} />
       )}
-      {p.err ? <p id={`${p.id}-err`} className="mt-1 text-sm text-red-700">{p.err}</p> : null}
+      {p.err ? <p id={`${p.id}-err`} className="mt-1 text-sm text-status-red-fg">{p.err}</p> : null}
     </div>
   );
 }
@@ -142,7 +142,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
         role="listbox"
         aria-label="Xero quotes"
         hidden={!showList}
-        className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded border border-neutral-300 bg-white text-sm shadow-lg"
+        className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded border border-border-strong bg-surface text-sm shadow-lg"
       >
         {options.map((o, i) => (
           <li
@@ -150,7 +150,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
             id={optId(i)}
             role="option"
             aria-selected={i === active}
-            className={`cursor-pointer px-3 py-2 ${i === active ? 'bg-neutral-900 text-white' : 'hover:bg-neutral-100'}`}
+            className={`cursor-pointer px-3 py-2 ${i === active ? 'bg-accent text-accent-fg' : 'hover:bg-surface-2'}`}
             // mousedown, not click: runs before the input's blur closes the list.
             onMouseDown={(e) => {
               e.preventDefault();
@@ -162,7 +162,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
           </li>
         ))}
       </ul>
-      <p aria-live="polite" className="mt-1 text-xs text-amber-800">{notFound ? 'Not found in Xero' : ''}</p>
+      <p aria-live="polite" className="mt-1 text-xs text-status-yellow-fg">{notFound ? 'Not found in Xero' : ''}</p>
     </div>
   );
 }
@@ -208,7 +208,7 @@ function CheckInput(p: InnerProps & { check: (value: string) => Promise<{ found:
           Check
         </button>
       </div>
-      <p aria-live="polite" className={`mt-1 text-sm ${current?.found ? 'text-green-800' : 'text-neutral-700'}`}>
+      <p aria-live="polite" className={`mt-1 text-sm ${current?.found ? 'text-status-green-fg' : 'text-fg-muted'}`}>
         {current ? (current.found ? 'Quote found' : 'Not found in Xero (you can still submit)') : ''}
       </p>
     </>

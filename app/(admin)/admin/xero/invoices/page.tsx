@@ -38,21 +38,21 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
 
   return (
     <section className="space-y-4">
-      <p className="text-xs text-neutral-600"><Link href="/admin/integrations/xero" className="underline">Xero</Link> / Invoices</p>
-      <h1 className="text-2xl font-semibold">Invoices</h1>
-      <p className="text-sm text-neutral-600">{count ?? 0} {noun} mirrored from Xero (read only).</p>
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-lg border bg-white p-3 text-sm">
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Search</span>
-          <input name="q" defaultValue={q ?? ''} placeholder="Invoice no, customer or reference" className="rounded border px-2 py-1" /></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Type</span>
-          <select name="type" defaultValue={type} className="rounded border px-2 py-1">{TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}</select></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Status</span>
-          <select name="status" defaultValue={status ?? ''} className="rounded border px-2 py-1"><option value="">All</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
-        <button className="rounded bg-neutral-900 px-3 py-1 text-white">Apply</button>
+      <p className="text-xs text-fg-muted"><Link href="/admin/integrations/xero" className="underline">Xero</Link> / Invoices</p>
+      <h1 className="text-h1">Invoices</h1>
+      <p className="text-sm text-fg-muted">{count ?? 0} {noun} mirrored from Xero (read only).</p>
+      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface shadow-card p-3 text-sm">
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Search</span>
+          <input name="q" defaultValue={q ?? ''} placeholder="Invoice no, customer or reference" className="rounded-sm border px-2 py-1" /></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Type</span>
+          <select name="type" defaultValue={type} className="rounded-sm border px-2 py-1">{TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}</select></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Status</span>
+          <select name="status" defaultValue={status ?? ''} className="rounded-sm border px-2 py-1"><option value="">All</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Apply</button>
       </form>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-100 text-left">
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted">
             <tr>
               <th className="p-2">Invoice</th><th className="p-2">Date</th><th className="p-2">Due</th><th className="p-2">{type === 'ACCPAY' ? 'Supplier' : 'Customer'}</th>
               <th className="p-2">Reference</th><th className="p-2">Status</th><th className="p-2 text-right">Total</th><th className="p-2 text-right">Due</th>
@@ -71,7 +71,7 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
                 <td className="p-2 text-right tabular-nums whitespace-nowrap">{formatMoney(r.amount_due, r.currency_code)}</td>
               </tr>
             ))}
-            {!data?.length ? <tr><td colSpan={8} className="p-6 text-center text-neutral-600">No {noun}.</td></tr> : null}
+            {!data?.length ? <tr><td colSpan={8} className="p-6 text-center text-fg-muted">No {noun}.</td></tr> : null}
           </tbody>
         </table>
       </div>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { StatusChip } from '@/components/admin/StatusChip';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { adminForm } from '@/lib/admin/context';
 import { columnChoices, formatDateTime, PAGE_SIZE, parseGridQuery } from '@/lib/admin/grid';
 import { listEntries } from '@/lib/admin/list';
@@ -47,49 +47,49 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-xs text-neutral-600"><Link href="/admin" className="underline">Home</Link> / Forms</p>
-          <h1 className="text-2xl font-semibold">{spec.name}</h1>
-          <p className="text-sm text-neutral-600">{total} entr{total === 1 ? 'y' : 'ies'}{form.encrypt ? ' · encrypted form: search covers the summary only' : ''}</p>
+          <p className="text-xs text-fg-muted"><Link href="/admin" className="underline">Home</Link> / Forms</p>
+          <h1 className="text-h1">{spec.name}</h1>
+          <p className="text-sm text-fg-muted">{total} entr{total === 1 ? 'y' : 'ies'}{form.encrypt ? ' · encrypted form: search covers the summary only' : ''}</p>
         </div>
         <div className="flex flex-wrap gap-2 text-sm">
-          {can(member, 'entries.write') ? <Link href={`/admin/forms/${slug}/new`} className="rounded bg-neutral-900 px-3 py-2 text-white">New entry</Link> : null}
+          {can(member, 'entries.write') ? <Link href={`/admin/forms/${slug}/new`} className="rounded-pill bg-accent px-4 py-2 font-semibold text-accent-fg">New entry</Link> : null}
           {can(member, 'entries.export') ? (
             <>
-              <a href={`/admin/forms/${slug}/export${qs({ format: 'csv', page: null })}`} className="rounded border bg-white px-3 py-2">Export CSV</a>
-              <a href={`/admin/forms/${slug}/export${qs({ format: 'xlsx', page: null })}`} className="rounded border bg-white px-3 py-2">Export XLSX</a>
+              <a href={`/admin/forms/${slug}/export${qs({ format: 'csv', page: null })}`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Export CSV</a>
+              <a href={`/admin/forms/${slug}/export${qs({ format: 'xlsx', page: null })}`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Export XLSX</a>
             </>
           ) : null}
-          {form.isActive ? <Link href={`/f/${slug}`} className="rounded border bg-white px-3 py-2">Public link</Link> : null}
-          {can(member, 'forms.manage') ? <Link href={`/admin/forms/${slug}/settings`} className="rounded border bg-white px-3 py-2">Form settings</Link> : null}
+          {form.isActive ? <Link href={`/f/${slug}`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Public link</Link> : null}
+          {can(member, 'forms.manage') ? <Link href={`/admin/forms/${slug}/settings`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Form settings</Link> : null}
         </div>
       </div>
 
       <nav aria-label="Views" className="flex flex-wrap gap-1 text-sm">
         {views.map(([name, v]) => (
           <Link key={name} href={`/admin/forms/${slug}${qs({ view: v, page: null })}`} aria-current={v === currentView ? 'page' : undefined}
-            className={`rounded-full px-3 py-1 ${v === currentView ? 'bg-neutral-900 text-white' : 'border bg-white'}`}>
+            className={`rounded-pill px-3 py-1 no-underline ${v === currentView ? 'bg-accent font-semibold text-accent-fg' : 'border border-border-strong bg-surface text-fg'}`}>
             {name}
           </Link>
         ))}
       </nav>
 
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-lg border bg-white p-3 text-sm">
+      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface shadow-card p-3 text-sm">
         {currentView ? <input type="hidden" name="view" value={currentView} /> : null}
         <label className="flex flex-col">
-          <span className="text-xs text-neutral-600">Search</span>
-          <input name="q" defaultValue={q.q ?? ''} className="rounded border px-2 py-1" placeholder="Search entries" />
+          <span className="text-xs text-fg-muted">Search</span>
+          <input name="q" defaultValue={q.q ?? ''} className="rounded-sm border px-2 py-1" placeholder="Search entries" />
         </label>
         <label className="flex flex-col">
-          <span className="text-xs text-neutral-600">From</span>
-          <input type="date" name="from" defaultValue={q.from ?? ''} className="rounded border px-2 py-1" />
+          <span className="text-xs text-fg-muted">From</span>
+          <input type="date" name="from" defaultValue={q.from ?? ''} className="rounded-sm border px-2 py-1" />
         </label>
         <label className="flex flex-col">
-          <span className="text-xs text-neutral-600">To</span>
-          <input type="date" name="to" defaultValue={q.to ?? ''} className="rounded border px-2 py-1" />
+          <span className="text-xs text-fg-muted">To</span>
+          <input type="date" name="to" defaultValue={q.to ?? ''} className="rounded-sm border px-2 py-1" />
         </label>
         <details className="relative">
           <summary className="cursor-pointer rounded border px-2 py-1">Columns</summary>
-          <div className="absolute z-10 mt-1 max-h-72 w-72 overflow-y-auto rounded border bg-white p-2 shadow">
+          <div className="absolute z-10 mt-1 max-h-72 w-72 overflow-y-auto rounded border bg-surface p-2 shadow">
             {choices.map((c) => (
               <label key={c.name} className="flex items-center gap-2 py-0.5">
                 <input type="checkbox" name="cols" value={c.name} defaultChecked={q.cols.includes(c.name)} /> {c.label}
@@ -97,14 +97,14 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
             ))}
           </div>
         </details>
-        <button className="rounded bg-neutral-900 px-3 py-1 text-white">Apply</button>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Apply</button>
         <Link href={`/admin/forms/${slug}`} className="px-2 py-1 underline">Clear</Link>
       </form>
 
       <form action={markRead.bind(null, slug)}>
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-100 text-left">
+            <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted">
               <tr>
                 <th className="p-2"><span className="sr-only">Select</span></th>
                 <th className="p-2">#</th>
@@ -126,11 +126,11 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
                       {protectedFields.has(c) && !reveal && e.data[c] ? '(protected)' : displayValue(e.data[c])}
                     </td>
                   ))}
-                  <td className="whitespace-nowrap p-2 text-neutral-600">{formatDateTime(e.createdAt, org.timezone)}</td>
+                  <td className="whitespace-nowrap p-2 text-fg-muted">{formatDateTime(e.createdAt, org.timezone)}</td>
                 </tr>
               ))}
               {!rows.length ? (
-                <tr><td colSpan={5 + q.cols.length} className="p-6 text-center text-neutral-600">No entries.</td></tr>
+                <tr><td colSpan={5 + q.cols.length} className="p-6 text-center text-fg-muted">No entries.</td></tr>
               ) : null}
             </tbody>
           </table>
@@ -138,8 +138,8 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
         {rows.length ? (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex gap-2">
-              <button name="mode" value="read" className="rounded border bg-white px-3 py-1">Mark read</button>
-              <button name="mode" value="unread" className="rounded border bg-white px-3 py-1">Mark unread</button>
+              <button name="mode" value="read" className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1">Mark read</button>
+              <button name="mode" value="unread" className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1">Mark unread</button>
             </div>
             <div className="flex items-center gap-2">
               {q.page > 1 ? <Link href={`/admin/forms/${slug}${qs({ page: String(q.page - 1) })}`} className="underline">Previous</Link> : null}

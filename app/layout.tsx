@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { JetBrains_Mono, Manrope } from "next/font/google";
+import { THEME_INIT_SCRIPT } from "@/lib/ui/theme";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -23,10 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className={`${manrope.variable} ${jetbrainsMono.variable} antialiased`}>
         {children}
       </body>
     </html>

@@ -159,7 +159,7 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
 test('Staff edit keeps files, records a timeline diff, and rejects stale saves', async ({ page, browser }) => {
   await signIn(page);
   await page.goto('/admin/forms/job-card/new');
-  await page.getByLabel('Quote no').fill('QTEST-4004');
+  await page.getByRole('main').getByLabel('Quote no').fill('QTEST-4004');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText('Saved. Status: Submitted')).toBeVisible();
   const url = page.url();
@@ -186,7 +186,7 @@ test('Staff edit keeps files, records a timeline diff, and rejects stale saves',
 test('Admin can delete an entry after typing its number; it is audited', async ({ page }) => {
   await signIn(page);
   await page.goto('/admin/forms/job-card/new');
-  await page.getByLabel('Quote no').fill('QTEST-DELETE');
+  await page.getByRole('main').getByLabel('Quote no').fill('QTEST-DELETE');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText('Saved. Status: Submitted')).toBeVisible();
   const [e] = await sql<{ id: string; number: number }>(`select id, number from entries where summary = 'QTEST-DELETE'`);

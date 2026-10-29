@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { StatusChip } from '@/components/admin/StatusChip';
+import { StatusChip } from '@/components/ui/StatusChip';
 import { adminForm } from '@/lib/admin/context';
 import { formatDateTime } from '@/lib/admin/grid';
 import { loadEntryByNumber } from '@/lib/forms/entries';
@@ -53,21 +53,21 @@ export default async function EntryPage({
 
   return (
     <section className="space-y-4">
-      <p className="text-xs text-neutral-600">
+      <p className="text-xs text-fg-muted">
         <Link href="/admin" className="underline">Home</Link> / <Link href={`/admin/forms/${slug}`} className="underline">{spec.name}</Link> / Entry #{entry.number}
       </p>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{entry.summary || `Entry #${entry.number}`}</h1>
+        <h1 className="text-h1">{entry.summary || `Entry #${entry.number}`}</h1>
         <span data-testid="entry-status"><StatusChip status={entry.status} color={statusColor(spec, entry.status)} /></span>
       </div>
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-fg-muted">
         #{entry.number} · created {formatDateTime(entry.createdAt, org.timezone)} · updated {formatDateTime(entry.updatedAt, org.timezone)}
       </p>
-      {sp.saved ? <p role="status" className="rounded bg-green-50 p-3 text-sm text-green-900">Saved. Status: {sp.saved}</p> : null}
+      {sp.saved ? <p role="status" className="rounded bg-status-green-bg p-3 text-sm text-status-green-fg">Saved. Status: {sp.saved}</p> : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-        <div className="rounded-lg border bg-white p-4">
-          {actions.length === 0 ? <p className="mb-3 rounded bg-neutral-100 p-2 text-sm">No action is available for this entry at its current status.</p> : null}
+        <div className="rounded-md border bg-surface shadow-card p-4">
+          {actions.length === 0 ? <p className="mb-3 rounded bg-surface-2 p-2 text-sm">No action is available for this entry at its current status.</p> : null}
           <StaffForm
             form={form} number={entry.number} initial={entry.data} files={files} signatures={signatures}
             actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt}
@@ -76,17 +76,17 @@ export default async function EntryPage({
 
         <aside className="space-y-4 text-sm">
           {can(member, 'entries.write') && statuses.length > 1 ? (
-            <form action={setStatus.bind(null, slug, entry.number)} className="space-y-2 rounded-lg border bg-white p-3">
+            <form action={setStatus.bind(null, slug, entry.number)} className="space-y-2 rounded-md border bg-surface shadow-card p-3">
               <h2 className="font-semibold">Status</h2>
               <label htmlFor="status" className="sr-only">Set status</label>
-              <select id="status" name="status" defaultValue={entry.status} className="w-full rounded border px-2 py-1">
+              <select id="status" name="status" defaultValue={entry.status} className="w-full rounded-sm border px-2 py-1">
                 {[...new Set([entry.status, ...statuses])].map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
-              <button className="rounded border px-3 py-1">Set status</button>
+              <button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1">Set status</button>
             </form>
           ) : null}
 
-          <div className="rounded-lg border bg-white p-3">
+          <div className="rounded-md border bg-surface shadow-card p-3">
             <h2 className="mb-2 font-semibold">Documents</h2>
             <ul className="space-y-1">
               {templatesFor(form).map((t) => (
@@ -95,12 +95,12 @@ export default async function EntryPage({
             </ul>
             {docs?.length ? (
               <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-neutral-600">Stored versions ({docs.length})</summary>
+                <summary className="cursor-pointer text-xs text-fg-muted">Stored versions ({docs.length})</summary>
                 <ul className="mt-1 space-y-1 text-xs">
                   {docs.map((d) => (
                     <li key={d.id}>
                       <a href={`${base}/documents/${d.template_number}?version=${d.id}`} className="underline">{d.name}</a>
-                      <span className="text-neutral-600"> · {formatDateTime(d.created_at, org.timezone)} · sha256 {String(d.sha256).slice(0, 12)}…</span>
+                      <span className="text-fg-muted"> · {formatDateTime(d.created_at, org.timezone)} · sha256 {String(d.sha256).slice(0, 12)}…</span>
                     </li>
                   ))}
                 </ul>
@@ -108,27 +108,27 @@ export default async function EntryPage({
             ) : null}
           </div>
 
-          <div className="rounded-lg border bg-white p-3">
+          <div className="rounded-md border bg-surface shadow-card p-3">
             <h2 className="mb-2 font-semibold">Emails sent</h2>
             {emails?.length ? (
               <ul className="space-y-2" data-testid="emails">
                 {emails.map((m) => (
                   <li key={m.id}>
                     <p>{m.subject}</p>
-                    <p className="text-xs text-neutral-600">{(m.to_addresses as string[]).join(', ')} · {m.status}{m.error ? ` (${m.error})` : ''} · {formatDateTime(m.created_at, org.timezone)}</p>
+                    <p className="text-xs text-fg-muted">{(m.to_addresses as string[]).join(', ')} · {m.status}{m.error ? ` (${m.error})` : ''} · {formatDateTime(m.created_at, org.timezone)}</p>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-neutral-600">None.</p>}
+            ) : <p className="text-fg-muted">None.</p>}
           </div>
 
-          <div className="rounded-lg border bg-white p-3">
+          <div className="rounded-md border bg-surface shadow-card p-3">
             <h2 className="mb-2 font-semibold">Timeline</h2>
             <ol className="space-y-2" data-testid="timeline">
               {(events ?? []).map((e) => (
                 <li key={e.id}>
                   <p><span className="font-medium">{e.action}</span>{e.to_status ? ` → ${e.to_status}` : ''}</p>
-                  <p className="text-xs text-neutral-600">
+                  <p className="text-xs text-fg-muted">
                     {who(e.actor_user) ?? e.actor_role} · {formatDateTime(e.created_at, org.timezone)}
                     {(e.diff as { changed?: string[] })?.changed?.length ? ` · ${(e.diff as { changed: string[] }).changed.length} field(s) changed` : ''}
                   </p>
@@ -138,13 +138,13 @@ export default async function EntryPage({
           </div>
 
           {can(member, 'entries.delete') ? (
-            <form action={deleteEntry.bind(null, slug, entry.number)} className="space-y-2 rounded-lg border border-red-200 bg-white p-3">
-              <h2 className="font-semibold text-red-800">Delete entry</h2>
-              <p className="text-xs text-neutral-600">Removes the entry, its files and documents. Type the entry number to confirm.</p>
-              {sp.delete === 'confirm' ? <p className="text-xs text-red-700">The number did not match.</p> : null}
+            <form action={deleteEntry.bind(null, slug, entry.number)} className="space-y-2 rounded-lg border border-danger bg-surface p-3">
+              <h2 className="font-semibold text-status-red-fg">Delete entry</h2>
+              <p className="text-xs text-fg-muted">Removes the entry, its files and documents. Type the entry number to confirm.</p>
+              {sp.delete === 'confirm' ? <p className="text-xs text-status-red-fg">The number did not match.</p> : null}
               <label htmlFor="confirm" className="sr-only">Entry number</label>
-              <input id="confirm" name="confirm" inputMode="numeric" className="w-full rounded border px-2 py-1" autoComplete="off" />
-              <button className="rounded border border-red-300 px-3 py-1 text-red-800">Delete</button>
+              <input id="confirm" name="confirm" inputMode="numeric" className="w-full rounded-sm border px-2 py-1" autoComplete="off" />
+              <button className="rounded-pill border border-danger bg-surface font-semibold no-underline px-3 py-1 text-status-red-fg">Delete</button>
             </form>
           ) : null}
         </aside>

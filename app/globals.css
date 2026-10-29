@@ -1,26 +1,183 @@
 @import "tailwindcss";
 
+/* Trailers & Tankers design tokens (from the UI handoff). Components use these variables or the Tailwind
+   names mapped below; do not hard-code hex values. Light is default; dark applies on [data-theme="dark"],
+   or via prefers-color-scheme when no explicit theme is set. Fonts come from next/font in app/layout.tsx. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Neutrals */
+  --bg: #F6F7F9;
+  --surface: #FFFFFF;
+  --surface2: #F2F4F7;
+  --border: #E4E7EC;
+  --strong: #C4CAD4;
+  --text: #101828;
+  --muted: #475467;
+  --subtle: #5D6679;
+
+  /* Brand: logo orange. Text on orange is near-black (white fails WCAG AA). */
+  --accent: #FF7E25;
+  --onaccent: #17181A;
+  --accentsoft: #FFF1E6;
+  --accenttext: #B4500C;
+  --focus: #C25A12;
+
+  /* Charcoal sidebar / public headers */
+  --side: #1C1D21;
+  --sideborder: #2C2E33;
+  --sidetext: #F4F4F5;
+  --sidemuted: #B0B4BC;
+  --sideactive: #2F3137;
+  --sideok: #3CCB7F;      /* connected dot on charcoal */
+
+  /* Status tones (chip bg / chip text) */
+  --grayb: #ECEEF2; --grayt: #3F4652;
+  --tealb: #DBF3F1; --tealt: #0B6560;
+  --yelb:  #FBF0C4; --yelt:  #6E5100;
+  --grnb:  #DCF2E3; --grnt:  #16613A;
+  --redb:  #FDE2DF; --redt:  #B42318;
+  --red: #D92D20;
+
+  /* Elevation */
+  --cardshadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05);
+  --shadow: 0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14);
+  --overlay: rgba(16,18,24,.45);
+
+  /* Radius */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  --bg: #0B0D12; --surface: #14171E; --surface2: #1D2129; --border: #2A2F39; --strong: #3A404C;
+  --text: #ECEEF2; --muted: #A9AFBB; --subtle: #8F96A3;
+  --accent: #FF8A3D; --onaccent: #17181A; --accentsoft: #3A2210; --accenttext: #FFA466; --focus: #FFA466;
+  --side: #101114; --sideborder: #23252A; --sidetext: #ECEEF2; --sidemuted: #A2A6AE; --sideactive: #26282D;
+  --grayb: #262A33; --grayt: #C5CAD3; --tealb: #0F302E; --tealt: #5FD3C9; --yelb: #3A3010; --yelt: #F2CF5B;
+  --grnb: #12301F; --grnt: #6DD596; --redb: #3D1714; --redt: #FF8A80; --red: #C93A2E;
+  --cardshadow: 0 1px 2px rgba(0,0,0,.35); --shadow: 0 12px 32px rgba(0,0,0,.5); --overlay: rgba(0,0,0,.6);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #0B0D12; --surface: #14171E; --surface2: #1D2129; --border: #2A2F39; --strong: #3A404C;
+    --text: #ECEEF2; --muted: #A9AFBB; --subtle: #8F96A3;
+    --accent: #FF8A3D; --onaccent: #17181A; --accentsoft: #3A2210; --accenttext: #FFA466; --focus: #FFA466;
+    --side: #101114; --sideborder: #23252A; --sidetext: #ECEEF2; --sidemuted: #A2A6AE; --sideactive: #26282D;
+    --grayb: #262A33; --grayt: #C5CAD3; --tealb: #0F302E; --tealt: #5FD3C9; --yelb: #3A3010; --yelt: #F2CF5B;
+    --grnb: #12301F; --grnt: #6DD596; --redb: #3D1714; --redt: #FF8A80; --red: #C93A2E;
+    --cardshadow: 0 1px 2px rgba(0,0,0,.35); --shadow: 0 12px 32px rgba(0,0,0,.5); --overlay: rgba(0,0,0,.6);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface2);
+  --color-border: var(--border);
+  --color-border-strong: var(--strong);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--muted);
+  --color-fg-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--onaccent);
+  --color-accent-soft: var(--accentsoft);
+  --color-accent-text: var(--accenttext);
+  --color-side: var(--side);
+  --color-side-border: var(--sideborder);
+  --color-side-fg: var(--sidetext);
+  --color-side-muted: var(--sidemuted);
+  --color-side-active: var(--sideactive);
+  --color-side-ok: var(--sideok);
+  --color-status-gray-bg: var(--grayb);
+  --color-status-gray-fg: var(--grayt);
+  --color-status-teal-bg: var(--tealb);
+  --color-status-teal-fg: var(--tealt);
+  --color-status-yellow-bg: var(--yelb);
+  --color-status-yellow-fg: var(--yelt);
+  --color-status-green-bg: var(--grnb);
+  --color-status-green-fg: var(--grnt);
+  --color-status-red-bg: var(--redb);
+  --color-status-red-fg: var(--redt);
+  --color-danger: var(--red);
+  --color-focus: var(--focus);
+  --color-overlay: var(--overlay);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --shadow-card: var(--cardshadow);
+  --shadow-overlay: var(--shadow);
+
+  --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+  --text-h1: 24px;
+  --text-h1--line-height: 30px;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 700;
+  --text-h2: 17px;
+  --text-h2--line-height: 24px;
+  --text-h2--font-weight: 600;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-small: 13px;
+  --text-small--line-height: 18px;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--letter-spacing: 0.06em;
+  --text-label--font-weight: 600;
+}
+
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button {
+    border-color: var(--border);
+  }
+
+  html {
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  [data-theme="dark"] { color-scheme: dark; }
+  [data-theme="light"] { color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+
+  input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"], [type="submit"], [type="button"], [type="range"]),
+  select,
+  textarea {
+    background-color: var(--surface);
+    color: var(--text);
+    border-color: var(--strong);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .font-mono, code, kbd {
+    font-family: var(--font-mono);
+  }
+
+  a { color: var(--accenttext); }
 }

@@ -28,6 +28,21 @@ pnpm test:e2e    # Playwright flows against tests/e2e/mini-supabase.mjs (real Po
 the shim and migrations and serves a PostgREST/Auth/Storage-compatible API over it, so RLS and grants are real.
 Set `PLAYWRIGHT_CHROMIUM_PATH` to use an already installed Chromium.
 
+## UI
+
+Design tokens, fonts (Manrope, JetBrains Mono) and light/dark themes are in `app/globals.css`; the staff shell is
+`components/shell`, base components are `components/ui`. Route map from the design handoff to this repo:
+
+| Handoff | Repo |
+|---|---|
+| `/`, `/tasks`, `/forms`, `/settings` | `/admin`, `/admin/tasks`, `/admin/forms`, `/admin/settings` |
+| `/forms/[form]`, `/forms/[form]/[id]`, `/forms/[form]/new` | `/admin/forms/[slug]`, `/admin/forms/[slug]/entries/[number]`, `/admin/forms/[slug]/new` |
+| `/deals/[quoteNo]` | `/admin/deal-files/[quoteNo]` |
+| `/quotes`, `/invoices` | `/admin/xero/quotes`, `/admin/xero/invoices` |
+| `/integrations/xero` | `/admin/integrations/xero` |
+| `/leads`, `/leads/pipeline`, Documents | not built yet (hidden from navigation) |
+| `/f/...`, `/e/[token]` | unchanged |
+
 ## Database
 
 `supabase/migrations/0001..0003` come unchanged from the forms kit (`docs/source/tt-forms`).
