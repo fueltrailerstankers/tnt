@@ -22,3 +22,54 @@ export function secretMatches(given: string | null | undefined, expected: string
 export function intakeEventKey(source: string, sourceId: string): string {
   return createHash('sha256').update(`${source}:${sourceId}`).digest('hex');
 }
+
+/** True when a Content-Length header declares a body over the cap (checked before the body is read). */
+export function declaredTooLarge(contentLength: string | null | undefined, max = MAX_BODY_BYTES): boolean {
+  if (!contentLength) return false;
+  const n = Number(contentLength.trim());
+  return Number.isFinite(n) && n > max;
+}
+
+/**
+ * What a post does when an integration_events row with the same key already exists:
+ * - `replace`: the stored body never became a lead (it was invalid and `ignored`, or stored but never queued):
+ *   accept the new body and queue it;
+ * - `requeue`: processing failed; queue the stored event again (the lead service resumes where it stopped);
+ * - `duplicate`: already queued or processed, nothing to do.
+ */
+export type PriorEventAction = 'replace' | 'requeue' | 'duplicate';
+export function priorEventAction(status: string): PriorEventAction {
+  if (status === 'ignored' || status === 'received') return 'replace';
+  if (status === 'failed') return 'requeue';
+  return 'duplicate';
+}
+
+/** Lead intake stages recorded in lead_events. */
+export type LeadStage = 'created' | 'duplicate' | 'routed' | 'matched' | 'emailed';
+
+/**
+ * Which stages still need to run for a lead, given the lead_events kinds it already has. A retry after a
+ * partial failure runs only the missing ones. `matched` is logged only when a match was found, so a lead
+ * without one re-runs matching, which writes nothing when the match is unchanged.
+ */
+export function pendingStages(done: Iterable<string>, opts: { duplicate: boolean; notify: boolean }): Record<LeadStage, boolean> {
+  const has = new Set(done);
+  return {
+    created: !has.has('created'),
+    duplicate: opts.duplicate && !has.has('duplicate'),
+    routed: !has.has('routed'),
+    matched: !has.has('matched'),
+    emailed: opts.notify && !has.has('emailed'),
+  };
+}
+
+/** action_claims key that makes a lead's intake notification a one-time send. */
+export const notifyClaimKey = (leadId: string) => `lead.notify:${leadId}`;
+
+/** A notification claim with no recorded result younger than this may still be sending: retry later. */
+export const NOTIFY_CLAIM_STALE_MS = 10 * 60_000;
+
+/** Field names (never values) of a failed payload validation. */
+export function invalidFields(issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey> }>): string[] {
+  return [...new Set(issues.map((i) => i.path.map(String).join('.') || '(root)'))];
+}

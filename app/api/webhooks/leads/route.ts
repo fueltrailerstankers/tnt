@@ -1,14 +1,21 @@
+import { after } from 'next/server';
 import { appEnv } from '@/lib/env';
-import { intakeEventKey, MAX_BODY_BYTES, secretMatches, usableSecret } from '@/lib/leads/intake';
+import { drainOutbox } from '@/lib/jobs/handlers';
+import { enqueue } from '@/lib/jobs/outbox';
+import {
+  declaredTooLarge, intakeEventKey, invalidFields, MAX_BODY_BYTES, priorEventAction, secretMatches, usableSecret,
+} from '@/lib/leads/intake';
 import { IntakePayload, WEBHOOK_SOURCES } from '@/lib/leads/schema';
-import { createLead } from '@/lib/leads/service';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Lead intake (M4): test and website sources. Shared secret in x-leads-secret (constant-time compare),
-// rate limited per client, raw body stored first in integration_events keyed by sha256(source:source_id),
-// so a repeated post is a no-op that answers 200 { duplicate: true }. Then the lead is created, routed,
-// matched and ONE notification is sent. Responses and logs never echo personal data.
+// rate limited per client, body size capped before and after reading. Then: store the raw body in
+// integration_events keyed by sha256(source:source_id), validate, enqueue an outbox job `leads.intake`
+// ({ event_id }) and answer 200 fast. The job (lib/leads/intake-job.ts) creates, routes, matches and
+// notifies, resumably and at most once. A repeated post is a no-op that answers 200 { duplicate: true },
+// except when the stored body was invalid (`ignored`): a corrected post replaces it and is queued.
+// Responses and logs never echo personal data.
 export const dynamic = 'force-dynamic';
 
 const json = (status: number, body: Record<string, unknown>) => Response.json(body, { status });
@@ -20,6 +27,7 @@ export async function POST(req: Request) {
   if (!secret) return json(503, { error: 'lead intake is not configured' });
   if (!secretMatches(req.headers.get('x-leads-secret'), secret)) return json(401, { error: 'unauthorized' });
 
+  if (declaredTooLarge(req.headers.get('content-length'))) return json(413, { error: 'payload too large' });
   const raw = await req.text();
   if (Buffer.byteLength(raw) > MAX_BODY_BYTES) return json(413, { error: 'payload too large' });
   let body: unknown;
@@ -46,31 +54,48 @@ export async function POST(req: Request) {
     if (error.code !== '23505' && !/duplicate/i.test(error.message)) return json(500, { error: 'could not store event' });
     const { data: prior } = await db.from('integration_events').select('id, status').eq('source', 'leads').eq('external_id', externalId).single();
     if (!prior) return json(500, { error: 'could not store event' });
-    if (prior.status === 'processed' || prior.status === 'ignored') return json(200, { ok: true, duplicate: true });
-    eventId = prior.id; // stored earlier but not processed (e.g. a crash): finish it; the lead itself is idempotent
+    const action = priorEventAction(prior.status as string);
+    if (action === 'duplicate') return json(200, { ok: true, duplicate: true });
+    if (action === 'requeue') {
+      // Processing failed earlier: queue the stored event again; the lead service finishes the missing stages.
+      if (!(await queue(db, orgId, prior.id))) return json(500, { error: 'could not queue event' });
+      drainSoon();
+      return json(200, { ok: true, duplicate: true });
+    }
+    // The stored body never became a lead (invalid, or never queued): this post replaces it.
+    const { data: took } = await db.from('integration_events')
+      .update({ payload: body, status: 'received', error: null, processed_at: null, received_at: new Date().toISOString() })
+      .eq('id', prior.id).in('status', ['ignored', 'received']).select('id');
+    if (!took?.length) return json(200, { ok: true, duplicate: true }); // a concurrent post took it
+    eventId = prior.id;
   } else {
     eventId = stored.id;
   }
 
   const parsed = IntakePayload.safeParse(body);
   if (!parsed.success) {
-    const fields = [...new Set(parsed.error.issues.map((i) => i.path.join('.') || '(root)'))];
+    const fields = invalidFields(parsed.error.issues);
     await db.from('integration_events').update({ status: 'ignored', error: `invalid: ${fields.join(',')}`.slice(0, 200), processed_at: new Date().toISOString() }).eq('id', eventId);
     return json(400, { error: 'invalid payload', fields });
   }
-  const p = parsed.data;
 
+  if (!(await queue(db, orgId, eventId))) return json(500, { error: 'could not queue event' });
+  drainSoon();
+  return json(200, { ok: true, duplicate: false });
+}
+
+/** Runs queued jobs after the response is sent, as the Xero webhook does; the scheduler is the backstop. */
+function drainSoon() {
+  after(() => drainOutbox(createAdminClient(), 20_000).then(() => undefined, () => undefined));
+}
+
+/** Enqueues the intake job, then marks the event queued. False when the job could not be stored. */
+async function queue(db: ReturnType<typeof createAdminClient>, orgId: string, eventId: string): Promise<boolean> {
   try {
-    const r = await createLead(db, orgId, {
-      source: p.source, source_form: p.form ?? null, external_id: p.source_id,
-      name: p.name, email: p.email, phone: p.phone, product: p.product, message: p.message, branch: p.branch,
-      gclid: p.gclid, fbclid: p.fbclid, utm: p.utm ?? null, raw: body,
-    }, { actor: null, notify: true });
-    await db.from('integration_events').update({ status: 'processed', attempts: 1, error: null, processed_at: new Date().toISOString() }).eq('id', eventId);
-    return json(200, { ok: true, duplicate: !r.created });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message.slice(0, 200) : 'failed';
-    await db.from('integration_events').update({ status: 'failed', attempts: 1, error: msg }).eq('id', eventId);
-    return json(500, { error: 'could not process lead' });
+    await enqueue(db, orgId, 'leads.intake', { event_id: eventId });
+  } catch {
+    return false; // the event stays received/failed: a retry of the same source_id queues it
   }
+  await db.from('integration_events').update({ status: 'queued', error: null }).eq('id', eventId);
+  return true;
 }

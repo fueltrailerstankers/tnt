@@ -76,11 +76,14 @@ test.beforeAll(async ({ request }) => {
 });
 
 test('job endpoints refuse a missing or wrong bearer', async ({ request }) => {
+  // Other specs (leads) run the outbox too: compare against this test's start, not an empty table.
+  const runs = async () => (await sql<{ n: number }>(`select count(*)::int as n from job_runs`))[0].n;
+  const before = await runs();
   expect((await request.post('/api/jobs/xero-sync', { data: { mode: 'full' } })).status()).toBe(401);
   expect((await job(request, 'xero-sync', { mode: 'full' }, 'wrong-secret-wrong-secret-wrong-secret')).status()).toBe(401);
   expect((await job(request, 'outbox', {}, `${E2E_XERO.JOB_SECRET}x`)).status()).toBe(401);
   expect((await request.post('/api/jobs/outbox', { headers: { Authorization: E2E_XERO.JOB_SECRET } })).status()).toBe(401);
-  expect(await sql(`select 1 from job_runs`)).toHaveLength(0);
+  expect(await runs()).toBe(before);
 });
 
 test('admin connects Xero through the consent flow; tokens are stored encrypted', async ({ page }) => {

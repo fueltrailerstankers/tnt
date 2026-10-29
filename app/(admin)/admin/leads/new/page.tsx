@@ -23,8 +23,8 @@ export default async function NewLead({ searchParams }: { searchParams: Promise<
       <p className="text-xs text-fg-muted"><Link href="/admin/leads" className="underline">Leads</Link> / New</p>
       <h1 className="text-h1">New lead</h1>
       <p className="text-sm text-fg-muted">For leads taken by phone, walk-in or email. Give at least an email or a phone number. Routing and Xero matching run on save; no notification is sent.</p>
-      {error.length ? <p role="alert" className="rounded border border-danger bg-status-red-bg p-2 text-sm">Check: {error.join(', ')}.</p> : null}
-      <form action={createManualLead} className="space-y-3 rounded-md border bg-surface shadow-card p-4 text-sm">
+      {error.length ? <p role="alert" className="rounded-sm border border-status-red-fg/30 bg-status-red-bg p-2 text-sm text-status-red-fg">Check: {error.join(', ')}.</p> : null}
+      <form action={createManualLead} className="space-y-3 rounded-md border bg-surface p-4 text-sm shadow-card">
         {FIELDS.map((f) => (
           <label key={f.name} className="flex flex-col gap-1">
             <span>{f.label}</span>
@@ -33,7 +33,7 @@ export default async function NewLead({ searchParams }: { searchParams: Promise<
               : <input name={f.name} type={f.type ?? 'text'} maxLength={f.name === 'product' ? 300 : 160} className="rounded-sm border px-2 py-1" />}
           </label>
         ))}
-        <button className="rounded-pill bg-accent px-4 py-2 font-semibold text-accent-fg">Create lead</button>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Create lead</button>
       </form>
     </section>
   );

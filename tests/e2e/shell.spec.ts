@@ -11,6 +11,7 @@ test.describe('desktop shell (1440)', () => {
     await expect(nav.getByRole('link', { name: 'Home', exact: true })).not.toHaveAttribute('aria-current', 'page');
     // Pages that are not built yet are not linked.
     await expect(nav.getByRole('link', { name: 'Documents' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Leads' })).toHaveCount(1);
 
     await page.locator('body').press('/');
     const search = page.getByRole('searchbox', { name: 'Search by quote no, VIN or invoice no' });

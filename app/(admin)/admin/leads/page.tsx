@@ -68,16 +68,16 @@ export default async function Leads({ searchParams }: { searchParams: Promise<Re
           {can(member, 'integrations.manage') ? (
             <form action={rematchLeads}><button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1 text-sm">Re-match open leads with Xero</button></form>
           ) : null}
-          {can(member, 'leads.manage') ? <Link href="/admin/leads/new" className="rounded-pill bg-accent px-3.5 py-1.5 text-sm font-semibold text-accent-fg no-underline">New lead</Link> : null}
+          {can(member, 'leads.manage') ? <Link href="/admin/leads/new" className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg text-sm">New lead</Link> : null}
         </div>
       </div>
       {rematched ? (
-        <p role="status" className="rounded-sm bg-status-green-bg p-2 text-sm font-semibold text-status-green-fg">
+        <p role="status" className="rounded-sm border border-status-green-fg/30 bg-status-green-bg p-2 text-sm">
           Checked {one(sp.checked)} open leads; {rematched} match{rematched === '1' ? '' : 'es'} changed.{one(sp.queued) ? ' The rest continues in the background.' : ''}
         </p>
       ) : null}
       <p className="text-sm text-fg-muted">{count ?? 0} lead{count === 1 ? '' : 's'}.</p>
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface shadow-card p-3 text-sm">
+      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface p-3 text-sm shadow-card">
         <label className="flex flex-col"><span className="text-xs text-fg-muted">Search</span>
           <input name="q" defaultValue={q ?? ''} placeholder="Name, email, phone or product" className="rounded-sm border px-2 py-1" /></label>
         <label className="flex flex-col"><span className="text-xs text-fg-muted">Status</span>
@@ -105,7 +105,7 @@ export default async function Leads({ searchParams }: { searchParams: Promise<Re
                 <td className="p-2 whitespace-nowrap"><Link href={`/admin/leads/${r.id}`} className="underline">{formatDateTime(r.created_at, org.timezone)}</Link></td>
                 <td className="p-2">
                   <Link href={`/admin/leads/${r.id}`} className="underline">{r.name || '(no name)'}</Link>
-                  {r.duplicate_of ? <span className="ml-2 rounded bg-status-yellow-bg px-1 text-xs text-status-yellow-fg">duplicate</span> : null}
+                  {r.duplicate_of ? <span className="ml-2 rounded-pill bg-status-yellow-bg px-1 text-xs text-status-yellow-fg">duplicate</span> : null}
                 </td>
                 <td className="p-2">{r.product}</td>
                 <td className="p-2">{srcName.get(r.source) ?? r.source}</td>

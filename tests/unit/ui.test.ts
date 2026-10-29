@@ -47,6 +47,7 @@ describe('navigation', () => {
     const keys = visibleNav(member('admin')).map((n) => n.key);
     expect(keys).toContain('settings');
     expect(keys).toContain('leads');
+    expect(visibleNav(member('reviewer')).map((n) => n.key)).not.toContain('leads');
     expect(keys).not.toContain('documents');
     expect(visibleNav(member('staff')).map((n) => n.key)).not.toContain('settings');
     expect(visibleNav(null)).toEqual([]);

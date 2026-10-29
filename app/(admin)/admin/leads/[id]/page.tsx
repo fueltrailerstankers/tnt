@@ -24,7 +24,9 @@ function eventText(kind: string, meta: Record<string, unknown>, who: Map<string,
   switch (kind) {
     case 'created': return `from ${String(meta.source ?? '')}`;
     case 'routed': return `to ${String(meta.event_key ?? '')}`;
-    case 'emailed': return `${String(meta.status ?? '')} (${String(meta.recipients ?? 0)} recipient${meta.recipients === 1 ? '' : 's'})`;
+    case 'emailed': return typeof meta.recipients === 'number'
+      ? `${String(meta.status ?? '')} (${meta.recipients} recipient${meta.recipients === 1 ? '' : 's'})`
+      : String(meta.status ?? '');
     case 'status': return `${String(meta.from ?? '')} → ${String(meta.to ?? '')}`;
     case 'assigned': return meta.to ? `to ${who.get(String(meta.to)) ?? 'member'}` : 'unassigned';
     case 'matched': return [meta.quote_id ? 'quote' : null, meta.invoice_id ? 'invoice' : null].filter(Boolean).join(' and ') || 'no match';
@@ -60,13 +62,13 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
       <p className="text-xs text-fg-muted"><Link href="/admin/leads" className="underline">Leads</Link> / {lead.name || 'Lead'}</p>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-h1">{lead.name || '(no name)'}</h1>
-        <span className="rounded bg-surface-2 px-2 py-0.5 text-sm" data-testid="lead-status">{lead.status}</span>
-        {lead.duplicate_of ? <span className="rounded bg-status-yellow-bg px-2 py-0.5 text-sm text-status-yellow-fg">duplicate</span> : null}
+        <span className="rounded-pill bg-surface-2 px-2 py-0.5 text-sm" data-testid="lead-status">{lead.status}</span>
+        {lead.duplicate_of ? <span className="rounded-pill bg-status-yellow-bg px-2 py-0.5 text-sm text-status-yellow-fg">duplicate</span> : null}
       </div>
-      {sp.saved ? <p role="status" className="rounded-sm bg-status-green-bg p-2 text-sm font-semibold text-status-green-fg">Saved.</p> : null}
-      {sp.error ? <p role="alert" className="rounded border border-danger bg-status-red-bg p-2 text-sm">That change could not be saved.</p> : null}
+      {sp.saved ? <p role="status" className="rounded-sm border border-status-green-fg/30 bg-status-green-bg p-2 text-sm">Saved.</p> : null}
+      {sp.error ? <p role="alert" className="rounded-sm border border-status-red-fg/30 bg-status-red-bg p-2 text-sm text-status-red-fg">That change could not be saved.</p> : null}
 
-      <dl className="grid grid-cols-2 gap-3 rounded-md border bg-surface shadow-card p-4 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-3 rounded-md border bg-surface p-4 text-sm sm:grid-cols-3 shadow-card">
         <div><dt className="text-xs text-fg-muted">Email</dt><dd className="break-all">{lead.email}</dd></div>
         <div><dt className="text-xs text-fg-muted">Phone</dt><dd>{lead.phone}</dd></div>
         <div><dt className="text-xs text-fg-muted">Product / interest</dt><dd>{lead.product}</dd></div>
@@ -80,7 +82,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
         {lead.message ? <div className="col-span-full"><dt className="text-xs text-fg-muted">Message</dt><dd className="whitespace-pre-wrap">{lead.message}</dd></div> : null}
       </dl>
 
-      <div className="rounded-md border bg-surface shadow-card p-4 text-sm" data-testid="lead-xero">
+      <div className="rounded-md border bg-surface p-4 text-sm shadow-card" data-testid="lead-xero">
         <h2 className="mb-2 font-semibold">Xero</h2>
         {lead.matched_quote_id || lead.matched_invoice_id ? (
           <ul className="space-y-1">
@@ -100,7 +102,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
       </div>
 
       {original || dupes?.length ? (
-        <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
+        <div className="rounded-md border bg-surface p-4 text-sm shadow-card">
           <h2 className="mb-2 font-semibold">Duplicates</h2>
           {original ? <p>Duplicate of <Link href={`/admin/leads/${original.id}`} className="underline">{original.name || 'earlier lead'}</Link> ({formatDateTime(original.created_at, tz)})</p> : null}
           {dupes?.length ? (
@@ -113,13 +115,13 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
 
       {manage ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <form action={changeStatus} className="flex items-end gap-2 rounded-md border bg-surface shadow-card p-4 text-sm">
+          <form action={changeStatus} className="flex items-end gap-2 rounded-md border bg-surface p-4 text-sm shadow-card">
             <input type="hidden" name="id" value={lead.id} />
             <label className="flex flex-1 flex-col gap-1"><span>Status</span>
               <select name="status" defaultValue={lead.status} className="rounded-sm border px-2 py-1">{LEAD_STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
             <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Set status</button>
           </form>
-          <form action={assignLead} className="flex items-end gap-2 rounded-md border bg-surface shadow-card p-4 text-sm">
+          <form action={assignLead} className="flex items-end gap-2 rounded-md border bg-surface p-4 text-sm shadow-card">
             <input type="hidden" name="id" value={lead.id} />
             <label className="flex flex-1 flex-col gap-1"><span>Assign to</span>
               <select name="assigned_to" defaultValue={lead.assigned_to ?? ''} className="rounded-sm border px-2 py-1">
@@ -131,7 +133,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
         </div>
       ) : null}
 
-      <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
+      <div className="rounded-md border bg-surface p-4 text-sm shadow-card">
         <h2 className="mb-2 font-semibold">Timeline</h2>
         <ol className="space-y-2" data-testid="lead-timeline">
           {(events ?? []).map((e) => (
