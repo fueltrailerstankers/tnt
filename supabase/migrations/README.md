@@ -13,6 +13,7 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0009 | M3 | Xero action modes writable by the server only (the M5 import needed no migration) |
 | 0012 | M4 fix | one-time lead intake events: unique (lead_id, kind) for created, duplicate, routed, emailed |
 | 0013 | M1 fix | DEAL DATE CREATED defaults to today (spec update) |
+| 0015 | UI handoff | saved views (own rows), append-only terms versions, signature metadata on entry_files |
 
 0010 and 0011 are reserved by another branch. If 0012 reaches a project first, the Supabase CLI applies the
 lower-numbered files later only with `supabase db push --include-all`. 0012 depends on 0008 only.
@@ -20,3 +21,14 @@ lower-numbered files later only with `supabase db push --include-all`. 0012 depe
 0012 never deletes rows. If a lead already has a repeated `created`/`duplicate`/`routed`/`emailed` event (two
 intake jobs raced before this fix), the migration stops with a message and a query that lists them. Review those
 rows, delete the later copy of each pair by hand (keep the earliest), and apply 0012 again.
+
+0015 (UI handoff) depends on 0001, 0004 and 0005 only; 0014 is reserved by another branch, so apply 0015 with
+`--include-all` if it lands first. It is additive:
+- `saved_views`: a user's own named list filters (`scope` = `form:<slug>` | `xero_quotes` | `xero_invoices` |
+  `leads`; `query` = list URL params only, never entry values). RLS: own rows within the caller's orgs; clients may
+  update `name` and `query` only. Use `lib/views/saved-views.ts` (Zod-validated, per-list permission, RLS client).
+- `terms_versions`: the exact text blocks shown to a signer, one row per (org, key, sha256). Members read; only the
+  service role inserts (`ensureTermsVersion` in `lib/terms/versions.ts`, after the form or link checks). No API
+  role may update or delete, and a trigger blocks update, delete and truncate even for the table owner.
+- `entry_files`: nullable `signed_at`, `signer_role`, `sign_method` (`draw` | `type`) and `terms_version_id`, allowed
+  on signature rows only; the terms version must belong to the entry's org. Existing rows are unchanged.
