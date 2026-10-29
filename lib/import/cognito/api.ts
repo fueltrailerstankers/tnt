@@ -128,9 +128,10 @@ export class HttpCognitoSource implements CognitoSource {
   async downloadFile(ref: CognitoFileRef): Promise<DownloadedFile> {
     const inline = decodeInline(ref);
     if (inline) return inline;
-    const url = ref.url ?? (ref.id ? `${this.base}/files/${encodeURIComponent(ref.id)}` : null);
-    if (!url) throw new Error('file has no source');
-    if (!this.allowedFileUrl(url)) throw new Error('file URL is not an https Cognito URL');
+    // A URL from entry data that is not an https Cognito URL is never fetched; the Id route (our own base) is used instead.
+    const direct = ref.url && this.allowedFileUrl(ref.url) ? ref.url : null;
+    const url = direct ?? (ref.id ? `${this.base}/files/${encodeURIComponent(ref.id)}` : null);
+    if (!url) throw new Error(ref.url ? 'file URL is not an https Cognito URL' : 'file has no source');
     let res = (await this.request(url, 'download file', '*/*'))!;
     // A6: the files endpoint may answer with metadata JSON that points at the bytes.
     if ((res.headers.get('content-type') ?? '').includes('application/json')) {

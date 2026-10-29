@@ -100,8 +100,11 @@ function fileLoader(db: SupabaseClient, orgId: string, tz: string): FileLoader {
   };
 }
 
-/** Runs an action. Returns the run status. Throws RetryLater / errors so the outbox retries with backoff. */
-export async function performXeroAction(db: SupabaseClient, orgId: string, action: ActionName, payload: ActionPayload): Promise<string> {
+/**
+ * Runs an action. Returns the run status. Throws RetryLater / errors so the outbox retries with backoff.
+ * `jobId` is the outbox job id: an entry Update is applied once per job (see applyEffect).
+ */
+export async function performXeroAction(db: SupabaseClient, orgId: string, action: ActionName, payload: ActionPayload, jobId: string): Promise<string> {
   const conn = await loadConnection(db, orgId);
   const resolved = await actionMode(db, orgId, action, conn);
   const source = { source_entry_id: isUuid(payload.entryId) ? payload.entryId : null, source_ref: typeof payload.invoiceId === 'string' ? payload.invoiceId.slice(0, 64) : null };
@@ -151,14 +154,15 @@ export async function performXeroAction(db: SupabaseClient, orgId: string, actio
   try {
     // Dry run changes nothing: our own effects (entries, mappings, emails) are only recorded (display.effects).
     effects = mode === 'live'
-      ? await applyEffects(db, orgId, plan, exec, mode, writer, org.timezone)
+      ? await applyEffects(db, orgId, plan, exec, mode, writer, org.timezone, jobId)
       : plan.effects.map((e) => ({ kind: e.kind, outcome: 'dry run: not applied' }));
   } catch (e) {
     await finishRun(db, runId, { status: 'failed', error: redactError(e), response_summary: { steps: exec.steps } });
     throw e;
   }
   await finishRun(db, runId, {
-    status: mode === 'live' || !plan.requests.length ? 'succeeded' : 'planned',
+    // A dry run is `planned` even with no Xero requests: it applied nothing (docs/M3.md).
+    status: mode === 'live' ? 'succeeded' : 'planned',
     response_summary: { steps: exec.steps, effects },
   });
   return mode === 'live' ? 'succeeded' : 'planned';
@@ -168,12 +172,12 @@ export async function performXeroAction(db: SupabaseClient, orgId: string, actio
 // Effects: our own entries, mappings and emails. They run in live only; dry run records them without applying.
 // ---------------------------------------------------------------------------------------------------
 async function applyEffects(
-  db: SupabaseClient, orgId: string, plan: Plan, exec: ExecResult, mode: 'dry_run' | 'live', writer: XeroWriter, tz: string,
+  db: SupabaseClient, orgId: string, plan: Plan, exec: ExecResult, mode: 'dry_run' | 'live', writer: XeroWriter, tz: string, jobId: string,
 ): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = [];
   const captures = { ...exec.captures };
   for (const e of plan.effects) {
-    out.push(await applyEffect(db, orgId, plan, e, captures, mode, writer, tz));
+    out.push(await applyEffect(db, orgId, plan, e, captures, mode, writer, tz, jobId));
   }
   return out;
 }
@@ -192,7 +196,7 @@ async function done(db: SupabaseClient, orgId: string, key: string, result: Reco
 }
 
 async function applyEffect(
-  db: SupabaseClient, orgId: string, plan: Plan, e: Effect, captures: Record<string, string>, mode: 'dry_run' | 'live', writer: XeroWriter, tz: string,
+  db: SupabaseClient, orgId: string, plan: Plan, e: Effect, captures: Record<string, string>, mode: 'dry_run' | 'live', writer: XeroWriter, tz: string, jobId: string,
 ): Promise<Record<string, unknown>> {
   switch (e.kind) {
     case 'entry.patch': {
@@ -204,7 +208,9 @@ async function applyEffect(
     }
     case 'entry.submit':
     case 'entry.update': {
-      const key = `${plan.idempotencyKey}#entry`;
+      // Submit once per source, ever. Update once per outbox job: a retry of the same job is a no-op, while a later
+      // job (e.g. the invoice is paid again) applies it. Keys hold ids only, never entry values.
+      const key = e.kind === 'entry.submit' ? `${plan.idempotencyKey}#entry` : `${plan.idempotencyKey}#entry.update.${jobId}`;
       const g = await once(db, orgId, key);
       if (!g.first) {
         if (typeof g.result?.entryId === 'string') {

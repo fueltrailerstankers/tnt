@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { formatDateTime } from '@/lib/admin/grid';
 import { loadOrg } from '@/lib/forms/org';
 import { loadConnection } from '@/lib/integrations/xero/connection';
-import { hasWriteScopes, parseMode, PLAN_ONLY, resolveMode, settingKey, WRITE_SCOPES, WRITES_TO_XERO } from '@/lib/integrations/xero/write/modes';
+import {
+  dryRunDoesNothing, hasWriteScopes, NO_XERO_WRITES_NOTE, parseMode, PLAN_ONLY, resolveMode, settingKey, WRITE_SCOPES, WRITES_TO_XERO,
+} from '@/lib/integrations/xero/write/modes';
 import { ACTIONS } from '@/lib/integrations/xero/write/types';
 import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
@@ -67,10 +69,15 @@ export default async function XeroActions() {
               <h2 className="font-semibold"><code>{a}</code></h2>
               <span className="text-xs">
                 setting <b>{parseMode(setting(a))}</b> · runs as <b>{r.mode}</b>{r.downgraded ? ` (${r.downgraded})` : ''}
-                {WRITES_TO_XERO[a] ? '' : ' · no Xero writes (dry run and live behave the same)'}
+                {WRITES_TO_XERO[a] ? '' : ` · ${NO_XERO_WRITES_NOTE}`}
               </span>
             </div>
             <p className="mt-1 text-neutral-700">{ABOUT[a]}</p>
+            {dryRunDoesNothing(a, r.mode) ? (
+              <p className="mt-1 rounded bg-status-yellow-bg px-2 py-1 text-xs text-status-yellow-fg" data-testid={`dry-run-note-${a}`}>
+                Dry run currently does nothing for this action: it saves no entries and sends no emails, it only records what it would do. Live applies them.
+              </p>
+            ) : null}
             {PLAN_ONLY[a] ? <p className="mt-1 text-xs text-amber-800">{PLAN_ONLY[a]}</p> : null}
             {configure ? <div className="mt-2"><ModeSwitch action={a} current={parseMode(setting(a))} canLive={canLive} /></div> : null}
             {a === 'invoice.merge_attachments' && configure ? <div className="mt-2"><MergePlanForm /></div> : null}

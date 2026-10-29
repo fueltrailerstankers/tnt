@@ -7,7 +7,8 @@
 // The mode is app_settings "xero.action.<name>" (a JSON string). Missing or unknown means off.
 // Live additionally needs a Xero connection that was granted the write scopes. M2 connects read-only, so no
 // action can be live until an admin reconnects with XERO_SCOPES including the write scopes.
-// Our own entries and emails are not Xero writes: actions that only do those run the same in dry_run and live.
+// Our own entries and emails are not Xero writes, but dry run does not apply them either: it only records the
+// entries/emails it would make, and live applies them. So an action without Xero writes does nothing in dry run.
 import type { ActionName } from './types';
 
 export const MODES = ['off', 'dry_run', 'live'] as const;
@@ -25,6 +26,14 @@ export const WRITES_TO_XERO: Record<ActionName, boolean> = {
   'release.on_paid': false,
   'invoice.merge_attachments': true,
 };
+
+/** Settings page note for actions that write only our own entries and emails. */
+export const NO_XERO_WRITES_NOTE = 'no Xero writes; dry run only records the entries/emails it would make, live applies them';
+
+/** True when the action changes nothing in this mode: it has no Xero writes and dry run applies no effects. */
+export function dryRunDoesNothing(action: ActionName, mode: ActionMode): boolean {
+  return mode === 'dry_run' && !WRITES_TO_XERO[action];
+}
 
 /** Actions whose live mode is not built yet (they only ever plan). */
 export const PLAN_ONLY: Partial<Record<ActionName, string>> = {

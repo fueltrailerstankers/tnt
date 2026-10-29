@@ -24,7 +24,7 @@ const { notifyClaimKey } = await import('@/lib/leads/intake');
 
 const ORG = '00000000-0000-0000-0000-000000000001';
 
-type Fail = (table: string, op: 'insert' | 'update', row: Row) => boolean;
+type Fail = (table: string, op: 'select' | 'insert' | 'update', row: Row) => boolean;
 
 /** Enough of PostgREST for the lead service: eq/in/like/or/gte/gt filters, inserts with unique keys, updates. */
 function fakeDb(seed: Record<string, Row[]> = {}) {
@@ -37,7 +37,12 @@ function fakeDb(seed: Record<string, Row[]> = {}) {
     ...seed,
   };
   const unique: Record<string, string[]> = { leads: ['org_id', 'source', 'external_id'], action_claims: ['org_id', 'action_key'] };
+  // 0012 lead_events_once: unique (lead_id, kind) for the one-time intake stages.
+  const uniqueWhere: Record<string, { keys: string[]; when: (r: Row) => boolean }> = {
+    lead_events: { keys: ['lead_id', 'kind'], when: (r) => ['created', 'duplicate', 'routed', 'emailed'].includes(String(r.kind)) },
+  };
   const failures: Fail[] = [];
+  const hooks: { beforeInsert?: (table: string, row: Row) => void } = {};
   let seq = 0;
 
   const from = (t: string) => {
@@ -49,8 +54,13 @@ function fakeDb(seed: Record<string, Row[]> = {}) {
       const rows = (tables[t] ??= []);
       if (op === 'insert') {
         if (failures.some((f) => f(t, 'insert', payload))) return { data: null, error: { code: 'XX000', message: 'injected failure' } };
+        hooks.beforeInsert?.(t, payload);
         const keys = unique[t];
         if (keys && rows.some((r) => keys.every((k) => r[k] === payload[k]) && keys.every((k) => payload[k] != null))) {
+          return { data: null, error: { code: '23505', message: 'duplicate key value' } };
+        }
+        const partial = uniqueWhere[t];
+        if (partial && partial.when(payload) && rows.some((r) => partial.when(r) && partial.keys.every((k) => r[k] === payload[k]))) {
           return { data: null, error: { code: '23505', message: 'duplicate key value' } };
         }
         const row: Row = { id: `${t}-${++seq}`, created_at: new Date(Date.now() + seq).toISOString(), ...(t === 'action_claims' ? { result: null, claimed_at: new Date().toISOString() } : {}), ...payload };
@@ -58,6 +68,7 @@ function fakeDb(seed: Record<string, Row[]> = {}) {
         rows.push(row);
         return { data: [row], error: null };
       }
+      if (op === 'select' && failures.some((f) => f(t, 'select', {}))) return { data: null, error: { code: 'XX000', message: 'injected read failure' } };
       const hit = rows.filter((r) => filters.every((f) => f(r)));
       if (op === 'update') {
         if (hit.some((r) => failures.some((f) => f(t, 'update', { ...r, ...payload })))) return { data: null, error: { code: 'XX000', message: 'injected failure' } };
@@ -89,7 +100,7 @@ function fakeDb(seed: Record<string, Row[]> = {}) {
     };
     return b;
   };
-  return { db: { from } as never, tables, failOnce: (f: Fail) => { let used = false; failures.push((...a) => !used && f(...a) && (used = true)); } };
+  return { db: { from } as never, tables, hooks, failOnce: (f: Fail) => { let used = false; failures.push((...a) => !used && f(...a) && (used = true)); } };
 }
 
 const input = (o: Row = {}) => ({ source: 'test', external_id: 'svc-1', name: 'Test Person', email: 'tp@example.invalid', phone: '082 555 0101', product: 'Fuel trailer', ...o });
@@ -183,6 +194,51 @@ describe('createLead', () => {
     const r = await createLead(f.db, ORG, input(), { actor: null, notify: true });
     expect(r.eventKey).toBe('leads.new');
     expect(kinds(f.tables)).toEqual(['created', 'emailed', 'matched', 'routed']);
+  });
+
+  it('a one-time stage another intake job recorded first counts as done (0012 unique index)', async () => {
+    const f = fakeDb();
+    let raced = false;
+    f.hooks.beforeInsert = (t, row) => {
+      if (t !== 'lead_events' || raced || (row.kind !== 'routed' && row.kind !== 'emailed')) return;
+      // A concurrent job for the same lead records routed and emailed just before this one does.
+      raced = true;
+      f.tables.lead_events.push({ id: 'other-routed', lead_id: row.lead_id, kind: 'routed', meta: {} }, { id: 'other-emailed', lead_id: row.lead_id, kind: 'emailed', meta: {} });
+    };
+    const r = await createLead(f.db, ORG, input(), { actor: null, notify: true });
+    expect(r.created).toBe(true);
+    expect(kinds(f.tables)).toEqual(['created', 'emailed', 'routed']);
+    expect(sends).toHaveLength(1);
+  });
+
+  it('a failed routing rules read throws before anything is written', async () => {
+    const f = fakeDb();
+    f.failOnce((t, op) => t === 'routing_rules' && op === 'select');
+    await expect(createLead(f.db, ORG, input(), { actor: null, notify: true })).rejects.toThrow('could not read routing rules');
+    expect(f.tables.leads).toHaveLength(0);
+  });
+
+  it('a failed duplicate lookup throws instead of creating an unlinked lead', async () => {
+    const f = fakeDb();
+    await createLead(f.db, ORG, input({ external_id: 'first' }), { actor: null, notify: false });
+    let reads = 0;
+    f.failOnce((t, op) => t === 'leads' && op === 'select' && ++reads === 2); // 1: by external id, 2: duplicate lookup
+    await expect(createLead(f.db, ORG, input({ external_id: 'second' }), { actor: null, notify: false })).rejects.toThrow();
+    expect(f.tables.leads).toHaveLength(1);
+    const again = await createLead(f.db, ORG, input({ external_id: 'second' }), { actor: null, notify: false });
+    expect(again.duplicateOf).toBe(f.tables.leads[0].id);
+  });
+
+  it('a failed recipients read throws without using up the one-time notification claim', async () => {
+    const f = fakeDb();
+    f.failOnce((t, op) => t === 'notification_recipients' && op === 'select');
+    await expect(createLead(f.db, ORG, input(), { actor: null, notify: true })).rejects.toThrow('could not read notification recipients');
+    expect(f.tables.action_claims).toHaveLength(0);
+    expect(sends).toHaveLength(0);
+
+    const r = await createLead(f.db, ORG, input(), { actor: null, notify: true });
+    expect(r.emailed).toBe('skipped');
+    expect(sends).toEqual([expect.objectContaining({ to: ['sales@example.invalid'] })]);
   });
 
   it('manual leads (notify off) never claim or send', async () => {

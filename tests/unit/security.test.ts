@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { decrypt, decryptJson, encrypt, encryptJson, parseKey, sha256Hex } from '@/lib/security/crypto';
-import { displayFileName, isAllowed, safeObjectName, sniff, storedContentType } from '@/lib/security/files';
+import { displayFileName, isAllowed, safeObjectName, safeSignatureSvg, sniff, storedContentType } from '@/lib/security/files';
 
 const key = randomBytes(32);
 
@@ -62,5 +62,47 @@ describe('file sniffing', () => {
     expect(safeObjectName('../../etc/passwd')).toBe('passwd');
     expect(safeObjectName('Proof of payment (1).PDF')).toBe('Proof-of-payment-1.pdf');
     expect(displayFileName('C:\\Users\\x\\proof\u0000.pdf')).toBe('proof.pdf');
+  });});
+
+describe('safeSignatureSvg', () => {
+  const svg = (s: string) => safeSignatureSvg(new TextEncoder().encode(s));
+  const NS = "xmlns='http://www.w3.org/2000/svg'";
+
+  it('accepts plain drawing markup with an svg root', () => {
+    expect(svg(`<svg ${NS}><path d='M0 0L1 1'/></svg>`)).toBe(true);
+    expect(svg(`<svg ${NS}/>`)).toBe(true);
+    expect(svg(`\uFEFF<?xml version="1.0" encoding="UTF-8"?>\n<!-- signature -->\n<svg ${NS} viewBox="0 0 300 100" width="300" height="100"><g fill="none" stroke="#000" stroke-width="2"><polyline points="1,1 2,2"/><circle cx="1" cy="1" r="1"/></g></svg>`)).toBe(true);
+  });
+
+  it('refuses anything that is not an svg root or not UTF-8 text', () => {
+    expect(svg('<html><body/></html>')).toBe(false);
+    expect(svg(`<svgx ${NS}/>`)).toBe(false);
+    expect(svg(`<SVG ${NS}/>`)).toBe(false);
+    expect(svg(`text<svg ${NS}/>`)).toBe(false);
+    expect(svg(`<?xml-stylesheet type="text/css" ?><svg ${NS}/>`)).toBe(false);
+    expect(safeSignatureSvg(Uint8Array.from([0x3c, 0x73, 0x76, 0x67, 0x20, 0xff, 0xfe, 0x2f, 0x3e]))).toBe(false);
+    expect(svg(`<svg ${NS}>\u0000</svg>`)).toBe(false);
+    expect(safeSignatureSvg(Uint8Array.from([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
+  });
+
+  it.each([
+    ['script', `<svg ${NS}><script>go()</script></svg>`],
+    ['prefixed script', `<svg ${NS} xmlns:s='http://www.w3.org/2000/svg'><s:script>go()</s:script></svg>`],
+    ['foreignObject', `<svg ${NS}><foreignObject><div/></foreignObject></svg>`],
+    ['on* attribute', `<svg ${NS} onload='go()'/>`],
+    ['on* attribute, spaced', `<svg ${NS}><path d='M0 0' onclick = 'go()'/></svg>`],
+    ['href', `<svg ${NS}><a href='https://example.invalid/'><path d='M0 0'/></a></svg>`],
+    ['xlink:href', `<svg ${NS} xmlns:xlink='http://www.w3.org/1999/xlink'><use xlink:href='#a'/></svg>`],
+    ['DOCTYPE', `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg ${NS}/>`],
+    ['ENTITY', `<svg ${NS}><!ENTITY x "y"></svg>`],
+    ['url()', `<svg ${NS}><path d='M0 0' fill='url(https://example.invalid/x)'/></svg>`],
+    ['url() in style', `<svg ${NS} style='background: URL ( "https://example.invalid/x" )'/>`],
+    ['@import', `<svg ${NS}><style>@import "https://example.invalid/x.css";</style></svg>`],
+    ['style element', `<svg ${NS}><style>path { fill: red }</style></svg>`],
+    ['character reference', `<svg ${NS} style='fill: u&#114;l(x)'/>`],
+    ['image element', `<svg ${NS}><image width='1' height='1'/></svg>`],
+    ['animation', `<svg ${NS}><set attributeName='fill' to='red'/></svg>`],
+  ])('refuses %s', (_name, markup) => {
+    expect(svg(markup)).toBe(false);
   });
 });

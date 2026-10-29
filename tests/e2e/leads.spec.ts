@@ -60,6 +60,11 @@ test('a test lead lands once, is routed and emailed once; a repeat post is a no-
   expect(await sql(`select 1 from public.email_log where lead_id = $1`, [lead.id])).toHaveLength(1);
   expect(await sql(`select 1 from public.integration_events where source = 'leads' and payload->>'source_id' = $1`, [body.source_id])).toHaveLength(1);
 
+  // An invalid re-post is refused and never touches the stored event.
+  const invalid = await post(request, { source: 'test', source_id: body.source_id, name: 'No Contact' });
+  expect(invalid.status()).toBe(400);
+  expect(await sql(`select status, payload->>'email' as email from public.integration_events where id = $1`, [ev.id])).toEqual([{ status: 'processed', email: body.email }]);
+
   // A partial failure (routed and emailed events missing, event failed): a retry of the same source_id
   // re-queues it, the job completes only the missing stages, and the email is not sent again.
   await sql(`delete from public.lead_events where lead_id = $1 and kind in ('routed', 'emailed')`, [lead.id]);
@@ -88,6 +93,8 @@ test('wrong or missing secret is 401 and stores nothing; bad payloads are 400; o
   const noContact = await post(request, { source: 'test', source_id: badId, name: 'No Contact' });
   expect(noContact.status()).toBe(400);
   expect(await eventStatus(badId)).toBe('ignored');
+  expect(await sql(`select error from public.integration_events where source = 'leads' and payload->>'source_id' = $1 and processed_at is not null`, [badId])).toEqual([{ error: 'invalid: email' }]);
+  expect(await sql(`select 1 from public.outbox_jobs j join public.integration_events e on e.id::text = j.payload->>'event_id' where e.payload->>'source_id' = $1`, [badId])).toHaveLength(0);
   expect(await sql(`select 1 from public.leads where external_id = $1`, [badId])).toHaveLength(0);
 
   // A corrected re-post of an ignored payload is accepted, not reported as a duplicate.
