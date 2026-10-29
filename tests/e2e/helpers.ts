@@ -4,7 +4,7 @@ import pg from 'pg';
 // Direct database access for assertions (the e2e database built by mini-supabase.mjs). Synthetic data only.
 export async function sql<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
   const url = new URL(process.env.DATABASE_URL ?? 'postgres://postgres@127.0.0.1:54329/postgres');
-  url.pathname = '/tt_e2e';
+  url.pathname = `/${process.env.E2E_DB_NAME ?? 'tt_e2e'}`;
   const c = new pg.Client({ connectionString: url.toString() });
   await c.connect();
   try {

@@ -21,7 +21,7 @@ const PORT = Number(process.env.STUB_PORT ?? 54399);
 const ANON_KEY = 'stub-anon-key';
 const SERVICE_KEY = 'stub-service-key';
 const SECRET = randomBytes(32);
-const E2E_DB = 'tt_e2e';
+const E2E_DB = process.env.E2E_DB_NAME ?? 'tt_e2e';
 
 export const USERS = [
   { id: '00000000-0000-0000-0000-00000000a001', email: 'admin@example.invalid', password: 'correct-horse-battery', role: 'admin', name: 'Test Admin' },
@@ -122,33 +122,48 @@ function parseList(v) {
   return out;
 }
 
+function clause(key, raw, values, qual) {
+  const col = qual + column(key);
+  let v = raw, neg = false;
+  if (v.startsWith('not.')) { neg = true; v = v.slice(4); }
+  const dot = v.indexOf('.');
+  const op = v.slice(0, dot), arg = v.slice(dot + 1);
+  let sql;
+  const p = (x) => { values.push(x); return `$${values.length}`; };
+  switch (op) {
+    case 'eq': sql = `${col} = ${p(arg)}`; break;
+    case 'neq': sql = `${col} <> ${p(arg)}`; break;
+    case 'gt': sql = `${col} > ${p(arg)}`; break;
+    case 'gte': sql = `${col} >= ${p(arg)}`; break;
+    case 'lt': sql = `${col} < ${p(arg)}`; break;
+    case 'lte': sql = `${col} <= ${p(arg)}`; break;
+    case 'like': sql = `${col}::text like ${p(arg.replaceAll('*', '%'))}`; break;
+    case 'ilike': sql = `${col}::text ilike ${p(arg.replaceAll('*', '%'))}`; break;
+    case 'in': sql = `${col}::text = any(${p(parseList(arg))}::text[])`; break;
+    case 'is':
+      if (!['null', 'true', 'false'].includes(arg)) throw new HttpError(400, { message: `unsupported is.${arg}` });
+      sql = `${col} is ${arg}`; break;
+    default: throw new HttpError(400, { message: `unsupported operator ${op}` });
+  }
+  return neg ? `not (${sql})` : sql;
+}
+
+/** or=(col.op.val,col.op.val): flat lists only (no nested and/or). */
+function orClause(raw, values, qual) {
+  const parts = parseList(raw);
+  if (!parts.length) throw new HttpError(400, { message: 'empty or' });
+  return `(${parts.map((part) => {
+    const m = part.match(/^([a-z_][a-z0-9_]*(?:->>?[A-Za-z0-9_]+)?)\.(.+)$/);
+    if (!m) throw new HttpError(400, { message: `unsupported or part ${part}` });
+    return clause(m[1], m[2], values, qual);
+  }).join(' or ')})`;
+}
+
 function where(params, values, qual = '') {
   const clauses = [];
   for (const [key, raw] of params) {
     if (RESERVED.has(key)) continue;
-    const col = qual + column(key);
-    let v = raw, neg = false;
-    if (v.startsWith('not.')) { neg = true; v = v.slice(4); }
-    const dot = v.indexOf('.');
-    const op = v.slice(0, dot), arg = v.slice(dot + 1);
-    let sql;
-    const p = (x) => { values.push(x); return `$${values.length}`; };
-    switch (op) {
-      case 'eq': sql = `${col} = ${p(arg)}`; break;
-      case 'neq': sql = `${col} <> ${p(arg)}`; break;
-      case 'gt': sql = `${col} > ${p(arg)}`; break;
-      case 'gte': sql = `${col} >= ${p(arg)}`; break;
-      case 'lt': sql = `${col} < ${p(arg)}`; break;
-      case 'lte': sql = `${col} <= ${p(arg)}`; break;
-      case 'like': sql = `${col}::text like ${p(arg.replaceAll('*', '%'))}`; break;
-      case 'ilike': sql = `${col}::text ilike ${p(arg.replaceAll('*', '%'))}`; break;
-      case 'in': sql = `${col}::text = any(${p(parseList(arg))}::text[])`; break;
-      case 'is':
-        if (!['null', 'true', 'false'].includes(arg)) throw new HttpError(400, { message: `unsupported is.${arg}` });
-        sql = `${col} is ${arg}`; break;
-      default: throw new HttpError(400, { message: `unsupported operator ${op}` });
-    }
-    clauses.push(neg ? `not (${sql})` : sql);
+    clauses.push(key === 'or' ? orClause(raw, values, qual) : clause(key, raw, values, qual));
   }
   return clauses.length ? `where ${clauses.join(' and ')}` : '';
 }
@@ -214,6 +229,10 @@ async function rest(req, url, body) {
         const args = body && typeof body === 'object' ? Object.entries(body) : [];
         const sqlArgs = args.map(([k, v]) => { values.push(v); return `${ident(k)} => $${values.length}`; }).join(', ');
         const r = await c.query(`select coalesce(json_agg(x), '[]'::json) as j from public.${fn}(${sqlArgs}) x`, values);
+        // Like PostgREST: a scalar (non-set, non-composite) function returns the bare value.
+        const kind = await c.query(`select p.proretset, t.typtype from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_type t on t.oid = p.prorettype where n.nspname = 'public' and p.proname = $1 limit 1`, [parts[1]]);
+        const k = kind.rows[0];
+        if (k && !k.proretset && k.typtype !== 'c' && k.typtype !== 'p') return { status: 200, json: r.rows[0].j[0]?.[parts[1]] ?? null };
         return { status: 200, json: r.rows[0].j };
       }
       const table = `public.${ident(parts[0])}`;

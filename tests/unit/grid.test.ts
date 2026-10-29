@@ -66,3 +66,16 @@ describe('misc rules', () => {
     expect(validateUploadRequest(rfi, '_1stDeposit', [{ name: 'a.pdf', size: 10, type: 'application/pdf' }])).toMatchObject({ ok: true });
   });
 });
+
+import { formatMoney, searchTerm } from '@/lib/admin/format';
+describe('format', () => {
+  it('money carries its own currency', () => {
+    expect(formatMoney(1150, 'ZAR')).toMatch(/R\s?1\s?150,00/);
+    expect(formatMoney(null, 'ZAR')).toBe('');
+    expect(formatMoney('12.5', null)).toMatch(/12,50/);
+  });
+  it('search terms cannot break out of a PostgREST filter', () => {
+    expect(searchTerm('QU-1,status.eq.PAID)')).toBe('QU-1 status.eq.PAID');
+    expect(searchTerm('   ')).toBeNull();
+  });
+});

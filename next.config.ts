@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Test runs in parallel use separate build dirs (NEXT_DIST_DIR); production uses the default.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
   async headers() {

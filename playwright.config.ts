@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const APP_PORT = 3100;
-const STUB_PORT = 54399;
+// Ports, database and Next build dir are overridable so parallel runs do not collide.
+const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3100);
+const STUB_PORT = Number(process.env.E2E_STUB_PORT ?? 54399);
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -23,7 +24,7 @@ export default defineConfig({
       command: 'node tests/e2e/mini-supabase.mjs',
       url: `http://127.0.0.1:${STUB_PORT}/health`,
       reuseExistingServer: !process.env.CI,
-      env: { STUB_PORT: String(STUB_PORT) },
+      env: { STUB_PORT: String(STUB_PORT), E2E_DB_NAME: process.env.E2E_DB_NAME ?? 'tt_e2e' },
       gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
     },
     {
@@ -41,6 +42,7 @@ export default defineConfig({
         ENTRY_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
         RESEND_API_KEY: '',
         NEXT_TELEMETRY_DISABLED: '1',
+        NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? '.next',
       },
     },
   ],

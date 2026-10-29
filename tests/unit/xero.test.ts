@@ -104,3 +104,17 @@ describe('webhook', () => {
     expect(entityFor({ ...e, eventCategory: 'SUBSCRIPTION' })).toBeNull();
   });
 });
+
+import { monthBounds, summarise } from '@/lib/integrations/xero/month';
+describe('month check', () => {
+  it('bounds', () => {
+    expect(monthBounds('2025-02')).toEqual({ first: '2025-02-01', next: '2025-03-01', last: '2025-02-28' });
+    expect(monthBounds('2025-12')).toEqual({ first: '2025-12-01', next: '2026-01-01', last: '2025-12-31' });
+    expect(() => monthBounds('2025-13')).toThrow();
+  });
+  it('matches per currency to the cent', () => {
+    expect(summarise('Invoices', [{ amount: 10.1, currency: 'ZAR' }, { amount: '0.2', currency: 'ZAR' }], [{ amount: 10.3, currency: 'ZAR' }, { amount: 0, currency: 'ZAR' }]))
+      .toEqual([{ entity: 'Invoices', currency: 'ZAR', xeroCount: 2, mirrorCount: 2, xeroTotal: 10.3, mirrorTotal: 10.3, match: true }]);
+    expect(summarise('Payments', [{ amount: 1, currency: 'ZAR' }], [])[0].match).toBe(false);
+  });
+});

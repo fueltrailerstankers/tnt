@@ -2,21 +2,10 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { openRow, type EntryRow } from '@/lib/forms/entries';
 import { loadForms } from '@/lib/forms/forms';
+import { fetchAll as all } from '@/lib/db/paging';
 import { linkDealFiles, type EntryIn, type InvoiceIn, type QuoteIn } from './link';
 
 const LINKED_FORMS = ['deal', 'request-for-invoice', 'job-card', 'trailer-inspection-checklist', 'release-form', 'delivery-note'];
-const PAGE = 1000; // PostgREST max rows per request on Supabase
-
-async function all<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await fetchPage(from, from + PAGE - 1);
-    if (error) throw new Error(`deal files: ${error.message}`);
-    out.push(...((data ?? []) as T[]));
-    if (!data || data.length < PAGE) return out;
-  }
-}
-
 /** Rebuilds deal_files for one org from the mirror and the form entries. Idempotent; never deletes a file. */
 export async function rebuildDealFiles(db: SupabaseClient, orgId: string): Promise<number> {
   const quotes = await all<QuoteIn>((a, b) => db.from('xero_quotes').select('quote_id, quote_no, contact_name, status').eq('org_id', orgId).order('quote_id').range(a, b));

@@ -5,7 +5,8 @@ import { Client } from 'pg';
 // Builds a throwaway database: Supabase shim, then every migration in order.
 // DATABASE_URL must point at a Postgres 15+ server with a superuser; it is never a real project.
 const root = path.resolve(__dirname, '../..');
-const TEST_DB = 'tt_test';
+// Override per worker/agent so parallel runs never share a database.
+const TEST_DB = process.env.TEST_DB_NAME ?? 'tt_test';
 
 export default async function setup() {
   const adminUrl = process.env.DATABASE_URL ?? 'postgres://postgres@127.0.0.1:54329/postgres';
