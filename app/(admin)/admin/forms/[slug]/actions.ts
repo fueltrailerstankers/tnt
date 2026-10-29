@@ -89,8 +89,9 @@ export async function markRead(slug: string, fd: FormData): Promise<void> {
     if (unread) await userDb.from('entry_reads').delete().eq('user_id', member.userId).in('entry_id', ids);
     else await userDb.from('entry_reads').upsert(ids.map((entry_id) => ({ entry_id, user_id: member.userId })), { onConflict: 'entry_id,user_id', ignoreDuplicates: true });
   }
+  // Re-render the current grid in place. A redirect here would be applied after any navigation the user makes
+  // meanwhile (e.g. clicking a view straight away) and take them back to this page.
   revalidatePath(`/admin/forms/${slug}`);
-  redirect(String(fd.get('back') ?? `/admin/forms/${slug}`).startsWith(`/admin/forms/${slug}`) ? String(fd.get('back')) : `/admin/forms/${slug}`);
 }
 
 /** Admin only. Removes the entry, its files and generated documents; the audit row keeps ids only. */

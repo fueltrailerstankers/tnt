@@ -42,7 +42,6 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
     ...spec.workflow.statuses.filter((s) => !s.archived).map((s) => [s.name, `status:${s.name}`] as [string, string]),
   ];
   const currentView = q.view === 'status' ? `status:${q.status}` : q.view === 'unread' ? 'unread' : null;
-  const back = `/admin/forms/${slug}${qs({})}`;
 
   return (
     <section className="space-y-4">
@@ -103,7 +102,6 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
       </form>
 
       <form action={markRead.bind(null, slug)}>
-        <input type="hidden" name="back" value={back} />
         <div className="overflow-x-auto rounded-lg border bg-white">
           <table className="w-full text-sm">
             <thead className="bg-neutral-100 text-left">

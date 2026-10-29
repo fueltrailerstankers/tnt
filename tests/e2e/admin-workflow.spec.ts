@@ -114,10 +114,13 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
   await expect(page.getByTestId('unread-release-form')).toHaveText(/\d+/);
   await page.getByTestId('form-row-release-form').getByRole('link', { name: 'RELEASE FORM' }).click();
   await page.getByRole('link', { name: 'Unread' }).click();
+  await expect(page).toHaveURL(/view=unread/);
+  await expect(page.getByRole('link', { name: 'Unread' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('link', { name: 'TESTVIN0000000555' })).toBeVisible();
 
   await page.getByPlaceholder('Search entries').fill('inv-test-1');
   await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page).toHaveURL(/view=unread.*q=inv-test-1/);
   await expect(page.locator('tbody tr')).toHaveCount(1);
 
   const download = page.waitForEvent('download');
@@ -132,13 +135,14 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
   expect((await xlsx).suggestedFilename()).toMatch(/^release-form-\d{4}-\d{2}-\d{2}\.xlsx$/);
 
   await page.locator('tbody input[type="checkbox"]').first().check();
-  // Wait for the server action to finish before navigating, or the Unread view can render first.
-  await Promise.all([
-    page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/admin/forms/release-form')),
-    page.getByRole('button', { name: 'Mark read' }).click(),
-  ]);
-  await expect(page.locator('tbody tr')).toHaveCount(1);
+  // The grid is the Unread view: once marked read, the entry drops out of it in place.
+  await page.getByRole('button', { name: 'Mark read' }).click();
+  await expect(page.getByText('No entries.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'TESTVIN0000000555' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'All Entries' }).click();
+  await expect(page.getByRole('link', { name: 'TESTVIN0000000555' })).toBeVisible();
   await page.getByRole('link', { name: 'Unread' }).click();
+  await expect(page).toHaveURL(/view=unread/);
   await expect(page.getByRole('link', { name: 'TESTVIN0000000555' })).toHaveCount(0);
 
   const [e] = await sql<{ number: number }>(`select number from entries where summary = 'TESTVIN0000000555'`);
