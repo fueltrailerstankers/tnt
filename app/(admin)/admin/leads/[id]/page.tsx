@@ -24,7 +24,9 @@ function eventText(kind: string, meta: Record<string, unknown>, who: Map<string,
   switch (kind) {
     case 'created': return `from ${String(meta.source ?? '')}`;
     case 'routed': return `to ${String(meta.event_key ?? '')}`;
-    case 'emailed': return `${String(meta.status ?? '')} (${String(meta.recipients ?? 0)} recipient${meta.recipients === 1 ? '' : 's'})`;
+    case 'emailed': return typeof meta.recipients === 'number'
+      ? `${String(meta.status ?? '')} (${meta.recipients} recipient${meta.recipients === 1 ? '' : 's'})`
+      : String(meta.status ?? '');
     case 'status': return `${String(meta.from ?? '')} → ${String(meta.to ?? '')}`;
     case 'assigned': return meta.to ? `to ${who.get(String(meta.to)) ?? 'member'}` : 'unassigned';
     case 'matched': return [meta.quote_id ? 'quote' : null, meta.invoice_id ? 'invoice' : null].filter(Boolean).join(' and ') || 'no match';

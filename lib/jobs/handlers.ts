@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { rebuildDealFiles } from '@/lib/deal-files/job';
 import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sync';
+import { processLeadEvent } from '@/lib/leads/intake-job';
 import { rematchOpenLeads } from '@/lib/leads/service';
 import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
@@ -23,6 +24,13 @@ export const HANDLERS: Record<string, Handler> = {
       const n = await rebuildDealFiles(db, job.org_id!);
       return { ok: true, processed: n, result: n };
     });
+  },
+  // A stored lead intake event ({ event_id }) becomes a lead (M4). Resumable; the email is sent at most once.
+  'leads.intake': async (db, job) => {
+    if (!job.org_id) throw new Error('job has no org');
+    const eventId = (job.payload as { event_id?: unknown }).event_id;
+    if (typeof eventId !== 'string' || !eventId) throw new Error('job has no event');
+    await processLeadEvent(db, job.org_id, eventId);
   },
   // Re-run lead to Xero matching for the org's open leads (M4). Idempotent; continues itself when out of time.
   'leads.rematch': async (db, job) => {

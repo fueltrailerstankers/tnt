@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { findDuplicateOf } from '@/lib/leads/duplicates';
-import { intakeEventKey, secretMatches, usableSecret } from '@/lib/leads/intake';
+import {
+  declaredTooLarge, intakeEventKey, invalidFields, MAX_BODY_BYTES, notifyClaimKey, pendingStages, priorEventAction, secretMatches, usableSecret,
+} from '@/lib/leads/intake';
 import {
   countsAsInvoice, DEFAULT_INVOICE_START, invoiceStartFrom, isGoneOut, matchChanged, matchColumns, matchContacts, matchLead, NO_MATCH,
   type InvoiceRow, type QuoteRow,
@@ -166,6 +168,32 @@ describe('intake', () => {
     expect(intakeEventKey('test', 'abc')).toMatch(/^[0-9a-f]{64}$/);
     expect(intakeEventKey('test', 'abc')).toBe(intakeEventKey('test', 'abc'));
     expect(intakeEventKey('test', 'abc')).not.toBe(intakeEventKey('website', 'abc'));
+  });
+  it('refuses a declared body over 64 KB before reading it', () => {
+    expect(declaredTooLarge(String(MAX_BODY_BYTES + 1))).toBe(true);
+    expect(declaredTooLarge(String(MAX_BODY_BYTES))).toBe(false);
+    expect(declaredTooLarge(null)).toBe(false); // chunked: the post-read check still applies
+    expect(declaredTooLarge('not-a-number')).toBe(false);
+  });
+  it('decides what a repeated source id does from the stored event status', () => {
+    expect(priorEventAction('ignored')).toBe('replace'); // a corrected re-post is accepted
+    expect(priorEventAction('received')).toBe('replace');
+    expect(priorEventAction('failed')).toBe('requeue');
+    expect(priorEventAction('queued')).toBe('duplicate');
+    expect(priorEventAction('processed')).toBe('duplicate');
+  });
+  it('runs only the lead stages without an event', () => {
+    expect(pendingStages([], { duplicate: true, notify: true })).toEqual({ created: true, duplicate: true, routed: true, matched: true, emailed: true });
+    expect(pendingStages(['created', 'routed'], { duplicate: false, notify: true })).toEqual({ created: false, duplicate: false, routed: false, matched: true, emailed: true });
+    expect(pendingStages(['created', 'duplicate', 'routed', 'matched', 'emailed'], { duplicate: true, notify: true })).toEqual({ created: false, duplicate: false, routed: false, matched: false, emailed: false });
+    expect(pendingStages([], { duplicate: false, notify: false }).emailed).toBe(false);
+    expect(notifyClaimKey('abc')).toBe('lead.notify:abc');
+  });
+  it('reports invalid field names, never values', () => {
+    const r = IntakePayload.safeParse({ source: 'test', source_id: 't-1', email: 'Secret Value' });
+    expect(r.success).toBe(false);
+    expect(invalidFields(r.error!.issues)).toEqual(['email']);
+    expect(invalidFields([{ path: [] }])).toEqual(['(root)']);
   });
   it('validates payloads', () => {
     const ok = IntakePayload.safeParse({ source: 'test', source_id: 't-1', name: ' Test Person ', email: 'TP@example.invalid', utm: { utm_source: 'google' } });
