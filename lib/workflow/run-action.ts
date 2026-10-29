@@ -8,6 +8,7 @@ import { loadOrg } from '@/lib/forms/org';
 import { checkStaged, downloadObject, ENTRY_BUCKET, finalPath, moveObject, removeObjects, saveSignature } from '@/lib/forms/storage';
 import { ensureDocument, SIGNED_DOCUMENT_FORMS } from '@/lib/pdf/documents';
 import { can, type Member } from '@/lib/security/can';
+import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
 import { readFormData, renderSummary, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
 import { buildEmail, eventKey } from './email-template';
@@ -125,7 +126,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
     const c = checks[i] as Extract<(typeof checks)[number], { ok: true }>;
     const to = finalPath(form.slug, id, s.field, s.ref.name);
     await moveObject(db, s.ref.path, to);
-    newRows.push({ entry_id: id, field_key: s.field, kind: 'file', storage_path: to, file_name: s.ref.name, content_type: c.contentType, size_bytes: c.size, sort_order: sortBase + i });
+    newRows.push({ entry_id: id, field_key: s.field, kind: 'file', storage_path: to, file_name: displayFileName(s.ref.name), content_type: c.contentType, size_bytes: c.size, sort_order: sortBase + i });
   }
   for (const [i, s] of plan.newSignatures.entries()) {
     const to = finalPath(form.slug, id, s.field, 'signature.png');

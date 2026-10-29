@@ -1,9 +1,7 @@
 import { notFound } from 'next/navigation';
 import { adminForm } from '@/lib/admin/context';
 import { loadEntryByNumber } from '@/lib/forms/entries';
-import { DOCS_BUCKET, downloadObject } from '@/lib/forms/storage';
-import { ensureDocument } from '@/lib/pdf/documents';
-import { sha256Hex } from '@/lib/security/crypto';
+import { ensureDocument, readStoredDocument } from '@/lib/pdf/documents';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +19,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   if (version) {
     const { data } = await userDb.from('entry_documents').select('storage_path, name, sha256, template_number').eq('id', version).eq('entry_id', entry.id).maybeSingle();
     if (!data || data.template_number !== t) notFound();
-    const b = await downloadObject(db, DOCS_BUCKET, data.storage_path);
-    if (!b || sha256Hex(b) !== data.sha256) return new Response('Stored document failed its integrity check.', { status: 500 });
+    const b = await readStoredDocument(db, form, data.storage_path, data.sha256);
+    if (!b) return new Response('Stored document failed its integrity check.', { status: 500 });
     name = data.name;
     bytes = b;
   } else {

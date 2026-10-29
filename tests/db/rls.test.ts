@@ -108,16 +108,12 @@ describe('cross-org isolation', () => {
     await expect(
       as(db, 'authenticated', ADMIN_B, () =>
         db.query(`insert into public.entries(form_id, org_id, number, data) values ($1, $2, 0, '{}')`, [formA, ORG_B])),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
   });
 
   it('org B member cannot update or delete org A entries', async () => {
-    await as(db, 'authenticated', ADMIN_B, async () => {
-      const u = await db.query(`update public.entries set status = 'Approved' where id = $1`, [entryA]);
-      const d = await db.query(`delete from public.entries where id = $1`, [entryA]);
-      expect(u.rowCount).toBe(0);
-      expect(d.rowCount).toBe(0);
-    });
+    await expect(as(db, 'authenticated', ADMIN_B, () => db.query(`update public.entries set status = 'Approved' where id = $1`, [entryA]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, 'authenticated', ADMIN_B, () => db.query(`delete from public.entries where id = $1`, [entryA]))).rejects.toThrow(/permission denied/);
     const still = await db.query(`select status from public.entries where id = $1`, [entryA]);
     expect(still.rows[0].status).toBe('Submitted');
   });
@@ -126,7 +122,7 @@ describe('cross-org isolation', () => {
     await expect(
       as(db, 'authenticated', ADMIN_B, () =>
         db.query(`insert into public.entry_files(entry_id, field_key, storage_path, file_name) values ($1,'X','p','f')`, [entryA])),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
   });
 
   it('org B admin cannot grant themselves membership in org A', async () => {
@@ -169,13 +165,20 @@ describe('append-only audit and member writes', () => {
     await expect(db.query(`delete from public.audit_log`)).rejects.toThrow(/append-only/);
   });
 
-  it('org A admin can create an entry and numbering still works under RLS', async () => {
-    const n = await as(db, 'authenticated', ADMIN_A, async () => {
-      const f = (await db.query(`select id from public.forms where slug = 'job-card'`)).rows[0].id;
-      const r = await db.query(`insert into public.entries(form_id, number, data) values ($1, 0, '{}') returning number, org_id`, [f]);
-      expect(r.rows[0].org_id).toBe(ORG_A);
-      return r.rows[0].number as number;
-    });
-    expect(n).toBeGreaterThan(0);
+  it('entries are written by the server only: even an org admin cannot write them directly (0005)', async () => {
+    const f = (await db.query(`select id from public.forms where slug = 'job-card'`)).rows[0].id;
+    await expect(as(db, 'authenticated', ADMIN_A, () =>
+      db.query(`insert into public.entries(form_id, number, data) values ($1, 0, '{}')`, [f]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, 'authenticated', ADMIN_A, () =>
+      db.query(`update public.entries set status = 'Approved' where id = $1`, [entryA]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, 'authenticated', ADMIN_A, () =>
+      db.query(`insert into public.entry_files(entry_id, field_key, storage_path, file_name) values ($1,'X','p','f')`, [entryA]))).rejects.toThrow(/permission denied/);
+  });
+
+  it('server-side inserts still number entries and take org_id from the form', async () => {
+    const f = (await db.query(`select id from public.forms where slug = 'job-card'`)).rows[0].id;
+    const r = await db.query(`insert into public.entries(form_id, number, data) values ($1, 0, '{}') returning number, org_id`, [f]);
+    expect(r.rows[0].org_id).toBe(ORG_A);
+    expect(r.rows[0].number).toBeGreaterThan(0);
   });
 });

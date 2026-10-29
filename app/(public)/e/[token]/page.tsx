@@ -31,6 +31,8 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   const form = row ? await loadFormById(db, row.form_id) : null;
   const entry = form ? await loadEntryById(db, form, link.entryId) : null;
   if (!form || !entry) return <Invalid />;
+  // Turning a form's public link off also stops its role links.
+  if (!form.isActive && roleByName(form.spec, link.roleName)?.public) return <Invalid />;
 
   const role = roleByName(form.spec, link.roleName);
   // Internal roles never act through a bearer link: send them to the signed-in entry page.

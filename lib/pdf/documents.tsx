@@ -6,7 +6,7 @@ import type { EntryRecord } from '@/lib/forms/entries';
 import { loadFiles } from '@/lib/forms/entries';
 import type { FormRecord } from '@/lib/forms/forms';
 import { DOCS_BUCKET, downloadObject, ENTRY_BUCKET } from '@/lib/forms/storage';
-import { sha256Hex } from '@/lib/security/crypto';
+import { decrypt, encrypt, parseKey, sha256Hex } from '@/lib/security/crypto';
 import { CollectionSheetPdf, DealSheetPdf } from './DealPdf';
 import { EntryPdf } from './EntryPdf';
 
@@ -78,6 +78,25 @@ async function render(db: SupabaseClient, form: FormRecord, entry: EntryRecord, 
   );
 }
 
+// Encrypted forms (DEAL, Delivery Note): the stored PDF holds the same personal data as the entry, so it is
+// encrypted too (AES-256-GCM with ENTRY_ENCRYPTION_KEY, AAD = storage path). sha256 is over the plain PDF.
+function docKey(): Buffer {
+  return parseKey(process.env.ENTRY_ENCRYPTION_KEY, 'ENTRY_ENCRYPTION_KEY');
+}
+
+/** Reads a stored version and checks its hash. Null when missing or tampered with. */
+export async function readStoredDocument(db: SupabaseClient, form: FormRecord, path: string, sha256: string): Promise<Buffer | null> {
+  const raw = await downloadObject(db, DOCS_BUCKET, path);
+  if (!raw) return null;
+  let bytes: Buffer;
+  try {
+    bytes = form.encrypt ? decrypt(raw, docKey(), path) : raw;
+  } catch {
+    return null;
+  }
+  return sha256Hex(bytes) === sha256 ? bytes : null;
+}
+
 /** Returns the current version of a document, generating and storing a new one if the entry changed since. */
 export async function ensureDocument(
   db: SupabaseClient, form: FormRecord, entry: EntryRecord, template: number, timezone: string, actorUserId: string | null,
@@ -92,8 +111,8 @@ export async function ensureDocument(
     .limit(1)
     .maybeSingle();
   if (latest && new Date(latest.created_at) >= new Date(entry.updatedAt)) {
-    const bytes = await downloadObject(db, DOCS_BUCKET, latest.storage_path);
-    if (bytes && sha256Hex(bytes) === latest.sha256) {
+    const bytes = await readStoredDocument(db, form, latest.storage_path, latest.sha256);
+    if (bytes) {
       return { id: latest.id, name: latest.name, path: latest.storage_path, bytes, sha256: latest.sha256 };
     }
   }
@@ -101,7 +120,8 @@ export async function ensureDocument(
   const sha = sha256Hex(bytes);
   const name = documentName(form, entry, template);
   const path = `${form.slug}/${entry.id}/${template}-${Date.now()}-${sha.slice(0, 12)}.pdf`;
-  const up = await db.storage.from(DOCS_BUCKET).upload(path, bytes, { contentType: 'application/pdf', upsert: false });
+  const stored = form.encrypt ? encrypt(bytes, docKey(), path) : bytes;
+  const up = await db.storage.from(DOCS_BUCKET).upload(path, stored, { contentType: form.encrypt ? 'application/octet-stream' : 'application/pdf', upsert: false });
   if (up.error) throw new Error('Could not store the document');
   const { data: row, error } = await db
     .from('entry_documents')

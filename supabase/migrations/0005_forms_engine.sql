@@ -110,3 +110,14 @@ grant execute on function public.list_entries(uuid, text, text, text, timestampt
 -- ---------------------------------------------------------------------------
 update storage.buckets set file_size_limit = 20 * 1024 * 1024 where id = 'entry-files';
 update storage.buckets set file_size_limit = 50 * 1024 * 1024 where id = 'documents';
+
+-- ---------------------------------------------------------------------------
+-- Entries and their files are written only by the server (runAction / admin actions, service role after
+-- permission checks). Direct client writes would skip allowedWhen, per-action permissions, the timeline,
+-- emails and encryption, so authenticated users lose write access here. entry_reads stays client-writable.
+-- ---------------------------------------------------------------------------
+drop policy entries_insert on public.entries;
+drop policy entries_update on public.entries;
+drop policy entries_delete on public.entries;
+drop policy files_write on public.entry_files;
+revoke insert, update, delete on public.entries, public.entry_files from authenticated;

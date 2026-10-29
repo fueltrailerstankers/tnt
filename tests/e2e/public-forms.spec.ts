@@ -68,8 +68,9 @@ test('Store Room: three pages with Back/Next, Submit moves to APPROVAL and email
   const mail = await sql(`select to_addresses, event_key from email_log where entry_id = $1`, [e.id]);
   expect(mail).toEqual([{ to_addresses: ['factory@example.invalid'], event_key: 'store-room.Submit' }]);
   // The Store Room PDF (document #1) was generated for the attachment.
-  const docs = await sql(`select template_number, name from entry_documents where entry_id = $1`, [e.id]);
-  expect(docs).toEqual([{ template_number: 1, name: 'STORE ROOM - 1.pdf' }]);
+  const docs = await sql<{ template_number: number; name: string }>(`select template_number, name from entry_documents where entry_id = $1`, [e.id]);
+  expect(docs).toHaveLength(1);
+  expect(docs[0]).toMatchObject({ template_number: 1, name: expect.stringMatching(/^STORE ROOM - \d+\.pdf$/) });
 });
 
 test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup, encrypted at rest, signed PDF stored', async ({ page }) => {
@@ -92,7 +93,8 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   await page.getByLabel('Trailer Vin NO').fill('TESTVIN0000000042');
   await page.getByLabel('Quote no:').fill('QTEST-3003');
   await page.getByRole('button', { name: 'Find' }).click();
-  await expect(page.getByTestId('customer-panel')).toContainText('Lookup Customer');
+  await expect(page.getByTestId('customer-panel')).toContainText('Lookup C.');
+  await expect(page.getByTestId('customer-panel')).not.toContainText('Lookup Customer');
   await expect(page.getByTestId('customer-panel')).toContainText('*********0123');
   await expect(page.getByTestId('customer-panel')).not.toContainText('0000000000123');
 

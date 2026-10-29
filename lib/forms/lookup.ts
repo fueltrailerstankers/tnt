@@ -53,10 +53,11 @@ export async function customerPanel(
   const addr = (e.data.Address ?? {}) as Record<string, string>;
   const idNo = displayValue(e.data.IDNO);
   if (masked) {
+    // Enough for the rep to confirm the right customer at handover, not enough to identify them from a quote no.
+    const name = (e.data.Name ?? {}) as Record<string, string>;
     return [
-      ['Name', displayValue(e.data.Name)],
+      ['Name', [name.First, name.Last ? `${name.Last.charAt(0)}.` : ''].filter(Boolean).join(' ')],
       ['ID NO', idNo ? maskId(idNo) : ''],
-      ['City', addr.City ?? ''],
     ];
   }
   return [

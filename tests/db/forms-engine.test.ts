@@ -71,11 +71,12 @@ describe('0005 forms engine', () => {
     expect(n).toBe(0);
   });
 
-  it('staff can read entries but cannot delete them', async () => {
-    await as(db, 'authenticated', STAFF_A, async () => {
-      expect((await db.query(`select count(*)::int as n from public.entries where id = $1`, [entry])).rows[0].n).toBe(1);
-      expect((await db.query(`delete from public.entries where id = $1`, [entry])).rowCount).toBe(0);
-    });
+  it('staff can read entries but cannot write them directly (no status jump past the workflow)', async () => {
+    const n = await as(db, 'authenticated', STAFF_A, async () => (await db.query(`select count(*)::int as n from public.entries where id = $1`, [entry])).rows[0].n);
+    expect(n).toBe(1);
+    await expect(as(db, 'authenticated', STAFF_A, () => db.query(`update public.entries set status = 'Approved' where id = $1`, [entry]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, 'authenticated', STAFF_A, () => db.query(`update public.entries set data_encrypted = null where id = $1`, [entry]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, 'authenticated', STAFF_A, () => db.query(`delete from public.entries where id = $1`, [entry]))).rejects.toThrow(/permission denied/);
   });
 
   it('upload size limits are set on the private buckets', async () => {

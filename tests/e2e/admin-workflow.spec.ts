@@ -52,9 +52,12 @@ test('Inspection runs Submitted -> Reviewed -> Approved with an email at each st
     { action: 'ApproveInspection', to_status: 'Approved', actor_role: 'Form Creator / Internal Reviewer' },
   ]);
   // Inspector role links are stored hashed (64 hex chars), never as the raw token.
-  const links = await sql<{ token: string; role_name: string }>(`select token, role_name from entry_links where entry_id = $1`, [e.id]);
+  const links = await sql<{ token: string; role_name: string; revoked: boolean }>(
+    `select token, role_name, revoked_at is not null as revoked from entry_links where entry_id = $1 order by created_at`, [e.id]);
   expect(links.length).toBe(2);
   for (const l of links) expect(l).toMatchObject({ role_name: 'Inspector', token: expect.stringMatching(/^[0-9a-f]{64}$/) });
+  // Only the newest inspector link works.
+  expect(links.map((l) => l.revoked)).toEqual([true, false]);
 });
 
 test('Inspector role link opens the entry read-only once it has moved on; bad tokens are refused', async ({ page }) => {
@@ -66,6 +69,15 @@ test('Inspector role link opens the entry read-only once it has moved on; bad to
   await expect(page.getByText('No action is available for you at this stage.')).toBeVisible();
   await expect(page.getByLabel('TRAILER VIN NUMBER')).toHaveValue('TESTVIN0000000777');
   await expect(page.getByRole('button', { name: 'SubmitInspection' })).toHaveCount(0);
+
+  // Turning the public link off also stops role links.
+  await sql(`update forms set is_active = false where slug = 'trailer-inspection-checklist'`);
+  try {
+    await page.goto(`/e/${token}`);
+    await expect(page.getByRole('heading', { name: 'Link not valid' })).toBeVisible();
+  } finally {
+    await sql(`update forms set is_active = true where slug = 'trailer-inspection-checklist'`);
+  }
 
   await page.goto('/e/not-a-real-token-but-long-enough-xx');
   await expect(page.getByRole('heading', { name: 'Link not valid' })).toBeVisible();

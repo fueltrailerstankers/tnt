@@ -7,6 +7,8 @@ import { randomToken, sha256Hex } from '@/lib/security/crypto';
 export const LINK_TTL_DAYS = 30;
 
 export async function createRoleLink(db: SupabaseClient, entryId: string, roleName: string): Promise<string> {
+  // Only the newest link for an entry and role works: earlier ones are revoked.
+  await db.from('entry_links').update({ revoked_at: new Date().toISOString() }).eq('entry_id', entryId).eq('role_name', roleName).is('revoked_at', null);
   const token = randomToken(32);
   const expires = new Date(Date.now() + LINK_TTL_DAYS * 86_400_000).toISOString();
   const { error } = await db.from('entry_links').insert({ token: sha256Hex(token), entry_id: entryId, role_name: roleName, expires_at: expires });

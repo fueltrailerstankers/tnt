@@ -24,7 +24,7 @@ async function context(token: string) {
   const { data } = await db.from('entries').select('form_id').eq('id', link.entryId).maybeSingle();
   if (!data) return null;
   const form = await loadFormById(db, data.form_id);
-  if (!form) return null;
+  if (!form || !form.isActive) return null;
   const entry = await loadEntryById(db, form, link.entryId);
   return entry ? { db, link, form, entry } : null;
 }
