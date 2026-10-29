@@ -57,3 +57,36 @@ export function displayFileName(name: string): string {
   const n = name.split(/[\\/]/).pop() ?? '';
   return n.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 255) || 'file';
 }
+
+/** Drawing elements a signature needs. Anything else (script, foreignObject, style, use, image, set, animate...) is refused. */
+const SVG_SIGNATURE_ELEMENTS = new Set(['svg', 'g', 'path', 'polyline', 'polygon', 'line', 'rect', 'circle', 'ellipse', 'title', 'desc']);
+const SVG_NEVER = [
+  /<([\w.-]+:)?(script|foreignObject)\b/i,
+  /\bon[a-z]+\s*=/i, // event handler attributes
+  /href/i, // href and xlink:href (links, external references)
+  /<!(ENTITY|DOCTYPE)/i,
+  /url\s*\(/i,
+  /@import|image-set|javascript:/i,
+  /&#/, // character references could spell any of the above inside attribute values
+];
+
+/**
+ * Whether inline SVG signature markup may be stored as image/svg+xml (so it renders in <img>). Accepts only valid
+ * UTF-8 text with an `<svg>` root (after an optional XML declaration and comments), signature drawing elements only,
+ * and none of: `<script`, `<foreignObject`, `on*=` attributes, `href`/`xlink:href`, `<!ENTITY`/`<!DOCTYPE`, `url(`,
+ * `@import`, `image-set`, `javascript:`, character references. Anything else is stored as application/octet-stream. Pure.
+ */
+export function safeSignatureSvg(bytes: Uint8Array): boolean {
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return false;
+  }
+  if (text.includes('\u0000')) return false;
+  const body = text.replace(/^﻿/, '').replace(/^\s*(<\?xml\s[^>]*\?>)?(\s*<!--[\s\S]*?-->)*\s*/, '');
+  if (!/^<svg[\s/>]/.test(body)) return false;
+  if (SVG_NEVER.some((re) => re.test(text))) return false;
+  for (const m of text.matchAll(/<\/?([A-Za-z_][\w.:-]*)/g)) if (!SVG_SIGNATURE_ELEMENTS.has(m[1])) return false;
+  return true;
+}
