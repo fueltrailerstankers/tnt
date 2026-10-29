@@ -149,7 +149,10 @@ export async function performXeroAction(db: SupabaseClient, orgId: string, actio
 
   let effects: Record<string, unknown>[] = [];
   try {
-    effects = await applyEffects(db, orgId, plan, exec, mode, writer, org.timezone);
+    // Dry run changes nothing: our own effects (entries, mappings, emails) are only recorded (display.effects).
+    effects = mode === 'live'
+      ? await applyEffects(db, orgId, plan, exec, mode, writer, org.timezone)
+      : plan.effects.map((e) => ({ kind: e.kind, outcome: 'dry run: not applied' }));
   } catch (e) {
     await finishRun(db, runId, { status: 'failed', error: redactError(e), response_summary: { steps: exec.steps } });
     throw e;
@@ -162,8 +165,7 @@ export async function performXeroAction(db: SupabaseClient, orgId: string, actio
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Effects: our own entries, mappings and emails. They run in dry_run and live (they are not Xero writes),
-// except mappings that need an id only a live write produces.
+// Effects: our own entries, mappings and emails. They run in live only; dry run records them without applying.
 // ---------------------------------------------------------------------------------------------------
 async function applyEffects(
   db: SupabaseClient, orgId: string, plan: Plan, exec: ExecResult, mode: 'dry_run' | 'live', writer: XeroWriter, tz: string,
@@ -204,7 +206,7 @@ async function applyEffect(
     case 'entry.update': {
       const key = `${plan.idempotencyKey}#entry`;
       const g = await once(db, orgId, key);
-      if (!g.first && e.kind === 'entry.submit') {
+      if (!g.first) {
         if (typeof g.result?.entryId === 'string') {
           captures.release_entry = g.result.entryId;
           return { kind: e.kind, outcome: 'already_done', entryId: g.result.entryId };

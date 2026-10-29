@@ -95,6 +95,18 @@ describe('HttpCognitoSource', () => {
     expect(calls).toHaveLength(3);
   });
 
+  it('file URLs from entry data must be https Cognito URLs; a bad JSON body never reaches the error text', async () => {
+    const { f, calls } = fakeFetch(() => new Response('{"Name":"someone"', { headers: { 'content-type': 'application/json' } }));
+    const src = new HttpCognitoSource({ apiKey: 'secret', fetch: f, sleep: noSleep, maxNumber: 1 });
+    await expect(src.downloadFile({ id: null, url: 'http://www.cognitoforms.com/file/F-3', inline: null })).rejects.toThrow(/not an https Cognito URL/);
+    await expect(src.downloadFile({ id: null, url: 'https://internal.example.invalid/x', inline: null })).rejects.toThrow(/not an https Cognito URL/);
+    expect(calls).toHaveLength(0);
+    const err = await collect(src.listEntries(FORM, {})).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CognitoApiError);
+    expect((err as Error).message).toMatch(/invalid JSON/);
+    expect((err as Error).message).not.toContain('someone');
+  });
+
   it('refuses to start without a key', () => {
     expect(() => new HttpCognitoSource({ apiKey: '' })).toThrow('COGNITO_API_KEY');
   });

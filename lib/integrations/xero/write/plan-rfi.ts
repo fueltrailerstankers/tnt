@@ -109,7 +109,8 @@ export function planRfiInvoice(input: RfiInput): Plan {
     if (name.last && name.last !== found.last_name) patch.LastName = name.last;
     if (Object.keys(patch).length) {
       requests.push({
-        step: `contact.update.${shortHash(patch)}`,
+        // Keyed on the entry version, not the names: a hash of names alone could be reversed from a name list.
+        step: `contact.update.${shortHash([found.contact_id, entry.id, entry.updatedAt])}`,
         method: 'POST',
         path: `/Contacts/${found.contact_id}`,
         body: { Contacts: [{ ContactID: found.contact_id, ...patch }] },

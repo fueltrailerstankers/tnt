@@ -56,10 +56,26 @@ export class HttpCognitoSource implements CognitoSource {
   /** The bearer key goes only to Cognito hosts, never to a storage URL found in entry data. */
   private headers(url: string, accept: string): Record<string, string> {
     const h: Record<string, string> = { Accept: accept };
-    const host = new URL(url).hostname;
-    const baseHost = new URL(this.base).hostname;
-    if (COGNITO_HOST.test(host) || host === baseHost) h.Authorization = `Bearer ${this.o.apiKey}`;
+    const u = new URL(url);
+    if (url.startsWith(`${this.base}/`) || (u.protocol === 'https:' && COGNITO_HOST.test(u.hostname))) h.Authorization = `Bearer ${this.o.apiKey}`;
     return h;
+  }
+
+  /**
+   * URLs taken from entry data or file metadata: https only, Cognito hosts or the API base host. A storage host
+   * named in Cognito's own metadata is allowed for the second hop (it never gets the bearer key, see headers()).
+   */
+  private allowedFileUrl(raw: string, fromMetadata = false): boolean {
+    let u: URL;
+    try { u = new URL(raw); } catch { return false; }
+    if (u.protocol !== 'https:' && u.href.indexOf(this.base) !== 0) return false;
+    if (fromMetadata) return u.protocol === 'https:';
+    return COGNITO_HOST.test(u.hostname) || u.hostname === new URL(this.base).hostname;
+  }
+
+  /** Parses a JSON body without letting a parser message (which can quote the body) reach the logs. */
+  private async json(res: Response, what: string): Promise<unknown> {
+    try { return await res.json(); } catch { throw new CognitoApiError(res.status, `${what}: invalid JSON`); }
   }
 
   private async request(url: string, what: string, accept = 'application/json', allow404 = false): Promise<Response | null> {
@@ -93,7 +109,7 @@ export class HttpCognitoSource implements CognitoSource {
         continue;
       }
       misses = 0;
-      const body = (await res.json()) as unknown;
+      const body = await this.json(res, `get entry (form ${form.slug})`);
       if (body && typeof body === 'object' && !Array.isArray(body)) yield body as CognitoEntry;
     }
   }
@@ -102,7 +118,7 @@ export class HttpCognitoSource implements CognitoSource {
     const take = this.o.pageSize ?? 100;
     for (let skip = 0; ; skip += take) {
       const res = await this.request(`${this.base}/forms/${form.cognitoFormId}/entries?skip=${skip}&take=${take}`, `list entries (form ${form.slug})`);
-      const body = (await res!.json()) as unknown;
+      const body = await this.json(res!, `list entries (form ${form.slug})`);
       const page = Array.isArray(body) ? body : pickArray(body);
       for (const e of page) if (e && typeof e === 'object') yield e as CognitoEntry;
       if (page.length < take) return;
@@ -114,12 +130,14 @@ export class HttpCognitoSource implements CognitoSource {
     if (inline) return inline;
     const url = ref.url ?? (ref.id ? `${this.base}/files/${encodeURIComponent(ref.id)}` : null);
     if (!url) throw new Error('file has no source');
+    if (!this.allowedFileUrl(url)) throw new Error('file URL is not an https Cognito URL');
     let res = (await this.request(url, 'download file', '*/*'))!;
     // A6: the files endpoint may answer with metadata JSON that points at the bytes.
     if ((res.headers.get('content-type') ?? '').includes('application/json')) {
-      const meta = (await res.json()) as Record<string, unknown>;
+      const meta = (await this.json(res, 'download file')) as Record<string, unknown>;
       const next = [meta.File, meta.Url, meta.DownloadUrl, meta.url].find((v): v is string => typeof v === 'string' && /^https:\/\//.test(v));
       if (!next) throw new Error('file metadata without a download URL');
+      if (!this.allowedFileUrl(next, true)) throw new Error('file download URL host not allowed');
       res = (await this.request(next, 'download file', '*/*'))!;
     }
     return { bytes: new Uint8Array(await res.arrayBuffer()), contentType: res.headers.get('content-type') };

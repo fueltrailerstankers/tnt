@@ -10,4 +10,4 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0006 | M2 | Xero read-only mirror, deal files |
 | 0007 | M3 | Xero action runs (dry-run first), release recipients |
 | 0008 | M4 | leads, lead sources, routing rules, contact match keys |
-| 0009 | M5 | not needed: the Cognito import uses existing tables |
+| 0009 | M3 | Xero action modes writable by the server only (the M5 import needed no migration) |

@@ -73,12 +73,20 @@ describe('claims and settings', () => {
     await expect(as(db, 'authenticated', ADMIN_A, () => db.query(`select 1 from public.action_claims`))).rejects.toThrow(/permission denied/);
   });
 
-  it('only org admins change action modes (app_settings)', async () => {
-    await as(db, 'authenticated', ADMIN_A, async () => {
-      await db.query(`insert into public.app_settings(org_id, key, value) values ($1,'xero.action.rfi.create_invoice','"dry_run"')`, [ORG_A]);
-    });
+  it('no client changes action modes directly, not even an org admin (0009); the server does', async () => {
+    await expect(as(db, 'authenticated', ADMIN_A, () =>
+      db.query(`insert into public.app_settings(org_id, key, value) values ($1,'xero.action.rfi.create_invoice','"live"')`, [ORG_A]))).rejects.toThrow(/row-level security/);
     await expect(as(db, 'authenticated', STAFF_A, () =>
       db.query(`insert into public.app_settings(org_id, key, value) values ($1,'xero.action.rfi.create_invoice','"live"')`, [ORG_A]))).rejects.toThrow(/row-level security/);
+    // Service role (the server action after its permission + confirmation checks).
+    await db.query(`insert into public.app_settings(org_id, key, value) values ($1,'xero.action.rfi.create_invoice','"dry_run"')`, [ORG_A]);
+    await as(db, 'authenticated', ADMIN_A, async () => {
+      expect((await db.query(`update public.app_settings set value = '"live"' where org_id = $1 and key like 'xero.action.%'`, [ORG_A])).rowCount).toBe(0);
+      expect((await db.query(`delete from public.app_settings where org_id = $1 and key like 'xero.action.%'`, [ORG_A])).rowCount).toBe(0);
+      expect((await db.query(`select 1 from public.app_settings where org_id = $1 and key = 'xero.action.rfi.create_invoice'`, [ORG_A])).rowCount).toBe(1);
+      // Other settings stay admin-writable.
+      await db.query(`insert into public.app_settings(org_id, key, value) values ($1,'m3.test.other','1')`, [ORG_A]);
+    });
     await as(db, 'authenticated', ADMIN_D, async () => {
       expect((await db.query(`update public.app_settings set value = '"live"' where org_id = $1`, [ORG_A])).rowCount).toBe(0);
     });

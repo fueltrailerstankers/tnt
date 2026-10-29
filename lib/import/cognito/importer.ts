@@ -109,7 +109,8 @@ async function importOne(ctx: Ctx, m: MappedEntry, data: EntryData, existing: En
     if (dl.bytes.length > MAX_FILE_BYTES) throw new Failure('file_too_large');
     const sniffed = sniff(dl.bytes.subarray(0, 16));
     const declared = f.contentType ?? dl.contentType ?? '';
-    const contentType = sniffed ? storedContentType(sniffed, declared) : declared || 'application/octet-stream';
+    // Unrecognised bytes are kept but never served with a type Cognito declared (e.g. text/html, image/svg+xml).
+    const contentType = sniffed ? storedContentType(sniffed, declared) : 'application/octet-stream';
     if (!sniffed) bump(report.issues, `${f.field}:file_type_unrecognised`);
     await stage('upload_failed', () => sink.upload(path, dl.bytes, contentType));
     const ext = f.contentType === 'image/svg+xml' ? 'svg' : 'png';
