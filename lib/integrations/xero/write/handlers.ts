@@ -12,7 +12,7 @@ export const XERO_ACTION_HANDLERS: Record<string, Handler> = Object.fromEntries(
       const orgId = job.org_id;
       const p = job.payload as ActionPayload;
       await recordRun(db, orgId, queueOf(action), async () => {
-        const status = await performXeroAction(db, orgId, action, { entryId: p.entryId, invoiceId: p.invoiceId });
+        const status = await performXeroAction(db, orgId, action, { entryId: p.entryId, invoiceId: p.invoiceId }, job.id);
         return { ok: status !== 'failed', processed: 1, error: status === 'failed' ? 'action failed' : undefined, result: status };
       });
     }) satisfies Handler,

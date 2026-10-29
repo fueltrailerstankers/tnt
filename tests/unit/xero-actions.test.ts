@@ -1,6 +1,6 @@
 // M3 planners, modes, redaction and triggers. Synthetic data only: no real people, emails or documents.
 import { describe, expect, it } from 'vitest';
-import { checkSwitch, hasWriteScopes, parseMode, resolveMode, WRITE_SCOPES } from '@/lib/integrations/xero/write/modes';
+import { checkSwitch, dryRunDoesNothing, hasWriteScopes, NO_XERO_WRITES_NOTE, parseMode, resolveMode, WRITE_SCOPES } from '@/lib/integrations/xero/write/modes';
 import { planDealImport } from '@/lib/integrations/xero/write/plan-deal';
 import { planDeliveryInvoice } from '@/lib/integrations/xero/write/plan-delivery';
 import { mergedNameOf, planMerge } from '@/lib/integrations/xero/write/plan-merge';
@@ -51,6 +51,15 @@ function rfi(over: Partial<RfiInput> = {}, data: Record<string, unknown> = {}): 
 }
 
 describe('modes', () => {
+  it('flags actions without Xero writes as doing nothing in dry run (dry run applies no entries or emails)', () => {
+    expect(dryRunDoesNothing('deal.import_quote', 'dry_run')).toBe(true);
+    expect(dryRunDoesNothing('release.on_paid', 'dry_run')).toBe(true);
+    expect(dryRunDoesNothing('release.on_paid', 'live')).toBe(false);
+    expect(dryRunDoesNothing('release.on_paid', 'off')).toBe(false);
+    expect(dryRunDoesNothing('rfi.create_invoice', 'dry_run')).toBe(false); // it records the Xero requests it would send
+    expect(NO_XERO_WRITES_NOTE).not.toMatch(/behave the same/);
+    expect(NO_XERO_WRITES_NOTE).toContain('dry run only records');
+  });
   it('defaults to off and parses only known modes', () => {
     expect(parseMode(undefined)).toBe('off');
     expect(parseMode('LIVE')).toBe('off');
