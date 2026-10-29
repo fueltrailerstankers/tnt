@@ -1,0 +1,44 @@
+[
+  {
+    "Id": "8-1",
+    "Form": {
+      "Id": "8",
+      "InternalName": "RELEASEFORM",
+      "Name": "RELEASE FORM"
+    },
+    "VINNO": "FAKEVIN0000000001",
+    "Email": "buyer-one@example.invalid",
+    "INVNO": "INV-90001",
+    "COSTOMERDETAILS": "Fake Customer One",
+    "Entry": {
+      "Number": 1,
+      "Status": "Submitted",
+      "DateCreated": "2026-02-06T07:00:00Z",
+      "DateSubmitted": "2026-02-06T07:00:00Z",
+      "DateUpdated": "2026-02-06T07:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/1",
+      "Version": 1
+    }
+  },
+  {
+    "Id": "8-2",
+    "Form": {
+      "Id": "8",
+      "InternalName": "RELEASEFORM",
+      "Name": "RELEASE FORM"
+    },
+    "VINNO": "FAKEVIN0000000002",
+    "Email": null,
+    "INVNO": "INV-90002",
+    "COSTOMERDETAILS": "Fake Customer Two",
+    "Entry": {
+      "Number": 2,
+      "Status": "Submitted",
+      "DateCreated": "2026-02-07T07:00:00Z",
+      "DateSubmitted": "2026-02-07T07:00:00Z",
+      "DateUpdated": "2026-02-07T07:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/2",
+      "Version": 1
+    }
+  }
+]

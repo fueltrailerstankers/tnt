@@ -1,0 +1,64 @@
+[
+  {
+    "Id": "9-1",
+    "Form": {
+      "Id": "9",
+      "InternalName": "DEAL",
+      "Name": "DEAL"
+    },
+    "MONTH": "JAN",
+    "DATECREATED": "2026-01-04T00:00:00",
+    "COLLECTIONLOCATION": [
+      "JHB",
+      "CPT"
+    ],
+    "QUOTENO": "QU-90001",
+    "SALESREP": "MELINDA",
+    "POP": [
+      {
+        "Id": "F-deal1-pop",
+        "Name": "fake-pop.pdf",
+        "ContentType": "application/pdf",
+        "Size": 3000,
+        "File": "https://www.cognitoforms.com/file/F-deal1-pop"
+      }
+    ],
+    "PARTNO1": "FAKE-PART-1",
+    "LINE1": "Synthetic trailer line one",
+    "PARTNO2": null,
+    "LINE2": "",
+    "Total": 125000,
+    "Entry": {
+      "Number": 1,
+      "Status": "Submitted",
+      "DateCreated": "2026-01-04T07:00:00Z",
+      "DateSubmitted": "2026-01-04T07:10:00Z",
+      "DateUpdated": "2026-01-04T07:10:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/1",
+      "Version": 1
+    }
+  },
+  {
+    "Id": "9-2",
+    "Form": {
+      "Id": "9",
+      "InternalName": "DEAL",
+      "Name": "DEAL"
+    },
+    "MONTH": "SEPT",
+    "QUOTENO": "QU-90002",
+    "SALESREP": "GERALD",
+    "Total": "12,500.5",
+    "COLLECTIONLOCATION": [],
+    "POP": [],
+    "Entry": {
+      "Number": 2,
+      "Status": "Incomplete",
+      "DateCreated": "2026-02-01T07:00:00Z",
+      "DateSubmitted": null,
+      "DateUpdated": "2026-02-01T07:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/2",
+      "Version": 1
+    }
+  }
+]
