@@ -51,6 +51,8 @@ export async function scheduledSync(db: SupabaseClient, mode: SyncMode, budgetMs
       return { ok: res.status === 'ok' || res.status === 'partial', processed: res.processed, error: res.status === 'error' ? res.reason : undefined, result: res };
     });
     if (r.processed > 0 || mode === 'full') await enqueue(db, org_id, 'deal-files.rebuild', {}, { uniquePending: true });
+    // Leads are matched against the mirror: refresh the matches after each nightly full sync (M4).
+    if (mode === 'full') await enqueue(db, org_id, 'leads.rematch', {}, { uniquePending: true });
     results.push({ org: org_id, status: r.status, processed: r.processed, calls: r.calls, reason: r.reason });
   }
   return results;
