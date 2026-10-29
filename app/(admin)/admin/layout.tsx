@@ -29,6 +29,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin" className="font-semibold">Trailers &amp; Tankers · Admin</Link>
             <Link href="/admin" className="hover:underline">Home</Link>
             {can(member, 'tasks.read') ? <Link href="/admin/tasks" className="hover:underline">Tasks</Link> : null}
+            {can(member, 'leads.read') ? <Link href="/admin/leads" className="hover:underline">Leads</Link> : null}
+            {can(member, 'xero.read') ? <Link href="/admin/deal-files" className="hover:underline">Deal files</Link> : null}
+            {can(member, 'xero.read') ? <Link href="/admin/xero/quotes" className="hover:underline">Quotes</Link> : null}
+            {can(member, 'xero.read') ? <Link href="/admin/xero/invoices" className="hover:underline">Invoices</Link> : null}
+            {can(member, 'xero.read') ? <Link href="/admin/integrations/xero" className="hover:underline">Xero</Link> : null}
             {can(member, 'settings.manage') ? <Link href="/admin/settings" className="hover:underline">Settings</Link> : null}
           </nav>
           <form action={signOut}>
