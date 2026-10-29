@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { invoiceOutcome, matchUnit, normalizeInvoiceNumber, rpcOutcome, type InvoiceFacts, type UnitFacts } from '@/lib/stock/invoice';
-import { STOCK_MODELS } from '@/lib/stock/models';
+import { invoiceOutcome, isModelItemCode, matchUnit, normalizeInvoiceNumber, rpcOutcome, type InvoiceFacts, type UnitFacts } from '@/lib/stock/invoice';
+import { partKey, STOCK_MODELS } from '@/lib/stock/models';
 
 // Synthetic invoices and VINs only.
 const PARTS = STOCK_MODELS.map((m) => m.partNumber);
@@ -11,7 +11,7 @@ const UNITS: UnitFacts[] = [
 ];
 const inv = (o: Partial<InvoiceFacts>): InvoiceFacts => ({
   invoice_id: 'x1', invoice_number: 'INV-0001', invoice_type: 'ACCREC', status: 'AUTHORISED', amount_due: 1000, amount_credited: 0,
-  reference: 'TESTVIN00000000001', ...o,
+  reference: 'TESTVIN00000000001', item_codes: [], ...o,
 });
 const outcome = (o: Partial<InvoiceFacts>) => {
   const i = inv(o);
@@ -58,6 +58,11 @@ describe('invoiceOutcome: ignored', () => {
   it('ignores sales invoices that are not about a unit (no known VIN, no model line)', () => {
     expect(outcome({ reference: 'PO 7788' })).toEqual({ kind: 'ignore', reason: 'not_stock' });
     expect(outcome({ reference: null, item_codes: ['SPARE-WHEEL'] })).toEqual({ kind: 'ignore', reason: 'not_stock' });
+    expect(outcome({ reference: null, item_codes: ['5000DX', '3000-D', null, ''] })).toEqual({ kind: 'ignore', reason: 'not_stock' });
+  });
+  it('KNOWN LIMIT (docs/M6.md section 3): no known VIN and no model item code is ignored, not an exception', () => {
+    expect(outcome({ reference: '', item_codes: [] })).toEqual({ kind: 'ignore', reason: 'not_stock' });
+    expect(outcome({ reference: 'TESTVIN0000000000l', item_codes: [null] })).toEqual({ kind: 'ignore', reason: 'not_stock' });
   });
 });
 
@@ -92,6 +97,12 @@ describe('invoiceOutcome: exceptions change nothing', () => {
     expect(reason({ reference: 'TESTVIN00000000001 and TESTVIN00000000002' })).toBe('vin_ambiguous');
   });
 
+  it('a unit invoice with an empty reference or a mistyped VIN is an exception when a line carries a model code with a suffix', () => {
+    expect(outcome({ reference: '', item_codes: ['CTLL1-GWM'] })).toEqual({ kind: 'exception', reason: 'missing_vin', unitId: null, vin: null });
+    expect(reason({ reference: null, status: 'PAID', amount_due: 0, item_codes: ['SERVICE', 'ctll1 gwm'] })).toBe('missing_vin');
+    expect(reason({ reference: 'TESTVIN0000000000l', item_codes: ['3000D/RED'] })).toBe('vin_not_found');
+  });
+
   it('conflicts: invoice on another unit, unit on another invoice, a sold unit invoiced as unpaid', () => {
     expect(reason({ invoice_number: 'INV-0002' })).toBe('invoice_linked_other_unit');
     expect(reason({ invoice_number: 'INV-0099', reference: 'TESTVIN00000000002' })).toBe('unit_linked_other_invoice');
@@ -100,6 +111,12 @@ describe('invoiceOutcome: exceptions change nothing', () => {
 });
 
 describe('helpers', () => {
+  it('isModelItemCode: the part number, or the part number and a suffix after a separator', () => {
+    const parts = new Set(PARTS.map(partKey));
+    for (const c of ['3000D', ' ctll 1 ', 'CTLL1-GWM', '3000D/RED', 'BOX02 ISO', '1000DB_X', 'CT1.2', 'TS25:A']) expect(isModelItemCode(c, parts), c).toBe(true);
+    for (const c of [null, undefined, '', ' ', 'SPARE-WHEEL', '5000DX', '-3000D', 'XCTLL1']) expect(isModelItemCode(c, parts), String(c)).toBe(false);
+  });
+
   it('normalises invoice numbers', () => {
     expect(normalizeInvoiceNumber(' inv-0042 ')).toBe('INV-0042');
     expect(normalizeInvoiceNumber('')).toBeNull();

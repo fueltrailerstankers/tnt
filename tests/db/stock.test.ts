@@ -1,12 +1,13 @@
 // 0010/0011 stock control: seeds, RLS, RPCs, error codes, role checks, audit. Synthetic data only.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
+import { can, ROLES, type Permission, type Role } from '@/lib/security/can';
 import { STOCK_LOCATIONS, STOCK_MODELS } from '@/lib/stock/models';
+import { normalizeVin } from '@/lib/stock/vin';
 import { as, connect } from './helpers';
 
 const ORG_A = '00000000-0000-0000-0000-000000000001';
 const ORG_E = '00000000-0000-0000-0000-0000000000e6';
-const ORG_F = '00000000-0000-0000-0000-0000000000f7';
 const ADMIN_E = '00000000-0000-0000-0000-00000000e601';
 const STAFF_E = '00000000-0000-0000-0000-00000000e602';
 const REVIEWER_E = '00000000-0000-0000-0000-00000000e603';
@@ -26,14 +27,20 @@ const D_101 = '00000000-0000-0000-0000-0000000d0101';    // JHB 3000D awaiting
 const D_102 = '00000000-0000-0000-0000-0000000d0102';    // CPT 1000DB awaiting
 const D_103 = '00000000-0000-0000-0000-0000000d0103';    // DBN 2500D dismissed "SENT 26/03"
 const D_104 = '00000000-0000-0000-0000-0000000d0104';    // JHB 3000D dispatched with U_AVAIL
+// Org A fixtures created here (not by another test file), so the cross-org checks hit rows that exist.
+const D_A = '00000000-0000-0000-0000-0000000a9701';     // org A deal 2026/97001, awaiting
+const U_A = '00000000-0000-0000-0000-0000000a9702';     // org A unit TESTVINORGA000001 at JHB
+const USER_BY_ROLE: Record<Role, string> = { admin: ADMIN_E, staff: STAFF_E, reviewer: REVIEWER_E, inspector: INSPECTOR_E, factory: FACTORY_E };
+const holders = (p: Permission) => ROLES.filter((role) => can({ userId: USER_BY_ROLE[role], orgId: ORG_E, role, branch: null }, p));
 
 // The RLS fixture exception (committed in beforeAll) is left out of exception counts.
 const NOT_RLS_FIXTURE = `coalesce(invoice_number, '') <> 'INV-E-RLS'`;
-const STOCK_TABLES = ['stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions'];
+const STOCK_TABLES = ['stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals'];
 // Free text used below; it must never reach audit_log.meta.
 const FREE_TEXT = ['SENT 26/03', 'Synthetic note', 'Swap stock', 'Sample hose reel', 'deposit'];
 const AUDIT_META_KEYS = new Set(['unit_id', 'vin', 'model', 'location', 'deal_id', 'deal_year', 'deal_number', 'from', 'to',
-  'previous_vin', 'changed', 'invoice_number', 'xero_invoice_id', 'mode', 'from_status', 'exception_id', 'reason']);
+  'previous_vin', 'changed', 'invoice_number', 'xero_invoice_id', 'mode', 'from_status', 'exception_id', 'reason',
+  'dismissal_id', 'previous_deal_id', 'previous_deal_year', 'previous_deal_number']);
 
 type PgErr = Error & { hint?: string; detail?: string };
 type Row = Record<string, unknown>;
@@ -96,7 +103,7 @@ beforeAll(async () => {
     `insert into auth.users(id, email) select u, 'stock-' || right(u::text, 4) || '@example.invalid' from unnest($1::uuid[]) u on conflict do nothing`,
     [[ADMIN_E, STAFF_E, REVIEWER_E, FACTORY_E, INSPECTOR_E, ADMIN_A, STAFF_A, FACTORY_A]],
   );
-  await db.query(`insert into public.orgs(id, name) values ($1, 'Org E'), ($2, 'Org F') on conflict do nothing`, [ORG_E, ORG_F]);
+  await db.query(`insert into public.orgs(id, name) values ($1, 'Org E') on conflict do nothing`, [ORG_E]);
   await db.query(
     `insert into public.memberships(org_id, user_id, role) values
        ($1,$2,'admin'), ($1,$3,'staff'), ($1,$4,'reviewer'), ($1,$5,'factory'), ($1,$6,'inspector'),
@@ -126,6 +133,12 @@ beforeAll(async () => {
     [ORG_E, D_101, D_102, D_103, D_104, U_AVAIL],
   );
   await db.query(`update public.stock_units set deal_id = $1, deal_year = 2026, sequence = 104 where id = $2`, [D_104, U_AVAIL]);
+  await db.query(`insert into public.stock_deal_dismissals(org_id, deal_id, reason) values ($1, $2, 'SENT 26/03')`, [ORG_E, D_103]);
+  // Server-written stock setting (the setup server action uses the service role).
+  await db.query(`insert into public.app_settings(org_id, key, value) values ($1, 'stock.invoice_rules', '"preview"')`, [ORG_E]);
+  // Org A deal and unit for the cross-org checks (org A's locations and models are seeded by 0011).
+  await db.query(`insert into public.stock_deals(id, org_id, year, number, location_id, model_part) values ($1, $2, 2026, 97001, 'JHB', '3000D')`, [D_A, ORG_A]);
+  await db.query(`insert into public.stock_units(id, org_id, vin, model_part, location_id) values ($1, $2, 'TESTVINORGA000001', '3000D', 'JHB')`, [U_A, ORG_A]);
   await db.query(`insert into public.stock_invoice_exceptions(org_id, invoice_number, reason) values ($1, 'INV-E-RLS', 'voided')`, [ORG_E]);
 
   // Org A: an entry and a mirror invoice, to prove factory staff cannot read them.
@@ -147,25 +160,28 @@ describe('0010 role and 0011 seeds', () => {
     expect(r.rows.map((x) => x.r)).toContain('factory');
   });
 
-  it('seeds the four locations and the 52 models, in order, for the default org only', async () => {
+  it('seeds the four locations and the 52 models, in order, for the default org', async () => {
     const locs = (await db.query(`select id, name, is_factory, sort_order from public.stock_locations where org_id = $1 order by sort_order`, [ORG_A])).rows;
     expect(locs).toEqual(STOCK_LOCATIONS.map((l) => ({ id: l.id, name: l.name, is_factory: l.isFactory, sort_order: l.sortOrder })));
     const models = (await db.query(`select part_number, description, category from public.stock_models where org_id = $1 order by sort_order`, [ORG_A])).rows;
     expect(models).toEqual(STOCK_MODELS.map((m) => ({ part_number: m.partNumber, description: m.description, category: m.category })));
-    expect(await count(`select count(*) as n from public.stock_models where org_id = $1`, [ORG_F])).toBe(0);
-    expect(await count(`select count(*) as n from public.stock_locations where org_id = $1`, [ORG_F])).toBe(0);
   });
 });
 
 describe('RLS: read for stock.read roles, isolated per org, no client writes', () => {
   for (const t of [...STOCK_TABLES, 'stock_matrix']) {
-    it(`${t}: admin, staff, reviewer and factory of org E read it; inspector and other orgs do not`, async () => {
+    // RLS must agree with can(): exceptions (raw Xero references) follow stock.invoices, the rest stock.read.
+    const perm: Permission = t === 'stock_invoice_exceptions' ? 'stock.invoices' : 'stock.read';
+    it(`${t}: exactly the ${perm} roles of org E read it; other orgs do not`, async () => {
       const visible = (u: string) => as(db, 'authenticated', u, () => count(`select count(*) as n from public.${t} where org_id = $1`, [ORG_E]));
-      const readers = t === 'stock_invoice_exceptions' ? [ADMIN_E, STAFF_E, REVIEWER_E] : [ADMIN_E, STAFF_E, REVIEWER_E, FACTORY_E];
-      for (const u of readers) expect(await visible(u), u).toBeGreaterThan(0);
-      expect(await visible(INSPECTOR_E)).toBe(0);
+      const readers = holders(perm);
+      expect(readers.length).toBeGreaterThan(0);
+      for (const role of ROLES) {
+        const n = await visible(USER_BY_ROLE[role]);
+        if (readers.includes(role)) expect(n, role).toBeGreaterThan(0);
+        else expect(n, role).toBe(0);
+      }
       expect(await visible(ADMIN_A)).toBe(0);
-      if (t === 'stock_invoice_exceptions') expect(await visible(FACTORY_E)).toBe(0);
     });
   }
 
@@ -181,12 +197,57 @@ describe('RLS: read for stock.read roles, isolated per org, no client writes', (
       `update public.stock_models set active = false`,
       `delete from public.stock_invoice_exceptions`,
       `update public.stock_invoice_exceptions set resolved_at = now()`,
+      `insert into public.stock_deal_dismissals(org_id, deal_id, reason) values ('${ORG_E}', '${D_101}', 'x')`,
+      `update public.stock_deal_dismissals set reason = 'x'`,
+      `delete from public.stock_deal_dismissals`,
     ];
     for (const u of [ADMIN_E, STAFF_E, FACTORY_E]) {
       for (const sql of writes) await expect(as(db, 'authenticated', u, () => db.query(sql)), sql).rejects.toThrow(/permission denied/);
     }
     await expect(as(db, 'anon', null, () => db.query(`select 1 from public.stock_units`))).rejects.toThrow(/permission denied/);
     await expect(as(db, 'anon', null, () => db.query(`select 1 from public.stock_matrix`))).rejects.toThrow(/permission denied/);
+    // Dismissal history is append-only for the server too.
+    for (const sql of [`update public.stock_deal_dismissals set reason = 'x'`, `delete from public.stock_deal_dismissals`]) {
+      await expect(as(db, 'service_role', null, () => db.query(sql)), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it('stock settings (app_settings stock.*) are server-only writes: no client writes them, not even an org admin', async () => {
+    for (const u of [ADMIN_E, STAFF_E]) {
+      for (const [key, value] of [['stock.invoice_rules', '"live"'], ['stock.deals_from', '"2000-01-01"']]) {
+        await expect(as(db, 'authenticated', u, () =>
+          db.query(`insert into public.app_settings(org_id, key, value) values ($1, $2, $3) on conflict (org_id, key) do update set value = excluded.value`, [ORG_E, key, value])),
+        `${u} ${key}`).rejects.toThrow(/row-level security/);
+      }
+    }
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      expect((await db.query(`update public.app_settings set value = '"live"' where org_id = $1 and key like 'stock.%'`, [ORG_E])).rowCount).toBe(0);
+      expect((await db.query(`delete from public.app_settings where org_id = $1 and key like 'stock.%'`, [ORG_E])).rowCount).toBe(0);
+      // Members still read them; other settings stay admin-writable, but cannot be renamed into stock.*.
+      expect((await db.query(`select value from public.app_settings where org_id = $1 and key = 'stock.invoice_rules'`, [ORG_E])).rows).toEqual([{ value: 'preview' }]);
+      await db.query(`insert into public.app_settings(org_id, key, value) values ($1, 'm6.test.other', '1')`, [ORG_E]);
+      const renamed = await attempt(`update public.app_settings set key = 'stock.invoice_rules_x' where org_id = $1 and key = 'm6.test.other'`, [ORG_E]);
+      expect(renamed.err?.message).toMatch(/row-level security/);
+    });
+    expect(await as(db, 'authenticated', STAFF_E, () => count(`select count(*) as n from public.app_settings where org_id = $1 and key like 'stock.%'`, [ORG_E]))).toBe(1);
+    // The server (service role, after stock.manage + confirmation) writes them.
+    await as(db, 'service_role', null, async () => {
+      expect((await db.query(`update public.app_settings set value = '"live"' where org_id = $1 and key = 'stock.invoice_rules'`, [ORG_E])).rowCount).toBe(1);
+    });
+    expect((await one(`select value from public.app_settings where org_id = $1 and key = 'stock.invoice_rules'`, [ORG_E])).value).toBe('preview');
+  });
+
+  it('VIN normalisation: the database strips exactly the characters normalizeVin strips (NBSP, BOM, zero-width...)', async () => {
+    const r = await one(`select array_agg(c order by c) as cps from generate_series(1, 65535) c
+                         where (c < 55296 or c > 57343) and public.stock_norm_vin('A' || chr(c) || 'B') = 'AB'`);
+    const js: number[] = [];
+    for (let c = 1; c <= 65535; c++) {
+      if (c >= 0xd800 && c <= 0xdfff) continue;
+      if (normalizeVin(`A${String.fromCharCode(c)}B`) === 'AB') js.push(c);
+    }
+    expect(r.cps).toEqual(js);
+    for (const c of [0x20, 0x09, 0xa0, 0x2009, 0x200b, 0x202f, 0xfeff]) expect(js, c.toString(16)).toContain(c);
+    expect((await one(`select public.stock_norm_vin($1) as v`, ['\ufeff nbsp\u00a0test\u2009 12\u200b345 '])).v).toBe('NBSPTEST12345');
   });
 
   it('anon cannot call the RPCs and clients cannot call the internal helpers', async () => {
@@ -299,6 +360,40 @@ describe('stock_dispatch_unit', () => {
     });
   });
 
+  it('a deal is not cleared by a dispatch to the Factory; it clears when the unit moves to a branch', async () => {
+    await as(db, 'authenticated', FACTORY_E, async () => {
+      expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINFACTDEAL1', model: '1000DB', location: 'FACTORY', year: 2026, number: 102 }), 'INVALID_INPUT'))
+        .toEqual({ field: 'location', reason: 'factory_with_deal' });
+      expect(await one(`select status, unit_id from public.stock_deals where id = $1`, [D_102])).toEqual({ status: 'awaiting_dispatch', unit_id: null });
+      // Registered at the Factory without the deal; the branch dispatch then offers the move, which clears the deal.
+      const u = await ok(DISPATCH, dispatchArgs({ vin: 'TESTVINFACTDEAL1', model: '1000DB', location: 'FACTORY' }));
+      expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINFACTDEAL1', model: '1000DB', location: 'CPT', year: 2026, number: 102 }), 'FACTORY_UNIT_EXISTS'))
+        .toMatchObject({ unit_id: u.id, to: 'CPT' });
+      expect(await ok(MOVE, [ORG_E, u.id, 'CPT', null, 2026, 102])).toMatchObject({ location_id: 'CPT', deal_id: D_102, sequence: 102 });
+      expect(await one(`select status, unit_id from public.stock_deals where id = $1`, [D_102])).toEqual({ status: 'dispatched', unit_id: u.id });
+    });
+  });
+
+  it('a VIN pasted with invisible characters (NBSP, BOM, zero-width) is the same VIN everywhere', async () => {
+    const pasted = 'NBSP\u00a0TEST\u00a012345\ufeff';
+    let id = '';
+    await as(db, 'authenticated', STAFF_E, async () => {
+      const u = await ok(DISPATCH, dispatchArgs({ vin: pasted }));
+      id = String(u.id);
+      expect(u.vin_norm).toBe('NBSPTEST12345');
+      expect(u.vin_norm).toBe(normalizeVin(pasted));
+      expect(await code(DISPATCH, dispatchArgs({ vin: 'NBSPTEST12345', location: 'CPT' }), 'VIN_EXISTS')).toMatchObject({ unit_id: id });
+      expect(await code(DISPATCH, dispatchArgs({ vin: 'nbsp test\u200b12345', location: 'CPT' }), 'VIN_EXISTS')).toMatchObject({ unit_id: id });
+    });
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      // Correcting to the same VIN with an NBSP is a no-op; an invoice reference with one still matches.
+      await ok(CORRECT, [ORG_E, U_DBN, JSON.stringify({ vin: 'TESTVIN\u00a0DBN0000005' })]);
+      expect(await auditRows('stock.correct')).toHaveLength(0);
+      const res = (await ok(APPLY, applyArgs('INV-E-NBSP', '\ufeffTESTVIN\u00a0DBN0000005', 'reserved', 'preview'))).r;
+      expect(res).toMatchObject({ result: 'reserved', unit_id: U_DBN });
+    });
+  });
+
   it('VIN is checked against every unit, sold included, ignoring case and spaces', async () => {
     await as(db, 'authenticated', STAFF_E, async () => {
       const sold = await code(DISPATCH, dispatchArgs({ vin: 'testvin sold 000001' }), 'VIN_EXISTS');
@@ -323,8 +418,8 @@ describe('stock_dispatch_unit', () => {
       expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINERR000001', year: 2026, number: 103 }), 'DEAL_DISMISSED')).toMatchObject({ deal_id: D_103 });
       expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINERR000001', year: 2026, number: 104 }), 'DEAL_ALREADY_DISPATCHED')).toMatchObject({ vin: 'TESTVINAVL0000004' });
       expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINERR000001', year: 2026 }), 'INVALID_INPUT')).toEqual({ field: 'deal' });
-      // Deals of another org are not found.
-      await code(DISPATCH, dispatchArgs({ vin: 'TESTVINERR000001', year: 2026, number: 90001 }), 'DEAL_NOT_FOUND');
+      // Deals of another org are not found (2026/97001 exists in org A: see the cross-org block).
+      await code(DISPATCH, dispatchArgs({ vin: 'TESTVINERR000001', year: 2026, number: 97001 }), 'DEAL_NOT_FOUND');
     });
   });
 
@@ -398,6 +493,9 @@ describe('stock_move_unit', () => {
       await code(MOVE, [ORG_E, '00000000-0000-0000-0000-00000000dead', 'CPT', 'Swap stock', null, null], 'UNIT_NOT_FOUND');
       await code(MOVE, [ORG_E, U_DBN, 'PTA', 'Swap stock', null, null], 'LOCATION_NOT_FOUND');
       expect(await code(MOVE, [ORG_E, U_AVAIL, 'CPT', 'Swap stock', 2026, 101], 'INVALID_INPUT')).toEqual({ field: 'deal', reason: 'unit_has_deal' });
+      // A deal clears only when its unit reaches a branch: not on a move to the Factory.
+      expect(await code(MOVE, [ORG_E, U_DBN, 'FACTORY', 'Swap stock', 2026, 101], 'INVALID_INPUT')).toEqual({ field: 'location', reason: 'factory_with_deal' });
+      expect((await one(`select status from public.stock_deals where id = $1`, [D_101])).status).toBe('awaiting_dispatch');
     });
   });
 });
@@ -437,6 +535,48 @@ describe('stock_correct_unit', () => {
     });
   });
 
+  it('relinks a unit dispatched against the wrong deal: the old deal is outstanding again, the new one cleared', async () => {
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const u = await ok(CORRECT, [ORG_E, U_AVAIL, JSON.stringify({ deal: { year: 2026, number: 101 } })]);
+      expect(u).toMatchObject({ deal_id: D_101, deal_year: 2026, sequence: 101 });
+      expect(await one(`select status, unit_id, dispatched_at from public.stock_deals where id = $1`, [D_104])).toEqual({ status: 'awaiting_dispatch', unit_id: null, dispatched_at: null });
+      expect(await one(`select status, unit_id from public.stock_deals where id = $1`, [D_101])).toEqual({ status: 'dispatched', unit_id: U_AVAIL });
+      const [a] = await auditRows('stock.correct');
+      expect(a.meta).toEqual({ unit_id: U_AVAIL, vin: 'TESTVINAVL0000004', model: '3000D', deal_id: D_101, deal_year: 2026, deal_number: 101,
+        previous_deal_id: D_104, previous_deal_year: 2026, previous_deal_number: 104, changed: ['sequence', 'deal'] });
+      expectCleanMeta(a.meta);
+      // The freed deal can be dispatched again; relinking to the deal it already has changes nothing.
+      await ok(DISPATCH, dispatchArgs({ vin: 'TESTVINRELINK001', year: 2026, number: 104 }));
+      await ok(CORRECT, [ORG_E, U_AVAIL, JSON.stringify({ deal: { year: 2026, number: 101 } })]);
+      expect(await auditRows('stock.correct')).toHaveLength(1);
+      // Unlink: the deal is outstanding again and the unit carries no deal or sequence.
+      expect(await ok(CORRECT, [ORG_E, U_AVAIL, JSON.stringify({ deal: null })])).toMatchObject({ deal_id: null, deal_year: null, sequence: null });
+      expect(await one(`select status, unit_id from public.stock_deals where id = $1`, [D_101])).toEqual({ status: 'awaiting_dispatch', unit_id: null });
+      expect((await auditRows('stock.correct'))[1].meta).toMatchObject({ previous_deal_id: D_101, changed: ['deal_year', 'sequence', 'deal'] });
+    });
+  });
+
+  it('relink errors: target deal not found (incl. other orgs), dismissed or dispatched with another unit; bad input', async () => {
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const deal = (d: unknown) => JSON.stringify({ deal: d });
+      expect(await code(CORRECT, [ORG_E, U_DBN, deal({ year: 2026, number: 999 })], 'DEAL_NOT_FOUND')).toEqual({ year: 2026, number: 999 });
+      await code(CORRECT, [ORG_E, U_DBN, deal({ year: 2026, number: 97001 })], 'DEAL_NOT_FOUND');
+      await code(CORRECT, [ORG_E, U_DBN, deal({ year: 2026, number: 103 })], 'DEAL_DISMISSED');
+      expect(await code(CORRECT, [ORG_E, U_DBN, deal({ year: 2026, number: 104 })], 'DEAL_ALREADY_DISPATCHED')).toMatchObject({ vin: 'TESTVINAVL0000004' });
+      for (const bad of ['x', 5, { year: 2026 }, { year: 'abc', number: 1 }]) {
+        expect(await code(CORRECT, [ORG_E, U_DBN, deal(bad)], 'INVALID_INPUT'), JSON.stringify(bad)).toEqual({ field: 'deal' });
+      }
+      expect(await code(CORRECT, [ORG_E, U_DBN, JSON.stringify({ deal: { year: 2026, number: 101 }, sequence: 5 })], 'INVALID_INPUT')).toEqual({ field: 'deal' });
+      // A deal clears only when its unit is at a branch.
+      expect(await code(CORRECT, [ORG_E, U_FACT, deal({ year: 2026, number: 101 })], 'INVALID_INPUT')).toEqual({ field: 'location', reason: 'factory_with_deal' });
+      // null on a unit without a deal changes nothing (its typed-in sequence stays).
+      expect(await ok(CORRECT, [ORG_E, U_SOLD, deal(null)])).toMatchObject({ deal_id: null, deal_year: 2026, sequence: 90 });
+      expect(await auditRows('stock.correct')).toHaveLength(0);
+      expect(await count(`select count(*) as n from public.stock_deals where org_id = $1 and status = 'dispatched'`, [ORG_E])).toBe(1);
+    });
+    await as(db, 'authenticated', STAFF_E, () => code(CORRECT, [ORG_E, U_AVAIL, JSON.stringify({ deal: null })], 'FORBIDDEN'));
+  });
+
   it('is admin only', async () => {
     for (const u of [STAFF_E, FACTORY_E, REVIEWER_E, ADMIN_A]) {
       await as(db, 'authenticated', u, () => code(CORRECT, [ORG_E, U_DBN, JSON.stringify({ notes: 'x' })], 'FORBIDDEN'));
@@ -445,7 +585,7 @@ describe('stock_correct_unit', () => {
 });
 
 describe('stock_dismiss_deal / stock_restore_deal', () => {
-  it('admin dismisses with a reason (kept on the deal, not in the audit) and restores', async () => {
+  it('admin dismisses with a reason (on the deal and in the history, not in the audit) and restores', async () => {
     await as(db, 'authenticated', ADMIN_E, async () => {
       const d = await ok(DISMISS, [ORG_E, D_101, ' SENT 26/03 ']);
       expect(d).toMatchObject({ status: 'dismissed', dismissed_reason: 'SENT 26/03', dismissed_by: ADMIN_E });
@@ -456,11 +596,28 @@ describe('stock_dismiss_deal / stock_restore_deal', () => {
       expect(r).toMatchObject({ status: 'awaiting_dispatch', dismissed_reason: null, dismissed_at: null, dismissed_by: null });
       const [dis] = await auditRows('stock.dismiss');
       const [res] = await auditRows('stock.restore');
-      expect(dis.meta).toEqual({ deal_id: D_101, deal_year: 2026, deal_number: 101 });
+      const history = (await db.query(`select id, reason, dismissed_by from public.stock_deal_dismissals where deal_id = $1 order by dismissed_at`, [D_101])).rows;
+      expect(history).toEqual([{ id: expect.any(String), reason: 'SENT 26/03', dismissed_by: ADMIN_E }]);
+      expect(dis.meta).toEqual({ deal_id: D_101, deal_year: 2026, deal_number: 101, dismissal_id: history[0].id });
       expect(res.meta).toEqual({ deal_id: D_101, deal_year: 2026, deal_number: 101 });
       expectCleanMeta(dis.meta);
       await ok(DISPATCH, dispatchArgs({ vin: 'TESTVINDISMISS01', year: 2026, number: 101 }));
     });
+  });
+
+  it('every dismissal reason survives restore and re-dismiss (Activity: dismissal history)', async () => {
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      await ok(DISMISS, [ORG_E, D_102, 'SENT 26/03']);
+      await ok(RESTORE, [ORG_E, D_102]);
+      await ok(DISMISS, [ORG_E, D_102, 'Duplicate deal']);
+      const history = (await db.query(`select reason from public.stock_deal_dismissals where deal_id = $1 order by dismissed_at, reason`, [D_102])).rows.map((x) => x.reason);
+      expect(history.sort()).toEqual(['Duplicate deal', 'SENT 26/03']);
+      const ids = (await auditRows('stock.dismiss')).map((a) => a.meta.dismissal_id);
+      expect(new Set(ids).size).toBe(2);
+      expect(await count(`select count(*) as n from public.stock_deal_dismissals where id = any($1::uuid[])`, [ids])).toBe(2);
+    });
+    // Readable by stock.read roles, factory included (the reason is already on the deal row they read).
+    expect(await as(db, 'authenticated', FACTORY_E, () => count(`select count(*) as n from public.stock_deal_dismissals where deal_id = $1`, [D_103]))).toBe(1);
   });
 
   it('requires a reason and a dismissable deal', async () => {
@@ -593,5 +750,33 @@ describe('stock_apply_invoice', () => {
       expect(r(await ok(APPLY, applyArgs('INV-E-500', 'TESTVINDBN0000005', 'reserved', 'preview')))).toMatchObject({ result: 'reserved', mode: 'preview' });
       await code(APPLY, applyArgs('INV-E-500', 'TESTVINDBN0000005', 'reserved', 'live', null, '00000000-0000-0000-0000-00000000beef'), 'INVALID_INPUT');
     });
+  });
+});
+
+describe('cross-org: the RPCs never reach another org\'s deals or units', () => {
+  it('org E callers get not-found for org A rows that exist, and org A rows stay unchanged', async () => {
+    // Positive control: the org A fixtures exist (created in this file's beforeAll).
+    expect(await count(`select count(*) as n from public.stock_deals where org_id = $1 and year = 2026 and number = 97001`, [ORG_A])).toBe(1);
+    expect(await count(`select count(*) as n from public.stock_units where org_id = $1 and id = $2`, [ORG_A, U_A])).toBe(1);
+    await as(db, 'authenticated', STAFF_E, async () => {
+      expect(await code(DISPATCH, dispatchArgs({ vin: 'TESTVINXORG00001', year: 2026, number: 97001 }), 'DEAL_NOT_FOUND')).toEqual({ year: 2026, number: 97001 });
+      await code(MOVE, [ORG_E, U_A, 'CPT', null, null, null], 'UNIT_NOT_FOUND');
+    });
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      await code(MOVE, [ORG_E, U_A, 'CPT', 'Swap stock', null, null], 'UNIT_NOT_FOUND');
+      await code(MOVE, [ORG_E, U_FACT, 'CPT', null, 2026, 97001], 'DEAL_NOT_FOUND');
+      await code(CORRECT, [ORG_E, U_A, JSON.stringify({ notes: 'x' })], 'UNIT_NOT_FOUND');
+      await code(DISMISS, [ORG_E, D_A, 'SENT 26/03'], 'DEAL_NOT_FOUND');
+      await code(RESTORE, [ORG_E, D_A], 'DEAL_NOT_FOUND');
+      await code(APPLY, applyArgs('INV-E-XORG', 'TESTVINORGA000001', 'reserved', 'manual'), 'VIN_NOT_FOUND');
+      // Naming org A directly is refused: org E's admin is not a member there.
+      await code(MOVE, [ORG_A, U_A, 'CPT', 'Swap stock', null, null], 'FORBIDDEN');
+      await code(DISMISS, [ORG_A, D_A, 'SENT 26/03'], 'FORBIDDEN');
+      // The same VIN is free in org E (VINs are unique per org).
+      await ok(DISPATCH, dispatchArgs({ vin: 'TESTVINORGA000001' }));
+    });
+    expect(await one(`select status, unit_id from public.stock_deals where id = $1`, [D_A])).toEqual({ status: 'awaiting_dispatch', unit_id: null });
+    expect(await one(`select location_id, status, invoice_number, notes from public.stock_units where id = $1`, [U_A]))
+      .toEqual({ location_id: 'JHB', status: 'available', invoice_number: null, notes: null });
   });
 });

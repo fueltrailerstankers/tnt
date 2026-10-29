@@ -1,14 +1,23 @@
 // VIN normalisation and extraction from invoice references. Pure.
-// normalizeVin matches the database's generated column stock_units.vin_norm = upper(regexp_replace(vin, '\s', '', 'g')),
-// and extractVin follows the same order as stock_apply_invoice (0011): exact match first, then containment.
+// normalizeVin matches the database's public.stock_norm_vin (0011), which computes stock_units.vin_norm and the
+// RPCs' VINs and invoice references: upper case with VIN_STRIP_CLASS removed. extractVin follows the same order as
+// stock_apply_invoice: exact match first, then containment.
 
 export const VIN_MIN_LENGTH = 5;
 export const VIN_MAX_LENGTH = 40;
 
-/** Upper case with all whitespace removed (" abc 123\t" -> "ABC123"). Null when nothing is left. */
+/**
+ * Whitespace plus the invisible characters that arrive with pasted VINs (NBSP, soft hyphen, zero-width spaces and
+ * joiners, direction marks, BOM). JS and Postgres read \s differently (Postgres keeps NBSP and BOM), so the extra
+ * characters are listed. The same text is in 0011 stock_norm_vin; tests check both strip the same characters.
+ */
+export const VIN_STRIP_CLASS = String.raw`[\s\u0085\u00a0\u00ad\u1680\u180e\u2000-\u200f\u2028-\u202f\u205f-\u2064\u3000\ufeff]`;
+const VIN_STRIP = new RegExp(VIN_STRIP_CLASS, 'g');
+
+/** Upper case with whitespace and invisible characters removed (" abc 123\t" -> "ABC123"). Null when nothing is left. */
 export function normalizeVin(v: string | null | undefined): string | null {
   if (typeof v !== 'string') return null;
-  const s = v.replace(/\s/g, '').toUpperCase();
+  const s = v.replace(VIN_STRIP, '').toUpperCase();
   return s || null;
 }
 

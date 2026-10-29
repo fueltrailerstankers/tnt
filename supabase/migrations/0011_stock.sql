@@ -11,7 +11,23 @@
 --
 -- Audit: audit_log rows with action 'stock.<verb>' (dispatch, move, correct, dismiss, restore, reserve, sell,
 -- exception) and meta holding ids, VIN, invoice number, model, location codes and deal year/number only.
--- Free text (notes, reasons, references) never goes into the audit meta.
+-- Free text (notes, reasons, references) never goes into the audit meta: a dismissal's reason is kept in
+-- stock_deal_dismissals and its audit row carries the dismissal_id.
+--
+-- Settings: org app_settings keys 'stock.*' (stock.deals_from, stock.invoice_rules) are server-only writes, like
+-- 'xero.action.*' in 0009: the setup server action checks stock.manage, the typed confirmation for live, and audits.
+
+-- ---------------------------------------------------------------------------
+-- VIN normalisation: upper case with every whitespace and invisible format character removed. Postgres' \s
+-- (C.UTF-8) keeps NBSP, BOM, zero-width spaces and the like, which arrive with VINs pasted from spreadsheets,
+-- PDFs or chat, so the class lists them. lib/stock/vin.ts VIN_STRIP_CLASS is the same text (checked by
+-- tests/unit/stock-vin.test.ts; tests/db/stock.test.ts checks both strip exactly the same characters).
+-- Used by the generated column, the RPCs and the invoice reference match.
+-- ---------------------------------------------------------------------------
+create or replace function public.stock_norm_vin(p text) returns text
+language sql immutable parallel safe set search_path = '' as $$
+  select upper(regexp_replace(coalesce(p, ''), '[\s\u0085\u00a0\u00ad\u1680\u180e\u2000-\u200f\u2028-\u202f\u205f-\u2064\u3000\ufeff]', '', 'g'))
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Reference data: locations and product models
@@ -71,7 +87,7 @@ create table public.stock_units (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.orgs(id) on delete cascade,
   vin text not null,
-  vin_norm text generated always as (upper(regexp_replace(vin, '\s', '', 'g'))) stored,
+  vin_norm text generated always as (public.stock_norm_vin(vin)) stored,
   deal_year int check (deal_year between 2000 and 2100),
   sequence int check (sequence > 0),
   deal_id uuid,
@@ -92,12 +108,25 @@ create table public.stock_units (
   foreign key (org_id, deal_id) references public.stock_deals(org_id, id),
   foreign key (org_id, model_part) references public.stock_models(org_id, part_number),
   foreign key (org_id, location_id) references public.stock_locations(org_id, id),
-  constraint stock_units_vin_length check (char_length(upper(regexp_replace(vin, '\s', '', 'g'))) between 5 and 40),
+  constraint stock_units_vin_length check (char_length(public.stock_norm_vin(vin)) between 5 and 40),
   constraint stock_units_sold_at check (status = 'sold' or sold_at is null)
 );
 
 alter table public.stock_deals add constraint stock_deals_unit_fk
   foreign key (org_id, unit_id) references public.stock_units(org_id, id);
+
+-- Dismissal history (append-only, written by stock_dismiss_deal): every dismissal's reason survives a restore or
+-- a later re-dismiss. The deal row keeps only the current one. Activity joins it through the audit dismissal_id.
+create table public.stock_deal_dismissals (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references public.orgs(id) on delete cascade,
+  deal_id uuid not null,
+  reason text not null check (char_length(reason) between 1 and 200),
+  dismissed_by uuid references auth.users(id) on delete set null,
+  dismissed_at timestamptz not null default now(),
+  foreign key (org_id, deal_id) references public.stock_deals(org_id, id) on delete cascade
+);
+create index stock_deal_dismissals_deal_idx on public.stock_deal_dismissals(org_id, deal_id, dismissed_at desc);
 
 -- VIN is unique per org on its normalised form, across every unit including sold ones.
 create unique index stock_units_vin_key on public.stock_units(org_id, vin_norm);
@@ -164,6 +193,7 @@ alter table public.stock_models enable row level security;
 alter table public.stock_deals enable row level security;
 alter table public.stock_units enable row level security;
 alter table public.stock_invoice_exceptions enable row level security;
+alter table public.stock_deal_dismissals enable row level security;
 
 create policy stock_locations_select on public.stock_locations for select to authenticated
   using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer', 'factory']::public.app_role[]));
@@ -171,9 +201,12 @@ create policy stock_models_select on public.stock_models for select to authentic
   using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer', 'factory']::public.app_role[]));
 create policy stock_deals_select on public.stock_deals for select to authenticated
   using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer', 'factory']::public.app_role[]));
+create policy stock_deal_dismissals_select on public.stock_deal_dismissals for select to authenticated
+  using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer', 'factory']::public.app_role[]));
 create policy stock_units_select on public.stock_units for select to authenticated
   using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer', 'factory']::public.app_role[]));
--- Exceptions carry the raw Xero reference: same audience as the Xero mirror (not factory).
+-- Exceptions carry the raw Xero reference: same audience as the Xero mirror (not factory); can() calls this
+-- audience stock.invoices (lib/security/can.ts).
 create policy stock_invoice_exceptions_select on public.stock_invoice_exceptions for select to authenticated
   using (public.has_org_role(org_id, array['admin', 'staff', 'reviewer']::public.app_role[]));
 
@@ -183,6 +216,21 @@ grant select on public.stock_locations, public.stock_models, public.stock_deals,
                 public.stock_invoice_exceptions, public.stock_matrix to authenticated;
 grant all on public.stock_locations, public.stock_models, public.stock_deals, public.stock_units,
              public.stock_invoice_exceptions, public.stock_matrix to service_role;
+-- Dismissal history is append-only: read for stock.read roles, insert for the server, no update or delete.
+revoke all on public.stock_deal_dismissals from anon, authenticated, service_role;
+grant select on public.stock_deal_dismissals to authenticated;
+grant select, insert on public.stock_deal_dismissals to service_role;
+
+-- Stock settings (app_settings 'stock.*') change only through the setup server action (stock.manage, typed
+-- confirmation for live, audit row). Clients may read them; no client inserts, updates or deletes them directly,
+-- not even an org admin through the API (the 0004 settings_admin policy would otherwise allow it). As 0009.
+create policy settings_no_client_stock_insert on public.app_settings as restrictive for insert to authenticated
+  with check (key not like 'stock.%');
+create policy settings_no_client_stock_update on public.app_settings as restrictive for update to authenticated
+  using (key not like 'stock.%')
+  with check (key not like 'stock.%');
+create policy settings_no_client_stock_delete on public.app_settings as restrictive for delete to authenticated
+  using (key not like 'stock.%');
 
 -- The Activity page (stock.read) reads the stock.* audit rows; their meta holds ids and codes only.
 create policy audit_stock_select on public.audit_log for select to authenticated
@@ -284,7 +332,8 @@ end $$;
 -- stock_dispatch_unit [admin, staff, factory]
 -- Free mode (no deal) or against a deal (year + number). The VIN is checked against every unit, sold included.
 -- A VIN already registered at the Factory and not sold, dispatched to a branch, raises FACTORY_UNIT_EXISTS so
--- the UI can offer stock_move_unit instead. Dispatching to the Factory itself registers factory stock.
+-- the UI can offer stock_move_unit instead. Dispatching to the Factory itself registers factory stock, without a
+-- deal: a deal clears only when its unit reaches a branch (this dispatch, or stock_move_unit Factory -> branch).
 -- ---------------------------------------------------------------------------
 create or replace function public.stock_dispatch_unit(
   p_org uuid, p_vin text, p_model text, p_location text, p_date date default null,
@@ -293,7 +342,7 @@ create or replace function public.stock_dispatch_unit(
 ) returns public.stock_units
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_norm text := upper(regexp_replace(coalesce(p_vin, ''), '\s', '', 'g'));
+  v_norm text := public.stock_norm_vin(p_vin);
   v_model text := upper(regexp_replace(coalesce(p_model, ''), '\s', '', 'g'));
   v_notes text := nullif(btrim(coalesce(p_notes, '')), '');
   v_loc public.stock_locations;
@@ -321,6 +370,9 @@ begin
   end if;
   if (p_deal_year is null) <> (p_deal_number is null) then
     perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
+  end if;
+  if p_deal_year is not null and v_loc.is_factory then
+    perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'location', 'reason', 'factory_with_deal'));
   end if;
 
   if p_deal_year is not null then
@@ -364,7 +416,8 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- stock_move_unit [admin: any transfer; staff and factory: Factory -> branch only]
 -- A reason is required for every transfer except Factory -> branch. Optionally links a deal (year + number) to a
--- unit that has none, which clears the deal like a dispatch (factory stock registered before its deal existed).
+-- unit that has none, which clears the deal like a dispatch (factory stock registered before its deal existed);
+-- not on a move to the Factory, since a deal clears only when its unit reaches a branch.
 -- Factory -> branch sets the dispatch date to today (Africa/Johannesburg).
 -- ---------------------------------------------------------------------------
 create or replace function public.stock_move_unit(
@@ -417,6 +470,9 @@ begin
     if v_unit.deal_id is not null then
       perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal', 'reason', 'unit_has_deal'));
     end if;
+    if v_to.is_factory then
+      perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'location', 'reason', 'factory_with_deal'));
+    end if;
     select * into v_deal from public.stock_deals d
     where d.org_id = p_org and d.year = p_deal_year and d.number = p_deal_number
     for update;
@@ -446,20 +502,27 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- stock_correct_unit [admin]: edit a unit record. p_fields is a JSON object with any of
 -- vin, model_part, location_id, status, invoice_number, xero_invoice_id, dispatch_date, accessories (array), notes,
--- deal_year, sequence (the last two only on units not linked to a deal). Unknown keys are rejected.
--- The audit row lists the changed field keys, never the values (VIN excepted).
+-- deal_year, sequence (the last two only on units not linked to a deal), and deal: {"year": y, "number": n} to
+-- relink the unit to another deal (a dispatch made against the wrong deal) or null to unlink it. The old deal goes
+-- back to awaiting dispatch; the new one must be awaiting dispatch and is cleared with this unit, which must be at a
+-- branch; deal_year and sequence follow the deal ('deal' cannot be combined with them). Unknown keys are rejected.
+-- The audit row lists the changed field keys, never the values (VIN and deal year/number excepted).
 -- ---------------------------------------------------------------------------
 create or replace function public.stock_correct_unit(p_org uuid, p_unit uuid, p_fields jsonb) returns public.stock_units
 language plpgsql security definer set search_path = '' as $$
 declare
   c_allowed constant text[] := array['vin', 'model_part', 'location_id', 'status', 'invoice_number', 'xero_invoice_id',
-                                     'dispatch_date', 'accessories', 'notes', 'deal_year', 'sequence'];
+                                     'dispatch_date', 'accessories', 'notes', 'deal_year', 'sequence', 'deal'];
   v_bad text[];
   v_old public.stock_units;
   v_new public.stock_units;
   v_other public.stock_units;
   v_changed text[];
   v_constraint text;
+  v_year int;
+  v_number int;
+  v_old_deal public.stock_deals;
+  v_new_deal public.stock_deals;
 begin
   perform public.stock_require_role(p_org, array['admin']::public.app_role[]);
 
@@ -478,7 +541,7 @@ begin
   v_new := v_old;
 
   if p_fields ? 'vin' then
-    v_new.vin := upper(regexp_replace(coalesce(p_fields ->> 'vin', ''), '\s', '', 'g'));
+    v_new.vin := public.stock_norm_vin(p_fields ->> 'vin');
     if char_length(v_new.vin) not between 5 and 40 then
       perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'vin'));
     end if;
@@ -558,6 +621,43 @@ begin
       perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
     end;
   end if;
+  if p_fields ? 'deal' then
+    if p_fields ? 'deal_year' or p_fields ? 'sequence' then
+      perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
+    end if;
+    if jsonb_typeof(p_fields -> 'deal') = 'object' then
+      begin
+        v_year := (p_fields -> 'deal' ->> 'year')::int;
+        v_number := (p_fields -> 'deal' ->> 'number')::int;
+      exception when others then
+        perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
+      end;
+      if v_year is null or v_number is null then
+        perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
+      end if;
+    elsif jsonb_typeof(p_fields -> 'deal') <> 'null' then
+      perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'deal'));
+    end if;
+    if v_old.deal_id is not null then
+      select * into v_old_deal from public.stock_deals d where d.org_id = p_org and d.id = v_old.deal_id for update;
+    end if;
+    if v_year is not null then
+      select * into v_new_deal from public.stock_deals d
+      where d.org_id = p_org and d.year = v_year and d.number = v_number
+      for update;
+      if v_new_deal.id is null or v_new_deal.id is distinct from v_old.deal_id then
+        perform public.stock_check_deal(v_new_deal, v_year, v_number);   -- not found, dismissed, already dispatched
+        if exists (select 1 from public.stock_locations l where l.org_id = p_org and l.id = v_new.location_id and l.is_factory) then
+          perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'location', 'reason', 'factory_with_deal'));
+        end if;
+      end if;
+    end if;
+    if v_year is not null or v_old.deal_id is not null then   -- null on a unit without a deal changes nothing
+      v_new.deal_id := v_new_deal.id;
+      v_new.deal_year := v_new_deal.year;
+      v_new.sequence := v_new_deal.number;
+    end if;
+  end if;
 
   if v_new.status = 'sold' and v_old.status <> 'sold' then v_new.sold_at := now();
   elsif v_new.status <> 'sold' then v_new.sold_at := null;
@@ -574,7 +674,8 @@ begin
     case when v_new.accessories is distinct from v_old.accessories then 'accessories' end,
     case when v_new.notes is distinct from v_old.notes then 'notes' end,
     case when v_new.deal_year is distinct from v_old.deal_year then 'deal_year' end,
-    case when v_new.sequence is distinct from v_old.sequence then 'sequence' end
+    case when v_new.sequence is distinct from v_old.sequence then 'sequence' end,
+    case when v_new.deal_id is distinct from v_old.deal_id then 'deal' end
   ], null);
   if cardinality(v_changed) = 0 then
     return v_old;   -- nothing changed: no write, no audit row
@@ -585,7 +686,7 @@ begin
       vin = v_new.vin, model_part = v_new.model_part, location_id = v_new.location_id, status = v_new.status,
       invoice_number = v_new.invoice_number, xero_invoice_id = v_new.xero_invoice_id, dispatch_date = v_new.dispatch_date,
       accessories = v_new.accessories, notes = v_new.notes, deal_year = v_new.deal_year, sequence = v_new.sequence,
-      sold_at = v_new.sold_at
+      deal_id = v_new.deal_id, sold_at = v_new.sold_at
     where u.id = v_old.id
     returning * into v_new;
   exception
@@ -594,26 +695,47 @@ begin
       if v_constraint = 'stock_units_invoice_key' then
         perform public.stock_raise('INVOICE_LINKED_OTHER_UNIT', jsonb_build_object('invoice_number', v_new.invoice_number, 'unit_id', v_old.id));
       end if;
+      if v_constraint = 'stock_units_deal_key' then
+        perform public.stock_raise('DEAL_ALREADY_DISPATCHED', jsonb_build_object('deal_id', v_new_deal.id, 'year', v_new_deal.year, 'number', v_new_deal.number));
+      end if;
       perform public.stock_raise('VIN_EXISTS', jsonb_build_object('vin', v_new.vin));
     when check_violation then
       perform public.stock_raise('INVALID_INPUT', jsonb_build_object('field', 'fields'));
   end;
 
+  if 'deal' = any (v_changed) then
+    -- Old deal first: a unit is on at most one deal (stock_deals_unit_key).
+    if v_old_deal.id is not null then
+      update public.stock_deals d set status = 'awaiting_dispatch', unit_id = null, dispatched_at = null where d.id = v_old_deal.id;
+    end if;
+    if v_new_deal.id is not null then
+      update public.stock_deals d set status = 'dispatched', unit_id = v_new.id, dispatched_at = now() where d.id = v_new_deal.id;
+    end if;
+  end if;
+
   perform public.stock_audit(p_org, 'stock.correct', 'stock_unit', v_new.id::text, jsonb_build_object(
     'unit_id', v_new.id, 'vin', v_new.vin_norm, 'model', v_new.model_part,
     'previous_vin', case when 'vin' = any (v_changed) then v_old.vin_norm end,
+    'deal_id', case when 'deal' = any (v_changed) then v_new_deal.id end,
+    'deal_year', case when 'deal' = any (v_changed) then v_new_deal.year end,
+    'deal_number', case when 'deal' = any (v_changed) then v_new_deal.number end,
+    'previous_deal_id', case when 'deal' = any (v_changed) then v_old_deal.id end,
+    'previous_deal_year', case when 'deal' = any (v_changed) then v_old_deal.year end,
+    'previous_deal_number', case when 'deal' = any (v_changed) then v_old_deal.number end,
     'changed', to_jsonb(v_changed)));
   return v_new;
 end $$;
 
 -- ---------------------------------------------------------------------------
--- stock_dismiss_deal / stock_restore_deal [admin only]. Dismiss needs a reason (kept on the deal, not in the audit).
+-- stock_dismiss_deal / stock_restore_deal [admin only]. Dismiss needs a reason: kept on the deal (current) and in
+-- stock_deal_dismissals (history, survives restore), never in the audit meta, which carries the dismissal_id.
 -- ---------------------------------------------------------------------------
 create or replace function public.stock_dismiss_deal(p_org uuid, p_deal uuid, p_reason text) returns public.stock_deals
 language plpgsql security definer set search_path = '' as $$
 declare
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_deal public.stock_deals;
+  v_dismissal uuid;
 begin
   perform public.stock_require_role(p_org, array['admin']::public.app_role[]);
   if v_reason is null then perform public.stock_raise('REASON_REQUIRED'); end if;
@@ -634,8 +756,12 @@ begin
   where d.id = v_deal.id
   returning * into v_deal;
 
+  insert into public.stock_deal_dismissals(org_id, deal_id, reason, dismissed_by, dismissed_at)
+  values (p_org, v_deal.id, v_reason, auth.uid(), v_deal.dismissed_at)
+  returning id into v_dismissal;
+
   perform public.stock_audit(p_org, 'stock.dismiss', 'stock_deal', v_deal.id::text,
-    jsonb_build_object('deal_id', v_deal.id, 'deal_year', v_deal.year, 'deal_number', v_deal.number));
+    jsonb_build_object('deal_id', v_deal.id, 'deal_year', v_deal.year, 'deal_number', v_deal.number, 'dismissal_id', v_dismissal));
   return v_deal;
 end $$;
 
@@ -679,7 +805,7 @@ declare
   v_service boolean := public.stock_is_service();
   v_inv text := nullif(upper(btrim(coalesce(p_invoice_number, ''))), '');
   v_xid text := nullif(btrim(coalesce(p_xero_invoice_id, '')), '');
-  v_ref text := upper(regexp_replace(coalesce(p_reference, ''), '\s', '', 'g'));
+  v_ref text := public.stock_norm_vin(p_reference);
   v_target text;
   v_reason text;
   v_code text;
@@ -812,11 +938,13 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- Function privileges: clients call only the RPCs; helpers stay internal.
 -- ---------------------------------------------------------------------------
-revoke all on function public.stock_raise(text, jsonb), public.stock_is_service(),
+revoke all on function public.stock_norm_vin(text), public.stock_raise(text, jsonb), public.stock_is_service(),
                        public.stock_require_role(uuid, public.app_role[]), public.stock_clean_accessories(text[]),
                        public.stock_audit(uuid, text, text, text, jsonb), public.stock_unit_detail(public.stock_units),
                        public.stock_check_deal(public.stock_deals, int, int)
   from public, anon, authenticated;
+-- The server (service role) writes stock_units directly for opening stock: the generated column calls this.
+grant execute on function public.stock_norm_vin(text) to service_role;
 
 revoke all on function
   public.stock_dispatch_unit(uuid, text, text, text, date, text[], text, int, int),
@@ -837,7 +965,8 @@ grant execute on function
 grant execute on function public.stock_apply_invoice(uuid, text, text, text, text, text) to service_role;
 
 comment on table public.stock_units is 'One physical unit per VIN (unique per org on vin_norm, sold included). Written only by the stock_* RPCs or the server.';
-comment on table public.stock_deals is 'One per DEAL entry (deal sync job). Cleared only by a dispatch against its year and number.';
+comment on table public.stock_deals is 'One per DEAL entry (deal sync job). Cleared only when its unit reaches a branch: a dispatch against its year and number, or a Factory -> branch move with it. An admin relinks a wrong one with stock_correct_unit.';
+comment on table public.stock_deal_dismissals is 'Append-only dismissal history (reason, who, when); the audit row stock.dismiss carries the dismissal_id.';
 comment on table public.stock_invoice_exceptions is 'Invoices the stock rules could not apply. Recorded once per invoice and reason; resolved by an admin.';
 comment on view public.stock_matrix is 'Units per model x location (available + reserved) and reserved count; sold excluded. security_invoker.';
 

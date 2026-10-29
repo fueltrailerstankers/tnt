@@ -52,6 +52,8 @@ describe('stockErrorMessage', () => {
     expect(msg('INVALID_INPUT', { field: 'accessories', max: 10 })).toBe('Record up to 10 accessory lines of up to 200 characters each.');
     expect(msg('INVALID_INPUT', { field: 'deal', reason: 'unit_has_deal' })).toBe('This unit is already linked to a deal.');
     expect(msg('INVALID_INPUT', { field: 'location', reason: 'same_location' })).toBe('The unit is already at this location.');
+    expect(msg('INVALID_INPUT', { field: 'location', reason: 'factory_with_deal' }))
+      .toBe('A deal is cleared when its unit reaches a branch. Choose a destination branch, or register the unit at the Factory without the deal.');
     expect(msg('INVALID_INPUT', { field: 'whatever' })).toBe('Check the values and try again.');
     expect(stockMessageFor(new Error('relation "x" does not exist'))).toBe('Something went wrong. No stock record has been changed.');
   });

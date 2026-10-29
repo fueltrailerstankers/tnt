@@ -38,11 +38,13 @@ describe('can', () => {
     expect(holders('stock.dispatch')).toEqual(['admin', 'staff', 'factory']);
     expect(holders('stock.export')).toEqual(['admin', 'staff']);
     expect(holders('stock.manage')).toEqual(['admin']);
+    // Invoice review (Invoices tab, exceptions queue): the Xero mirror audience, not factory (0011 RLS agrees).
+    expect(holders('stock.invoices')).toEqual(['admin', 'staff', 'reviewer']);
   });
 
   it('factory holds admin access, stock read and dispatch only: no entries, forms, tasks, Xero or leads', () => {
     expect(PERMISSIONS.filter((p) => can(member('factory'), p))).toEqual(['admin.access', 'stock.read', 'stock.dispatch']);
-    for (const p of ['entries.read', 'entries.write', 'forms.read', 'tasks.read', 'xero.read', 'leads.read', 'stock.export', 'stock.manage'] as const) {
+    for (const p of ['entries.read', 'entries.write', 'forms.read', 'tasks.read', 'xero.read', 'leads.read', 'stock.export', 'stock.manage', 'stock.invoices'] as const) {
       expect(can(member('factory'), p), p).toBe(false);
     }
   });

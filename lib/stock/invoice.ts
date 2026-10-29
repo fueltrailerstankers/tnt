@@ -24,7 +24,7 @@ export const EXCEPTION_REASONS = [
 ] as const;
 export type ExceptionReason = (typeof EXCEPTION_REASONS)[number];
 
-/** A xero_invoices mirror row (or the manual form), plus optional line item codes. */
+/** A xero_invoices mirror row (or the manual form), plus its line item codes (xero_invoice_lines.item_code). */
 export interface InvoiceFacts {
   invoice_id: string | null;
   invoice_number: string | null;
@@ -34,8 +34,12 @@ export interface InvoiceFacts {
   amount_due: number | null;
   amount_credited?: number | null;
   reference: string | null;
-  /** Line item codes. A line for a stock model marks the invoice as a stock invoice even without a known VIN. */
-  item_codes?: readonly (string | null)[];
+  /**
+   * Line item codes (pass [] when the invoice has none). A line for a stock model marks the invoice as a stock
+   * invoice even when its reference names no known VIN, so a missing or mistyped VIN becomes an exception.
+   * Required so the job cannot leave the lines out and silently ignore such invoices.
+   */
+  item_codes: readonly (string | null)[];
 }
 
 export interface UnitFacts {
@@ -68,6 +72,17 @@ export function normalizeInvoiceNumber(v: string | null | undefined): string | n
   return s || null;
 }
 
+/**
+ * Whether a line item code is a stock model: the part number itself ("3000D", " ctll 1 ") or the part number
+ * followed by a suffix after a separator ("CTLL1-GWM", "3000D/RED", "BOX02 ISO"). Case and spacing are ignored.
+ */
+export function isModelItemCode(code: string | null | undefined, modelParts: ReadonlySet<string>): boolean {
+  if (!code) return false;
+  if (modelParts.has(partKey(code))) return true;
+  const base = code.trim().split(/[\s\-/_.:]/)[0];
+  return !!base && modelParts.has(partKey(base));
+}
+
 /** Looks the invoice up against the org's units: the unit its reference names, and any unit holding its number. */
 export function matchUnit(invoice: Pick<InvoiceFacts, 'reference' | 'invoice_number'>, units: readonly UnitFacts[]): UnitMatch {
   const vin = extractVin(invoice.reference, units.map((u) => u.vin_norm));
@@ -81,13 +96,15 @@ export function matchUnit(invoice: Pick<InvoiceFacts, 'reference' | 'invoice_num
 /**
  * What an invoice does to stock.
  * - Bills (ACCPAY*) and drafts are ignored. An invoice is a stock invoice when its reference names a known VIN (or
- *   several) or one of its lines is a stock model; any other sales invoice is ignored (parts, services).
+ *   several) or one of its lines is a stock model (isModelItemCode); any other sales invoice is ignored (parts,
+ *   services). KNOWN LIMIT (docs/M6.md section 3): a unit invoice whose reference names no known VIN and whose
+ *   lines carry no model item code is indistinguishable from a parts invoice and is ignored, not an exception.
  * - Credit notes, voided/deleted invoices, credited invoices and unknown statuses -> exception.
  * - PAID -> sold. AUTHORISED/SUBMITTED with amount due > 0 (incl. partly paid) -> reserved.
  * - Missing/unknown/ambiguous VIN, invoice on another unit, unit on another invoice, or a sold unit invoiced as
  *   unpaid -> exception. The same state twice -> noop.
  */
-export function invoiceOutcome(invoice: InvoiceFacts, match: UnitMatch, modelParts: readonly string[] = []): InvoiceOutcome {
+export function invoiceOutcome(invoice: InvoiceFacts, match: UnitMatch, modelParts: readonly string[]): InvoiceOutcome {
   const type = (invoice.invoice_type ?? 'ACCREC').trim().toUpperCase();
   const status = (invoice.status ?? '').trim().toUpperCase();
   if (type.startsWith('ACCPAY')) return { kind: 'ignore', reason: 'not_sales' };
@@ -95,7 +112,7 @@ export function invoiceOutcome(invoice: InvoiceFacts, match: UnitMatch, modelPar
 
   const models = new Set(modelParts.map(partKey));
   const namesVin = match.vin.kind === 'exact' || match.vin.kind === 'contained' || match.vin.kind === 'ambiguous';
-  const hasModelLine = (invoice.item_codes ?? []).some((c) => !!c && models.has(partKey(c)));
+  const hasModelLine = (invoice.item_codes ?? []).some((c) => isModelItemCode(c, models));
   if (!namesVin && !hasModelLine) return { kind: 'ignore', reason: 'not_stock' };
 
   const unitId = match.unit?.id ?? null;

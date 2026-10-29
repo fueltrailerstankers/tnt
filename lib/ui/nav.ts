@@ -34,6 +34,14 @@ export function visibleNav(member: Member | null, defs: readonly NavDef[] = NAV)
   return defs.filter((n) => n.built && can(member, n.perm));
 }
 
+/**
+ * Whether the admin home lists forms. Every link there opens an entries page (/admin/forms/<slug>, entries.read),
+ * so roles with admin access but no entries (factory) get the home page without them.
+ */
+export function homeShowsForms(member: Member | null): boolean {
+  return can(member, 'entries.read');
+}
+
 /** The item whose href is the longest prefix of the path ('/admin' only matches exactly). */
 export function activeKey(pathname: string, defs: readonly Pick<NavDef, 'key' | 'href'>[]): string | null {
   let best: { key: string; len: number } | null = null;

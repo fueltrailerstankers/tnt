@@ -84,7 +84,9 @@ function invalidInputMessage(detail: Record<string, unknown>): string {
     case 'deal':
       return detail.reason === 'unit_has_deal' ? 'This unit is already linked to a deal.' : 'Enter both the deal year and the sequence number.';
     case 'location':
-      return detail.reason === 'same_location' ? 'The unit is already at this location.' : 'Choose a destination branch.';
+      if (detail.reason === 'same_location') return 'The unit is already at this location.';
+      if (detail.reason === 'factory_with_deal') return 'A deal is cleared when its unit reaches a branch. Choose a destination branch, or register the unit at the Factory without the deal.';
+      return 'Choose a destination branch.';
     case 'status':
       return 'Choose a status.';
     case 'invoice_number':

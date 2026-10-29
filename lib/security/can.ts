@@ -29,16 +29,19 @@ export const PERMISSIONS = [
   'stock.dispatch',
   'stock.export',
   'stock.manage',
+  'stock.invoices',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
   staff: ['admin.access', 'forms.read', 'entries.read', 'entries.write', 'entries.export', 'tasks.read', 'xero.read', 'leads.read', 'leads.manage',
-    'stock.read', 'stock.dispatch', 'stock.export'],
-  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read', 'xero.read', 'stock.read'],
+    'stock.read', 'stock.dispatch', 'stock.export', 'stock.invoices'],
+  reviewer: ['admin.access', 'forms.read', 'entries.read', 'entries.review', 'entries.approve', 'tasks.read', 'xero.read', 'stock.read',
+    'stock.invoices'],
   inspector: ['forms.read'],
-  // Factory staff: stock register and dispatch only. Never entries, forms or Xero (RLS agrees: 0011).
+  // Factory staff: stock register and dispatch only. Never entries, forms, Xero or invoice review (stock.invoices):
+  // RLS agrees (0011 hides the Xero mirror and stock_invoice_exceptions from this role).
   factory: ['admin.access', 'stock.read', 'stock.dispatch'],
 };
 

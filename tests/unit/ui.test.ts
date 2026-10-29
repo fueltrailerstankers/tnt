@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { activeKey, badgeLabel, NAV, visibleNav } from '@/lib/ui/nav';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { activeKey, badgeLabel, homeShowsForms, NAV, visibleNav } from '@/lib/ui/nav';
 import { searchTarget } from '@/lib/ui/search';
 import { STATUS_TONE, toneFor } from '@/lib/ui/status';
 import { nextTheme, parseTheme, resolveTheme } from '@/lib/ui/theme';
@@ -55,6 +57,14 @@ describe('navigation', () => {
   it('factory staff see no forms, tasks, deals, Xero, leads or settings', () => {
     const keys = visibleNav(member('factory')).map((n) => n.key);
     for (const k of ['tasks', 'forms', 'deals', 'quotes', 'invoices', 'leads', 'integrations', 'settings']) expect(keys).not.toContain(k);
+  });
+  it('the admin home lists forms (links to entries pages) only for roles that can read entries; never for factory', () => {
+    expect(homeShowsForms(member('factory'))).toBe(false);
+    expect(homeShowsForms(null)).toBe(false);
+    for (const r of ['admin', 'staff', 'reviewer'] as const) expect(homeShowsForms(member(r)), r).toBe(true);
+    const page = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/page.tsx'), 'utf8');
+    expect(page).toContain('homeShowsForms(member)');
+    expect(page).toMatch(/showForms \? \(\(\(await supabase\.rpc\('form_overview'\)/);
   });
   it('picks the longest matching prefix', () => {
     const defs = NAV.filter((n) => n.built);
