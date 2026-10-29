@@ -6,6 +6,7 @@ import { loadConnection, type Connection } from './connection';
 import { mapAttachment, mapContact, mapInvoice, mapPayment, mapQuote, type LineRow } from './mappers';
 import { backfillPasses, ENTITIES, incrementalPass, isLastPage, LIST_KEY, pageParams, shouldPause, type Entity } from './plan';
 import { XeroAuthError } from './oauth';
+import { amountDueBefore, enqueuePaid } from './write/paid';
 
 // Mirror sync. Every page is written, and the cursor saved, before the next request, so a run that stops
 // (time budget, rate limit, crash) resumes where it left off. Upserts are keyed on Xero ids: replaying any
@@ -61,12 +62,14 @@ export async function upsertList(db: SupabaseClient, c: Connection, entity: Enti
     await replaceLines(db, c, 'xero_quote_lines', 'quote_id', mapped.map((m) => ({ id: m.row.quote_id, lines: m.lines })));
   } else {
     const mapped = list.map(mapInvoice);
+    const before = await amountDueBefore(db, c.orgId, mapped.map((m) => m.row.invoice_id)); // M3: release.on_paid
     await must(db.from('xero_invoices').upsert(
       // A changed invoice gets its attachment list re-read.
       mapped.map((m) => ({ ...base(c), ...m.row, attachments_synced_at: null })),
       { onConflict: 'org_id,invoice_id' },
     ));
     await replaceLines(db, c, 'xero_invoice_lines', 'invoice_id', mapped.map((m) => ({ id: m.row.invoice_id, lines: m.lines })));
+    await enqueuePaid(db, c.orgId, before, mapped.map((m) => m.row)); // M3: invoices whose amount due became 0
   }
   return list.length;
 }
@@ -131,6 +134,7 @@ async function syncAttachments(db: SupabaseClient, reader: XeroReader, deadline:
   const c = reader.connection;
   const { data } = await db.from('xero_invoices').select('invoice_id').eq('org_id', c.orgId).eq('has_attachments', true).is('attachments_synced_at', null).limit(25);
   let n = 0;
+  let done = 0;
   for (const inv of data ?? []) {
     if (Date.now() > deadline || shouldPause(reader.rate)) break;
     const res = await reader.get<J>(`/Invoices/${encodeURIComponent(inv.invoice_id)}/Attachments`);
@@ -138,8 +142,11 @@ async function syncAttachments(db: SupabaseClient, reader: XeroReader, deadline:
     if (list.length) await must(db.from('xero_attachments').upsert(list, { onConflict: 'org_id,attachment_id' }));
     await must(db.from('xero_invoices').update({ attachments_synced_at: new Date().toISOString() }).eq('org_id', c.orgId).eq('invoice_id', inv.invoice_id));
     n += list.length;
+    done += 1;
   }
-  await saveState(db, c.orgId, 'attachments', { last_ok_at: new Date().toISOString(), last_error: null });
+  // The attachment backfill is done once a run finds fewer than a batch pending and reads them all.
+  const caughtUp = done === (data ?? []).length && (data ?? []).length < 25;
+  await saveState(db, c.orgId, 'attachments', { last_ok_at: new Date().toISOString(), last_error: null, ...(caughtUp ? { backfill_done: true } : {}) });
   return n;
 }
 

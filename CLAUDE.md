@@ -39,6 +39,13 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Generated PDFs are immutable versions in the `documents` bucket with sha256; the Delivery Note PDF is the signed customer record.
 - Legal text: edit the kit's `content/*.md`, then `pnpm build:content`.
 
+## Repo notes (added in M2-M5)
+- Xero: reads only through `XeroReader` (GET). Every non-GET goes through `lib/integrations/xero/write/writer.ts`; `tests/unit/xero-no-writes.test.ts` enforces it. Actions default to off; mode in app_settings `xero.action.<name>`; every attempt is a redacted `xero_action_runs` row; live writes are claimed once in `action_claims`.
+- Mirror sync is resumable (cursor saved per page). Jobs run from `/api/jobs/<queue>` with `JOB_SECRET`, scheduled by `supabase/scheduler.sql` (pg_cron + pg_net + Vault).
+- Leads (M4): `lib/leads/*` pure rules and service; webhook verifies, stores raw, dedupes on source id. Lead matching runs nightly after the full sync.
+- Cognito import (M5): `scripts/import-cognito.ts` (run with `tsx --conditions=react-server`), dry-run by default; see docs/M5.md.
+- E2E tests share one mini-supabase database: specs that count rows must scope by tenant/run id, and a test must wait for a server action's response before navigating.
+
 ## Repo notes (UI handoff, step 1)
 - Design handoff: `tt-platform-handoff` (HANDOFF.md, `styles/`, `design/*.dc.html`). Staff routes keep the `/admin` prefix; handoff `/x` maps to `/admin/x` (quotes/invoices are `/admin/xero/*`, deals are `/admin/deal-files`).
 - Tokens live in `app/globals.css` (`:root`, `[data-theme="dark"]`, OS dark fallback) and are mapped to Tailwind names in its `@theme inline` block (`bg-surface`, `text-fg-muted`, `bg-accent text-accent-fg`, `bg-status-red-bg`, `rounded-pill`, `shadow-card`, `text-h1`...). Never hard-code hex or Tailwind palette colours (`neutral-*`, `red-*`) in components. `tests/unit/contrast.test.ts` checks AA on token pairs.

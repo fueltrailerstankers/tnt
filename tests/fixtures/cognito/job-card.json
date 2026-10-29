@@ -1,0 +1,28 @@
+[
+  {
+    "Id": "6-1",
+    "Form": {
+      "Id": "6",
+      "InternalName": "JOBCARD",
+      "Name": "JOB CARD"
+    },
+    "Date": "2026-02-02",
+    "QuoteNo": "QU-90001",
+    "Line1": "Synthetic build line",
+    "Text": "a",
+    "Text2": null,
+    "Text3": "c",
+    "Text4": null,
+    "Text5": null,
+    "Text6": "f",
+    "Entry": {
+      "Number": 1,
+      "Status": "Submitted",
+      "DateCreated": "2026-02-02T07:00:00Z",
+      "DateSubmitted": "2026-02-02T07:00:00Z",
+      "DateUpdated": "2026-02-02T07:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/1",
+      "Version": 1
+    }
+  }
+]

@@ -5,12 +5,19 @@ import { appEnv } from '@/lib/env';
 // M2 asks Xero for read-only scopes. With these scopes the API itself refuses any write, which backs up the
 // code rule (GET only, enforced by tests/unit/xero-no-writes.test.ts). M3 re-consents with write scopes.
 export const READ_SCOPES = 'offline_access accounting.transactions.read accounting.contacts.read accounting.attachments.read';
+// M3: to allow live Xero actions, set XERO_SCOPES to this and reconnect from the Xero page. The default stays
+// read-only; an action can only be live when the stored connection's granted scopes include the write scopes
+// (lib/integrations/xero/write/modes.ts).
+export const READ_WRITE_SCOPES = 'offline_access accounting.transactions accounting.contacts accounting.attachments';
 
 const schema = z.object({
   XERO_CLIENT_ID: z.string().min(1),
   XERO_CLIENT_SECRET: z.string().min(1),
   XERO_REDIRECT_URI: z.string().url().optional(),
-  XERO_SCOPES: z.string().min(1).default(READ_SCOPES),
+  // Space-separated Xero scopes. Only offline_access and accounting.* scopes are accepted.
+  XERO_SCOPES: z.string().min(1)
+    .refine((s) => s.split(/\s+/).every((x) => /^(offline_access|openid|profile|email|accounting\.[a-z.]+)$/.test(x)), 'Unknown Xero scope')
+    .default(READ_SCOPES),
   XERO_TENANT_ID: z.string().optional(),
   XERO_BACKFILL_FROM: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).default('2025-01-01'),
   // Overridable only for tests (mock Xero). Defaults are Xero's production endpoints.

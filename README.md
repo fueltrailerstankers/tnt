@@ -73,3 +73,12 @@ The script prints only the user id.
   sent and `email_log` records each email as `skipped` (log-only mode).
 - Legal text (`content/*.md`) ships as `lib/spec/content.generated.ts`. After changing the kit content run `pnpm build:content`;
   a unit test fails if the two drift.
+
+## Xero, leads and import (M2-M5)
+
+- M2 Xero read-only mirror, deal files, scheduler: [docs/M2.md](docs/M2.md). Scheduler SQL: `supabase/scheduler.sql`.
+- M3 Xero write actions, all **off** by default; dry run first, live needs write scopes and a typed confirmation:
+  [docs/M3.md](docs/M3.md). Settings at `/admin/integrations/xero/actions`. Parity: `scripts/replay-make.ts`.
+- M4 leads inbox (manual and test sources, webhook `/api/webhooks/leads`): [docs/M4.md](docs/M4.md).
+- M5 Cognito history import (dry-run first, idempotent, resumable), parallel run and cutover: [docs/M5.md](docs/M5.md).
+- `pnpm test:e2e` with an already installed Chromium: set `PLAYWRIGHT_CHROMIUM_PATH` to its headless shell binary.

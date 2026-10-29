@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_XERO, XERO_PORT, XERO_URL } from './tests/e2e/xero-env';
 
 // Ports, database and Next build dir are overridable so parallel runs do not collide.
 const APP_PORT = Number(process.env.E2E_APP_PORT ?? 3100);
@@ -28,6 +29,14 @@ export default defineConfig({
       gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
     },
     {
+      // Mock Xero (identity, connections, read-only Accounting API) with synthetic data.
+      command: 'node tests/e2e/mock-xero.mjs',
+      url: `${XERO_URL}/__health`,
+      reuseExistingServer: !process.env.CI,
+      env: { XERO_PORT: String(XERO_PORT) },
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
+    },
+    {
       // Dev server: NEXT_PUBLIC_* values are read at runtime, so the stub URL needs no rebuild.
       command: `pnpm exec next dev -p ${APP_PORT}`,
       url: `http://127.0.0.1:${APP_PORT}/login`,
@@ -41,6 +50,14 @@ export default defineConfig({
         // Test-only key (not a secret): 32 bytes of 0x07.
         ENTRY_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
         RESEND_API_KEY: '',
+        // Test-only lead intake secret (40 chars, not a real secret).
+        LEADS_WEBHOOK_SECRET: 'test-only-leads-webhook-secret-000000000',
+        // Test-only key (not a secret): 32 bytes of 0x09, for Xero tokens at rest.
+        ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
+        ...E2E_XERO,
+        XERO_LOGIN_URL: XERO_URL,
+        XERO_IDENTITY_URL: XERO_URL,
+        XERO_API_URL: XERO_URL,
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? '.next',
       },

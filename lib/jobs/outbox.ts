@@ -19,7 +19,9 @@ export type Handler = (db: SupabaseClient, job: Job) => Promise<void>;
 
 export async function enqueue(db: SupabaseClient, orgId: string | null, queue: string, payload: Record<string, unknown> = {}, opts: { uniquePending?: boolean } = {}) {
   if (opts.uniquePending) {
-    const { data } = await db.from('outbox_jobs').select('id').eq('queue', queue).eq('status', 'pending').limit(1);
+    // Pending for the same org: another org's pending job must not swallow this one.
+    const q = db.from('outbox_jobs').select('id').eq('queue', queue).eq('status', 'pending');
+    const { data } = await (orgId ? q.eq('org_id', orgId) : q.is('org_id', null)).limit(1);
     if (data?.length) return;
   }
   const { error } = await db.from('outbox_jobs').insert({ org_id: orgId, queue, payload });

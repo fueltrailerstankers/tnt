@@ -29,18 +29,23 @@ export async function GET(req: Request) {
   await db.from('xero_oauth_states').delete().eq('state_hash', sha256Hex(state));
   if (!row || row.user_id !== member.userId || row.org_id !== member.orgId || new Date(row.expires_at) < new Date()) back('error=state');
 
-  let connectedTenant: string;
+  let connectedTenant: string | null = null;
+  let failed = false;
   try {
     const tokens = await exchangeCode(code!);
     const tenants = (await listTenants(tokens.access_token)).filter((t) => t.tenantType === 'ORGANISATION');
     const wanted = xeroConfig().XERO_TENANT_ID;
     const tenant = wanted ? tenants.find((t) => t.tenantId === wanted) : tenants[0];
-    if (!tenant) back('error=tenant');
-    await saveConnection(db, member.orgId, tenant!, tokens, member.userId);
-    connectedTenant = tenant!.tenantId;
+    // redirect() throws, so it must not run inside this try: the catch would turn it into error=exchange.
+    if (tenant) {
+      await saveConnection(db, member.orgId, tenant, tokens, member.userId);
+      connectedTenant = tenant.tenantId;
+    }
   } catch {
-    back('error=exchange');
+    failed = true;
   }
+  if (failed) back('error=exchange');
+  if (!connectedTenant) back('error=tenant');
   await db.from('audit_log').insert({ org_id: member.orgId, actor_user: member.userId, action: 'xero.connect', entity: 'xero_connection', entity_id: connectedTenant!, meta: { scopes: xeroConfig().XERO_SCOPES } });
   await enqueue(db, member.orgId, 'deal-files.rebuild', {}, { uniquePending: true });
   back('connected=1');

@@ -132,9 +132,16 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
   expect((await xlsx).suggestedFilename()).toMatch(/^release-form-\d{4}-\d{2}-\d{2}\.xlsx$/);
 
   await page.locator('tbody input[type="checkbox"]').first().check();
-  await page.getByRole('button', { name: 'Mark read' }).click();
+  // Wait for the server action to finish before navigating, or the Unread view can render first.
+  await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/admin/forms/release-form')),
+    page.getByRole('button', { name: 'Mark read' }).click(),
+  ]);
   await expect(page.locator('tbody tr')).toHaveCount(1);
+  // The POST response arrives before the router applies the action's redirect; wait until the row renders as read.
+  await expect(page.locator('tbody tr').first()).not.toHaveClass(/font-semibold/);
   await page.getByRole('link', { name: 'Unread' }).click();
+  await expect(page.getByRole('link', { name: 'Unread' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('link', { name: 'TESTVIN0000000555' })).toHaveCount(0);
 
   const [e] = await sql<{ number: number }>(`select number from entries where summary = 'TESTVIN0000000555'`);

@@ -1,0 +1,151 @@
+{
+  "format": "tt-make-replay/1",
+  "note": "SYNTHETIC example. No real people, emails, documents or Xero ids. 'synthetic-rfi-2-divergent' differs from Make on purpose.",
+  "executions": [
+    {
+      "id": "synthetic-deal-1",
+      "scenario": 8701643,
+      "action": "deal.import_quote",
+      "entry": { "id": "00000000-0000-4000-8000-00000000d001", "number": 501, "status": "Submitted", "updatedAt": "2026-10-01T08:00:00.000Z",
+        "data": { "QUOTENO": "90001", "SALESREP": "TEST REP" } },
+      "xero": {
+        "quotes": [{
+          "QuoteID": "11111111-0000-4000-8000-000000000001", "QuoteNumber": "QU-90001", "Status": "SENT",
+          "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer" },
+          "DateString": "2026-09-01T00:00:00", "CurrencyCode": "ZAR", "LineAmountTypes": "Exclusive", "SubTotal": 100000, "TotalTax": 15000, "Total": 115000,
+          "LineItems": [
+            { "LineItemID": "l1", "Description": "Synthetic tanker 5000L", "ItemCode": "TNK-5000", "Quantity": 1, "UnitAmount": 90000, "AccountCode": "200", "TaxType": "OUTPUT", "LineAmount": 90000 },
+            { "LineItemID": "l2", "Description": "Synthetic pump kit", "ItemCode": "PMP-1", "Quantity": 2, "UnitAmount": 5000, "AccountCode": "200", "TaxType": "OUTPUT", "LineAmount": 10000 }
+          ]
+        }]
+      },
+      "make": {
+        "requests": [],
+        "entry": { "LINE1": "Synthetic tanker 5000L", "PARTNO1": "TNK-5000", "LINE2": "Synthetic pump kit", "PARTNO2": "PMP-1", "Total": 115000 }
+      }
+    },
+    {
+      "id": "synthetic-rfi-1",
+      "scenario": 3191686,
+      "action": "rfi.create_invoice",
+      "today": "2026-10-02",
+      "documentName": "REQUEST FOR INVOICE - 7.pdf",
+      "entry": { "id": "00000000-0000-4000-8000-00000000r001", "number": 7, "status": "Submitted", "updatedAt": "2026-10-02T09:00:00.000Z",
+        "data": { "QuoteNo": "90001", "Name": { "First": "Test", "Last": "Customer" } } },
+      "files": [
+        { "id": "f-dep1", "fieldKey": "_1stDeposit", "kind": "file", "fileName": "deposit-1.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 1 },
+        { "id": "f-dep2", "fieldKey": "_2ndDeposit", "kind": "file", "fileName": "deposit-2.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 2 }
+      ],
+      "xero": {
+        "quotes": [{
+          "QuoteID": "11111111-0000-4000-8000-000000000001", "QuoteNumber": "QU-90001", "Status": "SENT",
+          "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer" },
+          "DateString": "2026-09-01T00:00:00", "CurrencyCode": "ZAR", "LineAmountTypes": "Exclusive", "Total": 115000,
+          "LineItems": [
+            { "LineItemID": "l1", "Description": "Synthetic tanker 5000L", "ItemCode": "TNK-5000", "Quantity": 1, "UnitAmount": 90000, "AccountCode": "200", "TaxType": "OUTPUT" },
+            { "LineItemID": "l2", "Description": "Synthetic pump kit", "ItemCode": "PMP-1", "Quantity": 2, "UnitAmount": 5000, "AccountCode": "200", "TaxType": "OUTPUT" }
+          ]
+        }],
+        "contacts": [{ "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer", "FirstName": "Test", "LastName": "Customer", "EmailAddress": "buyer@example.invalid" }],
+        "invoices": []
+      },
+      "make": {
+        "requests": [
+          { "method": "POST", "path": "/Quotes/11111111-0000-4000-8000-000000000001",
+            "body": { "Quotes": [{ "QuoteID": "11111111-0000-4000-8000-000000000001", "QuoteNumber": "QU-90001", "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001" }, "Date": "2026-09-01", "Status": "ACCEPTED" }] } },
+          { "method": "POST", "path": "/Quotes/11111111-0000-4000-8000-000000000001",
+            "body": { "Quotes": [{ "QuoteID": "11111111-0000-4000-8000-000000000001", "QuoteNumber": "QU-90001", "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001" }, "Date": "2026-09-01", "Status": "INVOICED" }] } },
+          { "method": "PUT", "path": "/Invoices",
+            "body": { "Invoices": [{ "Type": "ACCREC", "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001" }, "Date": "2026-10-02", "Reference": "90001", "Status": "DRAFT", "CurrencyCode": "ZAR", "LineAmountTypes": "Exclusive",
+              "LineItems": [
+                { "Description": "Synthetic tanker 5000L", "Quantity": 1, "UnitAmount": 90000, "ItemCode": "TNK-5000", "AccountCode": "200", "TaxType": "OUTPUT" },
+                { "Description": "Synthetic pump kit", "Quantity": 2, "UnitAmount": 5000, "ItemCode": "PMP-1", "AccountCode": "200", "TaxType": "OUTPUT" }
+              ] }] } },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/REQUEST%20FOR%20INVOICE%20-%207.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/deposit-1.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/deposit-2.pdf" }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-delivery-1",
+      "scenario": 3201078,
+      "action": "delivery.update_invoice",
+      "documentName": "DELIVERY NOTE - 3.pdf",
+      "entry": { "id": "00000000-0000-4000-8000-00000000n001", "number": 3, "status": "Submitted", "updatedAt": "2026-10-20T09:00:00.000Z",
+        "data": { "INVOICENO": "0001", "TrailerVinNO": "TESTVIN0000000001", "QuoteNo": "00000000-0000-4000-8000-00000000r001" } },
+      "files": [
+        { "id": "f-id", "fieldKey": "COPYOfSignatoryID", "kind": "file", "fileName": "id.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 1 },
+        { "id": "f-pay", "fieldKey": "PAYMENT", "kind": "file", "fileName": "payment.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 2 },
+        { "id": "f-natis", "fieldKey": "NATIS", "kind": "file", "fileName": "natis.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 3 },
+        { "id": "f-front", "fieldKey": "Pic1FRONT", "kind": "file", "fileName": "front.jpg", "contentType": "image/jpeg", "sizeBytes": 1000, "sortOrder": 4 }
+      ],
+      "rfi": { "entry": { "id": "00000000-0000-4000-8000-00000000r001", "number": 7, "status": "Submitted", "updatedAt": "2026-10-02T09:00:00.000Z", "data": {} }, "documentName": "REQUEST FOR INVOICE - 7.pdf" },
+      "xero": {
+        "invoices": [{ "InvoiceID": "33333333-0000-4000-8000-000000000001", "InvoiceNumber": "INV-0001", "Type": "ACCREC", "Status": "AUTHORISED", "Reference": "90001",
+          "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer" }, "CurrencyCode": "ZAR", "Total": 115000, "AmountDue": 15000 }]
+      },
+      "make": {
+        "requests": [
+          { "method": "POST", "path": "/Invoices/33333333-0000-4000-8000-000000000001",
+            "body": { "Invoices": [{ "InvoiceID": "33333333-0000-4000-8000-000000000001", "Reference": "TESTVIN0000000001" }] } },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/DELIVERY%20NOTE%20-%203.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/id.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/payment.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/natis.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/front.jpg" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000001/Attachments/REQUEST%20FOR%20INVOICE%20-%207.pdf" }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-release-1",
+      "scenario": 6734365,
+      "action": "release.on_paid",
+      "xero": {
+        "invoices": [{ "InvoiceID": "33333333-0000-4000-8000-000000000001", "InvoiceNumber": "INV-0001", "Type": "ACCREC", "Status": "PAID", "Reference": "TESTVIN0000000001",
+          "Contact": { "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer" }, "CurrencyCode": "ZAR", "Total": 115000, "AmountDue": 0,
+          "FullyPaidOnDate": "/Date(1792540800000+0000)/" }],
+        "contacts": [{ "ContactID": "22222222-0000-4000-8000-000000000001", "Name": "Test Customer", "EmailAddress": "buyer@example.invalid" }]
+      },
+      "make": {
+        "requests": [],
+        "entry": { "Email": "buyer@example.invalid", "INVNO": "INV-0001", "VINNO": "TESTVIN0000000001", "COSTOMERDETAILS": "Test Customer" }
+      }
+    },
+    {
+      "id": "synthetic-rfi-2-divergent",
+      "scenario": 3220601,
+      "action": "rfi.create_invoice",
+      "today": "2026-10-03",
+      "documentName": "REQUEST FOR INVOICE - 8.pdf",
+      "entry": { "id": "00000000-0000-4000-8000-00000000r002", "number": 8, "status": "Submitted", "updatedAt": "2026-10-03T09:00:00.000Z",
+        "data": { "QuoteNo": "90002", "Name": { "First": "Test", "Last": "Buyer" } } },
+      "files": [
+        { "id": "f-dep1b", "fieldKey": "_1stDeposit", "kind": "file", "fileName": "deposit-1.pdf", "contentType": "application/pdf", "sizeBytes": 1000, "sortOrder": 1 }
+      ],
+      "xero": {
+        "quotes": [{
+          "QuoteID": "11111111-0000-4000-8000-000000000002", "QuoteNumber": "QU-90002", "Status": "ACCEPTED",
+          "Contact": { "ContactID": "22222222-0000-4000-8000-000000000002", "Name": "Test Buyer" },
+          "DateString": "2026-09-05T00:00:00", "CurrencyCode": "ZAR", "Total": 50000,
+          "LineItems": [{ "LineItemID": "l1", "Description": "Synthetic trailer", "ItemCode": "TRL-1", "Quantity": 1, "UnitAmount": 50000, "AccountCode": "200", "TaxType": "OUTPUT" }]
+        }],
+        "contacts": [{ "ContactID": "22222222-0000-4000-8000-000000000002", "Name": "Test Buyer", "FirstName": "Test", "LastName": "Buyer", "EmailAddress": "buyer2@example.invalid" }],
+        "invoices": []
+      },
+      "make": {
+        "requests": [
+          { "method": "POST", "path": "/Quotes/11111111-0000-4000-8000-000000000002",
+            "body": { "Quotes": [{ "QuoteID": "11111111-0000-4000-8000-000000000002", "QuoteNumber": "QU-90002", "Contact": { "ContactID": "22222222-0000-4000-8000-000000000002" }, "Date": "2026-09-05", "Status": "INVOICED" }] } },
+          { "method": "PUT", "path": "/Invoices",
+            "body": { "Invoices": [{ "Type": "ACCREC", "Contact": { "ContactID": "22222222-0000-4000-8000-000000000002" }, "Date": "2026-10-03", "Reference": "90002", "Status": "AUTHORISED", "CurrencyCode": "ZAR",
+              "LineItems": [{ "Description": "Synthetic trailer", "Quantity": 1, "UnitAmount": 50000, "ItemCode": "TRL-1", "AccountCode": "200", "TaxType": "OUTPUT" }] }] } },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000002/Attachments/REQUEST%20FOR%20INVOICE%20-%208.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000002/Attachments/deposit-1.pdf" },
+          { "method": "PUT", "path": "/Invoices/33333333-0000-4000-8000-000000000002/Attachments/proof-extra.pdf" }
+        ]
+      }
+    }
+  ]
+}

@@ -2,9 +2,13 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { rebuildDealFiles } from '@/lib/deal-files/job';
 import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sync';
+import { rematchOpenLeads } from '@/lib/leads/service';
+import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
 
 export const HANDLERS: Record<string, Handler> = {
+  // M3 Xero actions ("xero.<action>"); each checks its mode (off / dry_run / live) itself.
+  ...XERO_ACTION_HANDLERS,
   // A webhook named a changed invoice/contact: fetch it, then refresh deal files once.
   'xero.fetch': async (db, job) => {
     const { entity, id, event_id } = job.payload as { entity: 'invoices' | 'contacts'; id: string; event_id?: string };
@@ -19,6 +23,16 @@ export const HANDLERS: Record<string, Handler> = {
       const n = await rebuildDealFiles(db, job.org_id!);
       return { ok: true, processed: n, result: n };
     });
+  },
+  // Re-run lead to Xero matching for the org's open leads (M4). Idempotent; continues itself when out of time.
+  'leads.rematch': async (db, job) => {
+    if (!job.org_id) throw new Error('job has no org');
+    const r = await recordRun(db, job.org_id, 'leads.rematch', async () => {
+      const from = Number((job.payload as { from?: number }).from ?? 0) || 0;
+      const res = await rematchOpenLeads(db, job.org_id!, { budgetMs: 15_000, from });
+      return { ok: true, processed: res.changed, result: res };
+    });
+    if (!r.complete) await enqueue(db, job.org_id, 'leads.rematch', { from: r.next });
   },
 };
 
@@ -40,6 +54,8 @@ export async function scheduledSync(db: SupabaseClient, mode: SyncMode, budgetMs
       return { ok: res.status === 'ok' || res.status === 'partial', processed: res.processed, error: res.status === 'error' ? res.reason : undefined, result: res };
     });
     if (r.processed > 0 || mode === 'full') await enqueue(db, org_id, 'deal-files.rebuild', {}, { uniquePending: true });
+    // Leads are matched against the mirror: refresh the matches after each nightly full sync (M4).
+    if (mode === 'full') await enqueue(db, org_id, 'leads.rematch', {}, { uniquePending: true });
     results.push({ org: org_id, status: r.status, processed: r.processed, calls: r.calls, reason: r.reason });
   }
   return results;

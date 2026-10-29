@@ -14,13 +14,29 @@ import { readFormData, renderSummary, validateEntry, type EntryData, type FileRe
 import { buildEmail, eventKey } from './email-template';
 import { createRoleLink } from './links';
 import { MAX_ATTACHMENT_BYTES, sendEmail, type Attachment } from './mailer';
+import { enqueue } from '@/lib/jobs/outbox';
+import { queueOf } from '@/lib/integrations/xero/write/types';
+import { actionsForSave } from '@/lib/integrations/xero/write/triggers';
 import { actionPermission, findAction, internalRole, isActionAllowed, NEW_ENTRY_STATUS, publicRole, roleByName } from './rules';
 
 /** Who is acting. Public = the anonymous /f/<slug> link; link = a role link from an email; staff = signed-in member. */
 export type Actor =
   | { kind: 'public' }
   | { kind: 'link'; roleName: string; entryId: string }
-  | { kind: 'staff'; member: Member };
+  | { kind: 'staff'; member: Member }
+  | SystemActor;
+
+// --- system actor (M3) ------------------------------------------------------------------------------
+// Server jobs (e.g. release.on_paid creating a RELEASE FORM entry, as Make did through Cognito's public API)
+// act as `system`. Only systemActor() can make one: the brand is a module-private symbol, which no server
+// action argument or FormData can carry. allowedWhen is evaluated as the public role (what Make used); the
+// timeline records actor_role 'System'.
+const SYSTEM_BRAND: unique symbol = Symbol('system-actor');
+export type SystemActor = { kind: 'system'; job: string; readonly [SYSTEM_BRAND]: true };
+export function systemActor(job: string): SystemActor {
+  return { kind: 'system', job, [SYSTEM_BRAND]: true };
+}
+export const SYSTEM_ROLE = 'System';
 
 type Getter = { get(name: string): FormDataEntryValue | null; getAll(name: string): FormDataEntryValue[] };
 
@@ -49,6 +65,7 @@ function fail(code: 400 | 403 | 409, message: string, errors: Record<string, str
 export function roleOf(form: FormRecord, actor: Actor): string {
   if (actor.kind === 'public') return publicRole(form.spec).name;
   if (actor.kind === 'link') return actor.roleName;
+  if (actor.kind === 'system') return publicRole(form.spec).name;
   return internalRole(form.spec).name;
 }
 
@@ -68,6 +85,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   if (actor.kind === 'link') {
     if (!entry || entry.id !== actor.entryId || !roleByName(spec, actor.roleName)?.public) return fail(403, 'This link is not valid.');
   }
+  if (actor.kind === 'system' && actor[SYSTEM_BRAND] !== true) return fail(403, 'Not allowed.');
   if (entry && (entry.formId !== form.id || entry.orgId !== form.orgId)) return fail(403, 'Not allowed.');
   const role = roleOf(form, actor);
   const fromStatus = entry?.status ?? NEW_ENTRY_STATUS;
@@ -146,7 +164,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   const changed = diffKeys(entry?.data ?? {}, read.data, plan);
   await db.from('entry_events').insert({
     entry_id: id, action: action.name, from_status: entry ? fromStatus : null, to_status: toStatus,
-    actor_user: actorUser, actor_role: role, diff: { changed },
+    actor_user: actorUser, actor_role: actor.kind === 'system' ? SYSTEM_ROLE : role, diff: { changed },
   });
 
   // --- documents and emails (after the save; failures are logged, the save stands) ------------------
@@ -219,6 +237,7 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
   const env = appEnv();
   const org = await loadOrg(db, form.orgId);
   const adminLink = `${env.APP_URL}/admin/forms/${form.slug}/entries/${entry.number}`;
+  await enqueueXeroActions(db, form, entry, action.name).catch(() => undefined); // M3: see below
 
   if (SIGNED_DOCUMENT_FORMS.has(form.slug) && entry.status !== NEW_ENTRY_STATUS) {
     await ensureDocument(db, form, entry, 1, org.timezone, actorUser).catch(() => undefined);
@@ -263,3 +282,45 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
   }
 }
 
+
+// --- M3 hook-ins ------------------------------------------------------------------------------------
+/** RFI / Delivery Note Submit+Update and DEAL Submit enqueue their Xero action. The job checks the mode. */
+async function enqueueXeroActions(db: SupabaseClient, form: FormRecord, entry: EntryRecord, actionName: string) {
+  for (const a of actionsForSave(form.slug, actionName)) {
+    await enqueue(db, form.orgId, queueOf(a), { entryId: entry.id });
+  }
+}
+
+/**
+ * Internal update helper for server jobs (deal.import_quote). It is the runAction save path without the form
+ * read: it merges `patch` into the entry's data (encrypted forms stay encrypted), re-renders the summary,
+ * saves with the same optimistic concurrency check, and records an entry_events row (changed keys only,
+ * actor_role 'System'). No status change, no files, no emails. Only text and number fields can be patched.
+ */
+export async function systemUpdateEntry(
+  db: SupabaseClient, form: FormRecord, entryId: string, patch: Record<string, unknown>, eventAction: string,
+): Promise<{ ok: true; changed: string[] } | { ok: false; reason: string }> {
+  const entry = await loadEntryById(db, form, entryId);
+  if (!entry) return { ok: false, reason: 'entry not found' };
+  const types = new Map(inputFields(form.spec).map((f) => [f.name, f.type]));
+  const data: EntryData = { ...entry.data };
+  for (const [k, v] of Object.entries(patch)) {
+    const t = types.get(k);
+    if (t !== 'text' && t !== 'number') return { ok: false, reason: `field ${k} cannot be patched` };
+    if (v === null || v === undefined || v === '') delete data[k];
+    else if (t === 'number' ? typeof v === 'number' && Number.isFinite(v) : typeof v === 'string') data[k] = v;
+    else return { ok: false, reason: `bad value for ${k}` };
+  }
+  const changed = Object.keys(patch).filter((k) => JSON.stringify(entry.data[k]) !== JSON.stringify(data[k])).sort();
+  if (!changed.length) return { ok: true, changed };
+  const sealed = sealData(form, entry.id, data);
+  const summary = renderSummary(form.summaryTemplate, data) || null;
+  const { data: rows, error } = await db.from('entries').update({ ...sealed, summary }).eq('id', entry.id).eq('updated_at', entry.updatedAt).select('id');
+  if (error) throw new Error('Could not save the entry');
+  if (!rows?.length) return { ok: false, reason: 'entry changed meanwhile' };
+  await db.from('entry_events').insert({
+    entry_id: entry.id, action: eventAction, from_status: entry.status, to_status: entry.status,
+    actor_user: null, actor_role: SYSTEM_ROLE, diff: { changed },
+  });
+  return { ok: true, changed };
+}

@@ -1,0 +1,264 @@
+[
+  {
+    "Id": "13-1",
+    "Form": {
+      "Id": "13",
+      "InternalName": "TrailerInspectionChecklist",
+      "Name": "Trailer Inspection Checklist"
+    },
+    "TRAILERVINNUMBER": "FAKEVIN0000000001",
+    "_1STDATEINSPECTION": "2026-02-03",
+    "InspectedByName": {
+      "First": "Inspecta",
+      "Last": "Fakeinspector",
+      "FirstAndLast": "Inspecta Fakeinspector"
+    },
+    "InspectorEmail": "inspector@example.invalid",
+    "TrailerInspectionResults": {
+      "_1Item": {
+        "Fail": false,
+        "Pass": true,
+        "Comments": null
+      },
+      "_2Item": {
+        "Fail": false,
+        "Pass1": true,
+        "Comments1": null
+      },
+      "_3Item": {
+        "Fail": false,
+        "Pass2": true,
+        "Comments2": null
+      },
+      "_4Item": {
+        "Fail": false,
+        "Pass3": true,
+        "Comments3": null
+      },
+      "_5Item": {
+        "Fail": true,
+        "Pass4": false,
+        "Comments4": "Synthetic comment 5"
+      },
+      "_6Item": {
+        "Fail": false,
+        "Pass5": true,
+        "Comments5": null
+      },
+      "_7Item": {
+        "Fail": false,
+        "Pass6": true,
+        "Comments6": null
+      },
+      "_8Item": {
+        "Fail": false,
+        "Pass7": true,
+        "Comments7": null
+      },
+      "_9Item": {
+        "Fail": false,
+        "Pass8": true,
+        "Comments8": null
+      },
+      "_10Item": {
+        "Fail": false,
+        "Pass9": true,
+        "Comments9": null
+      },
+      "_11Item": {
+        "Fail": false,
+        "Pass": true,
+        "Comments10": "Synthetic comment 11"
+      },
+      "_12Item": {
+        "Fail": false,
+        "Pass11": true,
+        "Comments11": null
+      },
+      "_13Item": {
+        "Fail": false,
+        "Pass12": true,
+        "Comments12": null
+      },
+      "_14Item": {
+        "Fail": false,
+        "Pass13": true,
+        "Comments13": null
+      },
+      "_15Item": {
+        "Fail": false,
+        "Pass14": true,
+        "Comments14": null
+      },
+      "_16Item": {
+        "Fail": false,
+        "Pass15": true,
+        "Comments15": null
+      },
+      "_17Item": {
+        "Fail": false,
+        "Pass16": true,
+        "Comments16": null
+      },
+      "_18Item": {
+        "Fail": false,
+        "Pass17": true,
+        "Comments17": null
+      },
+      "_19Item": {
+        "Fail": false,
+        "Pass18": true,
+        "Comments18": null
+      },
+      "_20Item": {
+        "Fail": false,
+        "Pass19": true,
+        "Comments19": null
+      }
+    },
+    "InspectorSignature": {
+      "Png": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+      "Svg": null
+    },
+    "InspectionDate": "2026-02-03",
+    "Entry": {
+      "Number": 1,
+      "Status": "Approved",
+      "DateCreated": "2026-02-03T07:00:00Z",
+      "DateSubmitted": "2026-02-03T08:00:00Z",
+      "DateUpdated": "2026-02-04T08:00:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/1",
+      "Version": 1
+    }
+  },
+  {
+    "Id": "13-2",
+    "Form": {
+      "Id": "13",
+      "InternalName": "TrailerInspectionChecklist",
+      "Name": "Trailer Inspection Checklist"
+    },
+    "TRAILERVINNUMBER": "FAKEVIN0000000002",
+    "InspectedByName": {
+      "First": "Inspecta",
+      "Last": "Fakeinspector"
+    },
+    "InspectorEmail": "inspector@example.invalid",
+    "TrailerInspectionResults": [
+      {
+        "Fail": true,
+        "Pass": false,
+        "Comments": "Synthetic comment 1"
+      },
+      {
+        "Fail": false,
+        "Pass1": false,
+        "Comments1": null
+      },
+      {
+        "Fail": false,
+        "Pass2": false,
+        "Comments2": null
+      },
+      {
+        "Fail": false,
+        "Pass3": false,
+        "Comments3": null
+      },
+      {
+        "Fail": false,
+        "Pass4": false,
+        "Comments4": null
+      },
+      {
+        "Fail": false,
+        "Pass5": false,
+        "Comments5": null
+      },
+      {
+        "Fail": false,
+        "Pass6": false,
+        "Comments6": null
+      },
+      {
+        "Fail": false,
+        "Pass7": false,
+        "Comments7": null
+      },
+      {
+        "Fail": false,
+        "Pass8": false,
+        "Comments8": null
+      },
+      {
+        "Fail": false,
+        "Pass9": false,
+        "Comments9": null
+      },
+      {
+        "Fail": false,
+        "Pass": true,
+        "Comments10": null
+      },
+      {
+        "Fail": false,
+        "Pass11": false,
+        "Comments11": null
+      },
+      {
+        "Fail": false,
+        "Pass12": false,
+        "Comments12": null
+      },
+      {
+        "Fail": false,
+        "Pass13": false,
+        "Comments13": null
+      },
+      {
+        "Fail": false,
+        "Pass14": false,
+        "Comments14": null
+      },
+      {
+        "Fail": false,
+        "Pass15": false,
+        "Comments15": null
+      },
+      {
+        "Fail": false,
+        "Pass16": false,
+        "Comments16": null
+      },
+      {
+        "Fail": false,
+        "Pass17": false,
+        "Comments17": null
+      },
+      {
+        "Fail": false,
+        "Pass18": false,
+        "Comments18": null
+      },
+      {
+        "Fail": false,
+        "Pass19": false,
+        "Comments19": null
+      }
+    ],
+    "InspectorSignature": {
+      "Png": "https://www.cognitoforms.com/file/F-insp2-sig",
+      "Svg": "<svg xmlns='http://www.w3.org/2000/svg'/>"
+    },
+    "InspectionDate": "2026-02-30",
+    "Entry": {
+      "Number": 2,
+      "Status": "Submitted",
+      "DateCreated": "2026-02-05T07:00:00Z",
+      "DateSubmitted": "2026-02-05T07:30:00Z",
+      "DateUpdated": "2026-02-05T07:30:00Z",
+      "AdminLink": "https://www.cognitoforms.com/example/entries/2",
+      "Version": 1
+    }
+  }
+]
