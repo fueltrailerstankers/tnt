@@ -22,7 +22,7 @@ export interface DocumentTemplate {
 /** Templates we can produce per form. #2 (Cognito's fillable "edit" PDF) is not reproduced. */
 export function templatesFor(form: FormRecord): DocumentTemplate[] {
   const t: DocumentTemplate[] = [{ number: 1, label: 'Entry PDF' }];
-  if (form.slug === 'deal') t.push({ number: 3, label: 'Deal sheet' }, { number: 4, label: 'Collection sheet' });
+  if (form.slug === 'deal') t.push({ number: 3, label: 'DEAL (Cognito template)' }, { number: 4, label: 'Collection sheet (provisional)' });
   return t;
 }
 
