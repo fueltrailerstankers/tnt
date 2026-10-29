@@ -63,40 +63,40 @@ export default async function Leads({ searchParams }: { searchParams: Promise<Re
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Leads</h1>
+        <h1 className="text-h1">Leads</h1>
         <div className="flex gap-2">
           {can(member, 'integrations.manage') ? (
-            <form action={rematchLeads}><button className="rounded border px-3 py-1 text-sm">Re-match open leads with Xero</button></form>
+            <form action={rematchLeads}><button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1 text-sm">Re-match open leads with Xero</button></form>
           ) : null}
-          {can(member, 'leads.manage') ? <Link href="/admin/leads/new" className="rounded bg-neutral-900 px-3 py-1 text-sm text-white">New lead</Link> : null}
+          {can(member, 'leads.manage') ? <Link href="/admin/leads/new" className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg text-sm">New lead</Link> : null}
         </div>
       </div>
       {rematched ? (
-        <p role="status" className="rounded border border-green-300 bg-green-50 p-2 text-sm">
+        <p role="status" className="rounded-sm border border-status-green-fg/30 bg-status-green-bg p-2 text-sm">
           Checked {one(sp.checked)} open leads; {rematched} match{rematched === '1' ? '' : 'es'} changed.{one(sp.queued) ? ' The rest continues in the background.' : ''}
         </p>
       ) : null}
-      <p className="text-sm text-neutral-600">{count ?? 0} lead{count === 1 ? '' : 's'}.</p>
-      <form method="get" className="flex flex-wrap items-end gap-2 rounded-lg border bg-white p-3 text-sm">
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Search</span>
-          <input name="q" defaultValue={q ?? ''} placeholder="Name, email, phone or product" className="rounded border px-2 py-1" /></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Status</span>
-          <select name="status" defaultValue={status ?? ''} className="rounded border px-2 py-1"><option value="">All</option>{LEAD_STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Source</span>
-          <select name="source" defaultValue={source ?? ''} className="rounded border px-2 py-1"><option value="">All</option>{(sources ?? []).map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}</select></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Branch</span>
-          <input name="branch" defaultValue={branch ?? ''} className="w-32 rounded border px-2 py-1" /></label>
-        <label className="flex flex-col"><span className="text-xs text-neutral-600">Assigned</span>
-          <select name="assigned" defaultValue={assigned ?? ''} className="rounded border px-2 py-1">
+      <p className="text-sm text-fg-muted">{count ?? 0} lead{count === 1 ? '' : 's'}.</p>
+      <form method="get" className="flex flex-wrap items-end gap-2 rounded-md border bg-surface p-3 text-sm shadow-card">
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Search</span>
+          <input name="q" defaultValue={q ?? ''} placeholder="Name, email, phone or product" className="rounded-sm border px-2 py-1" /></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Status</span>
+          <select name="status" defaultValue={status ?? ''} className="rounded-sm border px-2 py-1"><option value="">All</option>{LEAD_STATUSES.map((s) => <option key={s}>{s}</option>)}</select></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Source</span>
+          <select name="source" defaultValue={source ?? ''} className="rounded-sm border px-2 py-1"><option value="">All</option>{(sources ?? []).map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}</select></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Branch</span>
+          <input name="branch" defaultValue={branch ?? ''} className="w-32 rounded-sm border px-2 py-1" /></label>
+        <label className="flex flex-col"><span className="text-xs text-fg-muted">Assigned</span>
+          <select name="assigned" defaultValue={assigned ?? ''} className="rounded-sm border px-2 py-1">
             <option value="">Anyone</option><option value="me">Me</option><option value="none">Unassigned</option>
             {members.map((m) => <option key={m.userId} value={m.userId}>{m.label}</option>)}
           </select></label>
         <label className="flex items-center gap-1 pb-1"><input type="checkbox" name="dups" value="1" defaultChecked={dups} /> Duplicates only</label>
-        <button className="rounded bg-neutral-900 px-3 py-1 text-white">Apply</button>
+        <button className="rounded-pill bg-accent px-3.5 py-1.5 font-semibold text-accent-fg">Apply</button>
       </form>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-md border bg-surface shadow-card">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-100 text-left">
+          <thead className="bg-surface-2 text-left text-label tracking-normal text-fg-muted">
             <tr><th className="p-2">Received</th><th className="p-2">Name</th><th className="p-2">Product</th><th className="p-2">Source</th><th className="p-2">Branch</th><th className="p-2">Status</th><th className="p-2">Assigned</th><th className="p-2">Xero</th></tr>
           </thead>
           <tbody>
@@ -105,7 +105,7 @@ export default async function Leads({ searchParams }: { searchParams: Promise<Re
                 <td className="p-2 whitespace-nowrap"><Link href={`/admin/leads/${r.id}`} className="underline">{formatDateTime(r.created_at, org.timezone)}</Link></td>
                 <td className="p-2">
                   <Link href={`/admin/leads/${r.id}`} className="underline">{r.name || '(no name)'}</Link>
-                  {r.duplicate_of ? <span className="ml-2 rounded bg-amber-100 px-1 text-xs text-amber-900">duplicate</span> : null}
+                  {r.duplicate_of ? <span className="ml-2 rounded-pill bg-status-yellow-bg px-1 text-xs text-status-yellow-fg">duplicate</span> : null}
                 </td>
                 <td className="p-2">{r.product}</td>
                 <td className="p-2">{srcName.get(r.source) ?? r.source}</td>
@@ -115,7 +115,7 @@ export default async function Leads({ searchParams }: { searchParams: Promise<Re
                 <td className="p-2">{[r.matched_quote_number, r.matched_invoice_number].filter(Boolean).join(' · ')}</td>
               </tr>
             ))}
-            {!data?.length ? <tr><td colSpan={8} className="p-6 text-center text-neutral-600">No leads.</td></tr> : null}
+            {!data?.length ? <tr><td colSpan={8} className="p-6 text-center text-fg-muted">No leads.</td></tr> : null}
           </tbody>
         </table>
       </div>
