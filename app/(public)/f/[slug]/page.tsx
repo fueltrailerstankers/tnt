@@ -1,0 +1,44 @@
+import { notFound } from 'next/navigation';
+import { FormRenderer } from '@/components/form-engine/FormRenderer';
+import { appEnv, publicEnv } from '@/lib/env';
+import { loadForm } from '@/lib/forms/forms';
+import { defaultData } from '@/lib/spec/values';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { allowedActions, NEW_ENTRY_STATUS, publicRole } from '@/lib/workflow/rules';
+import { findLookupPublic, requestUploadPublic, submitPublic } from './actions';
+
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const form = await loadForm(createAdminClient(), appEnv().PUBLIC_ORG_ID, slug).catch(() => null);
+  return { title: form ? `${form.spec.name} · Trailers & Tankers` : 'Form · Trailers & Tankers' };
+}
+
+export default async function PublicFormPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const form = await loadForm(createAdminClient(), appEnv().PUBLIC_ORG_ID, slug);
+  if (!form || !form.isActive) notFound();
+  const spec = form.spec;
+  const actions = allowedActions(spec, NEW_ENTRY_STATUS, publicRole(spec).name).map((a) => ({ name: a.name, label: a.button }));
+  const env = publicEnv();
+  const hasLookup = spec.fields.some((f) => f.type === 'lookup');
+
+  return (
+    <>
+      <h1 className="mb-4 text-2xl font-semibold">{spec.name}</h1>
+      <FormRenderer
+        spec={spec}
+        initial={defaultData(spec)}
+        files={{}}
+        signatures={{}}
+        actions={actions}
+        submit={submitPublic.bind(null, slug)}
+        upload={requestUploadPublic.bind(null, slug)}
+        supabase={{ url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        lookup={hasLookup ? { mode: 'exact', find: findLookupPublic.bind(null, slug) } : undefined}
+        honeypot
+      />
+    </>
+  );
+}

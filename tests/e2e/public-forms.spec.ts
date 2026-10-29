@@ -1,0 +1,125 @@
+import { expect, test } from '@playwright/test';
+import { attach, FAKE_PDF, PDF, PNG, sign, sql } from './helpers';
+
+const THANKS = 'Thank you for filling out the form. Your response has been recorded.';
+
+test('Job Card: public submit numbers the entry and logs the sales@ email (log-only)', async ({ page }) => {
+  await page.goto('/f/job-card');
+  await expect(page.getByRole('heading', { name: 'JOB CARD' })).toBeVisible();
+  await expect(page.getByLabel('Untitled')).toBeVisible(); // Cognito quirk kept: the date label is "Untitled"
+  await page.getByLabel('Quote no').fill('QTEST-1001');
+  await page.getByLabel('Line 1').fill('Synthetic build line');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  const [e] = await sql<{ id: string; number: number; status: string; summary: string }>(
+    `select e.id, e.number, e.status, e.summary from entries e join forms f on f.id = e.form_id where f.slug = 'job-card' and e.summary = 'QTEST-1001'`);
+  expect(e).toMatchObject({ status: 'Submitted', summary: 'QTEST-1001' });
+  expect(e.number).toBeGreaterThan(0);
+  const mails = await sql(`select to_addresses, status, event_key from email_log where entry_id = $1`, [e.id]);
+  expect(mails).toEqual([{ to_addresses: ['sales@example.invalid'], status: 'skipped', event_key: 'job-card.Submit' }]);
+  const ev = await sql(`select action, from_status, to_status, actor_role from entry_events where entry_id = $1`, [e.id]);
+  expect(ev).toEqual([{ action: 'Submit', from_status: null, to_status: 'Submitted', actor_role: 'Public' }]);
+});
+
+test('Request For Invoice: blocks with NO PAYMENT LOADED, then saves with a deposit file', async ({ page }) => {
+  await page.goto('/f/request-for-invoice');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText('NO PAYMENT LOADED FORM NOT SUBMITTED')).toBeVisible();
+  expect(await sql(`select 1 from entries e join forms f on f.id = e.form_id where f.slug = 'request-for-invoice'`)).toHaveLength(0);
+
+  await page.getByLabel('First').fill('Test');
+  await page.getByLabel('Last').fill('Customer');
+  await attach(page, '_1stDeposit', PDF);
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+  const files = await sql<{ field_key: string; content_type: string; storage_path: string }>(
+    `select ef.field_key, ef.content_type, ef.storage_path from entry_files ef join entries e on e.id = ef.entry_id where e.summary = 'Test Customer'`);
+  expect(files).toHaveLength(1);
+  expect(files[0]).toMatchObject({ field_key: '_1stDeposit', content_type: 'application/pdf' });
+  expect(files[0].storage_path).toMatch(/^request-for-invoice\/[0-9a-f-]{36}\/_1stDeposit\//);
+});
+
+test('uploads are checked by content, not by name', async ({ page }) => {
+  await page.goto('/f/request-for-invoice');
+  await page.getByLabel('Quote no').fill('QTEST-2002');
+  await attach(page, '_1stDeposit', FAKE_PDF);
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText('This file type is not allowed.')).toBeVisible();
+  // The typed value survives the failed save.
+  await expect(page.getByLabel('Quote no')).toHaveValue('QTEST-2002');
+});
+
+test('Store Room: three pages with Back/Next, Submit moves to APPROVAL and emails factory@', async ({ page }) => {
+  await page.goto('/f/store-room');
+  await page.getByLabel('14INC x 5 hole TIRES MIN 50').fill('42');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByRole('group', { name: 'Page 2' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByLabel('14INC x 5 hole TIRES MIN 50')).toHaveValue('42');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('NUTS 12MM').fill('7');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  const [e] = await sql<{ id: string; status: string }>(`select e.id, e.status from entries e join forms f on f.id = e.form_id where f.slug = 'store-room' order by e.created_at desc limit 1`);
+  expect(e.status).toBe('APPROVAL');
+  const mail = await sql(`select to_addresses, event_key from email_log where entry_id = $1`, [e.id]);
+  expect(mail).toEqual([{ to_addresses: ['factory@example.invalid'], event_key: 'store-room.Submit' }]);
+  // The Store Room PDF (document #1) was generated for the attachment.
+  const docs = await sql(`select template_number, name from entry_documents where entry_id = $1`, [e.id]);
+  expect(docs).toEqual([{ template_number: 1, name: 'STORE ROOM - 1.pdf' }]);
+});
+
+test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup, encrypted at rest, signed PDF stored', async ({ page }) => {
+  // An RFI to look up (synthetic customer).
+  await page.goto('/f/request-for-invoice');
+  await page.getByLabel('Quote no').fill('QTEST-3003');
+  await page.getByLabel('First').fill('Lookup');
+  await page.getByLabel('Last').fill('Customer');
+  await page.getByLabel('ID NO').fill('0000000000123');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  await page.goto('/f/delivery-note');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText('Enter the Trailer VIN or an Email')).toBeVisible();
+  await expect(page.getByText('Enter the Trailer VIN or the Invoice No')).toBeVisible();
+
+  await expect(page.getByText('STANDARD TRADING TERMS AND CONDITIONS.')).toBeVisible();
+  await expect(page.getByText('POLYURETHANE TANKS WAIVER')).toBeVisible();
+  await page.getByLabel('Trailer Vin NO').fill('TESTVIN0000000042');
+  await page.getByLabel('Quote no:').fill('QTEST-3003');
+  await page.getByRole('button', { name: 'Find' }).click();
+  await expect(page.getByTestId('customer-panel')).toContainText('Lookup Customer');
+  await expect(page.getByTestId('customer-panel')).toContainText('*********0123');
+  await expect(page.getByTestId('customer-panel')).not.toContainText('0000000000123');
+
+  for (const s of ['Signature4', 'Signature', 'Signature2', 'Signature3', 'SalesRepSignature']) await sign(page, s);
+  await attach(page, 'Pic1FRONT', PNG);
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  const [e] = await sql<{ id: string; data: object; data_encrypted: string | null; summary: string }>(
+    `select e.id, e.data, encode(e.data_encrypted, 'hex') as data_encrypted, e.summary from entries e join forms f on f.id = e.form_id where f.slug = 'delivery-note'`);
+  expect(e.summary).toBe('TESTVIN0000000042');
+  expect(e.data).toEqual({}); // encrypted form: nothing readable in data
+  expect(e.data_encrypted).toBeTruthy();
+  expect(e.data_encrypted).not.toContain(Buffer.from('TESTVIN').toString('hex'));
+  const sigs = await sql(`select field_key from entry_files where entry_id = $1 and kind = 'signature' order by field_key`, [e.id]);
+  expect(sigs.map((s) => s.field_key)).toEqual(['SalesRepSignature', 'Signature', 'Signature2', 'Signature3', 'Signature4']);
+  const docs = await sql<{ sha256: string; size_bytes: string }>(`select sha256, size_bytes from entry_documents where entry_id = $1 and template_number = 1`, [e.id]);
+  expect(docs).toHaveLength(1);
+  expect(docs[0].sha256).toMatch(/^[0-9a-f]{64}$/);
+});
+
+test('inactive forms are not reachable publicly', async ({ page }) => {
+  await sql(`update forms set is_active = false where slug = 'release-form'`);
+  try {
+    const res = await page.goto('/f/release-form');
+    expect(res?.status()).toBe(404);
+  } finally {
+    await sql(`update forms set is_active = true where slug = 'release-form'`);
+  }
+});

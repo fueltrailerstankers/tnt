@@ -25,3 +25,24 @@ export function serverEnv() {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
 }
+
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+
+const appSchema = z.object({
+  APP_URL: z.string().url().default('http://localhost:3000'),
+  /** Org that owns the public /f/<slug> links. One org today. */
+  PUBLIC_ORG_ID: z.string().uuid().default(DEFAULT_ORG_ID),
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+});
+
+/** App settings for server code. Optional integrations stay off when their keys are empty. */
+export function appEnv() {
+  const blank = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
+  return appSchema.parse({
+    APP_URL: blank(process.env.APP_URL),
+    PUBLIC_ORG_ID: blank(process.env.PUBLIC_ORG_ID),
+    RESEND_API_KEY: blank(process.env.RESEND_API_KEY),
+    MAIL_FROM: blank(process.env.MAIL_FROM),
+  });
+}
