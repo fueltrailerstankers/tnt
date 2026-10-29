@@ -6,7 +6,7 @@ import { contentBlocks, htmlBlocks, markdownBlocks } from '@/lib/spec/content';
 import { errorMessage, parseAllowedWhen, parseErrorWhen } from '@/lib/spec/expressions';
 import { pages } from '@/lib/spec/layout';
 import { inputFields } from '@/lib/spec/types';
-import { defaultData, displayValue, readFormData, renderSummary, validateEntry } from '@/lib/spec/values';
+import { defaultData, displayValue, readFormData, renderSummary, todayIn, validateEntry } from '@/lib/spec/values';
 import { fd, SLUGS, spec } from './specs';
 
 describe('specs', () => {
@@ -146,6 +146,10 @@ describe('validation', () => {
 
   it('defaults come from the spec', () => {
     expect(defaultData(spec('deal'))).toEqual({ MONTH: 'JAN', SALESREP: 'MELINDA' });
+    // DATE CREATED is pre-filled with today when the caller knows the org's date; it stays a normal editable value.
+    expect(defaultData(spec('deal'), { today: '2026-10-29' })).toEqual({ MONTH: 'JAN', SALESREP: 'MELINDA', DATECREATED: '2026-10-29' });
+    // 22:30 UTC on 29 Oct is already 30 Oct in Johannesburg (UTC+2).
+    expect(todayIn('Africa/Johannesburg', new Date('2026-10-29T22:30:00Z'))).toBe('2026-10-30');
     expect(defaultData(spec('trailer-inspection-checklist'))).toEqual({ InspectorEmail: 'admin@trailersandtankers.co.za' });
   });
 });

@@ -13,7 +13,7 @@
   "fields": [
     { "name": "MONTH", "label": "MONTH", "type": "choice", "style": "dropdown", "row": 1, "col": 1, "span": 10,
       "options": ["JAN", "FEB", "MARCH", "APR", "MAY", "JUNE", "JULY", "AUG", "SEP", "OCT", "NOV", "DEC"], "default": "JAN" },
-    { "name": "DATECREATED", "label": "DATE CREATED ", "type": "date", "row": 2, "col": 1, "span": 10 },
+    { "name": "DATECREATED", "label": "DATE CREATED ", "type": "date", "row": 2, "col": 1, "span": 10, "default": "today" },
     { "name": "COLLECTIONLOCATION", "label": "COLLECTION LOCATION ", "type": "choice", "style": "checkboxes", "multi": true, "row": 3, "col": 1, "span": 12,
       "options": ["JHB", "DUR", "CPT"] },
     { "name": "QUOTENO", "label": "QUOTE NO", "type": "text", "row": 4, "col": 1, "span": 10 },

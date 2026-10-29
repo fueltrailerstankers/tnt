@@ -232,11 +232,17 @@ export function displayValue(v: unknown): string {
   return String(v);
 }
 
-/** Initial values for a new entry: choice and email defaults from the spec. */
-export function defaultData(spec: FormSpec): EntryData {
+/** Initial values for a new entry: choice, email and date defaults from the spec. `today` is YYYY-MM-DD in the org timezone. */
+export function defaultData(spec: FormSpec, opts: { today?: string } = {}): EntryData {
   const d: EntryData = {};
   for (const f of inputFields(spec)) {
     if ((f.type === 'choice' || f.type === 'email') && f.default) d[f.name] = f.type === 'choice' && f.multi ? [f.default] : f.default;
+    if (f.type === 'date' && f.default === 'today' && opts.today) d[f.name] = opts.today;
   }
   return d;
+}
+
+/** Today's date (YYYY-MM-DD) in a timezone. */
+export function todayIn(tz: string, now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }

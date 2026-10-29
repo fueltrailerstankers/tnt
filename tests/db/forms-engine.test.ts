@@ -31,6 +31,13 @@ describe('0005 forms engine', () => {
     expect(r.rows[0].search_text).toContain('synthetic line');
   });
 
+  it('0013: DEAL DATE CREATED defaults to today in the stored spec, other fields untouched', async () => {
+    const r = await db.query(`select f from public.forms, jsonb_array_elements(spec -> 'fields') f where slug = 'deal' and f ->> 'name' in ('DATECREATED', 'MONTH') order by f ->> 'name'`);
+    expect(r.rows.map((x) => [x.f.name, x.f.default])).toEqual([['DATECREATED', 'today'], ['MONTH', 'JAN']]);
+    const n = await db.query(`select jsonb_array_length(spec -> 'fields') as n from public.forms where slug = 'deal'`);
+    expect(n.rows[0].n).toBeGreaterThan(20);
+  });
+
   it('seeds notification recipients from the spec inboxes for the default org only', async () => {
     const r = await db.query(`select event_key, address from public.notification_recipients where org_id = $1 and event_key like '%.%' order by event_key`, [ORG_A]);
     expect(r.rows).toContainEqual({ event_key: 'store-room.Submit', address: 'factory@fueltrailers.co.za' });
