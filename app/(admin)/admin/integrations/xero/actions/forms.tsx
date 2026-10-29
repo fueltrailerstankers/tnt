@@ -10,8 +10,8 @@ export function ModeSwitch({ action, current, canLive }: { action: string; curre
     <form action={submit} className="flex flex-wrap items-end gap-2 text-sm" data-testid={`mode-${action}`}>
       <input type="hidden" name="action" value={action} />
       <label className="flex flex-col">
-        <span className="text-xs text-neutral-600">Mode</span>
-        <select name="mode" value={mode} onChange={(e) => setMode(e.target.value)} className="rounded border px-2 py-1">
+        <span className="text-xs text-fg-muted">Mode</span>
+        <select name="mode" value={mode} onChange={(e) => setMode(e.target.value)} className="rounded-sm border px-2 py-1">
           <option value="off">off</option>
           <option value="dry_run">dry run</option>
           <option value="live" disabled={!canLive}>live</option>
@@ -19,13 +19,13 @@ export function ModeSwitch({ action, current, canLive }: { action: string; curre
       </label>
       {mode === 'live' ? (
         <label className="flex flex-col">
-          <span className="text-xs text-neutral-600">Type <code>{action}</code> to confirm</span>
-          <input name="confirm" autoComplete="off" className="rounded border px-2 py-1" />
+          <span className="text-xs text-fg-muted">Type <code>{action}</code> to confirm</span>
+          <input name="confirm" autoComplete="off" className="rounded-sm border px-2 py-1" />
         </label>
       ) : null}
-      <button className="rounded border px-3 py-1" disabled={pending}>{pending ? 'Saving…' : 'Save'}</button>
-      {state.error ? <span className="text-red-700">{state.error}</span> : null}
-      {state.ok ? <span className="text-green-800">{state.ok}</span> : null}
+      <button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1" disabled={pending}>{pending ? 'Saving…' : 'Save'}</button>
+      {state.error ? <span className="text-status-red-fg">{state.error}</span> : null}
+      {state.ok ? <span className="text-status-green-fg">{state.ok}</span> : null}
     </form>
   );
 }
@@ -35,12 +35,12 @@ export function MergePlanForm() {
   return (
     <form action={submit} className="flex flex-wrap items-end gap-2 text-sm">
       <label className="flex flex-col">
-        <span className="text-xs text-neutral-600">Invoice no</span>
-        <input name="invoice" placeholder="INV-…" className="rounded border px-2 py-1" />
+        <span className="text-xs text-fg-muted">Invoice no</span>
+        <input name="invoice" placeholder="INV-…" className="rounded-sm border px-2 py-1" />
       </label>
-      <button className="rounded border px-3 py-1" disabled={pending}>Plan merge</button>
-      {state.error ? <span className="text-red-700">{state.error}</span> : null}
-      {state.ok ? <span className="text-green-800">{state.ok}</span> : null}
+      <button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1" disabled={pending}>Plan merge</button>
+      {state.error ? <span className="text-status-red-fg">{state.error}</span> : null}
+      {state.ok ? <span className="text-status-green-fg">{state.ok}</span> : null}
     </form>
   );
 }

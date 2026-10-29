@@ -48,12 +48,12 @@ export default async function XeroActions() {
   return (
     <section className="space-y-4">
       <h1 className="text-xl font-semibold">Xero actions</h1>
-      <div className="rounded-lg border bg-white p-4 text-sm">
+      <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
         <p>
           Every action starts <b>off</b>. <b>Dry run</b> records the Xero requests it would send and changes nothing in Xero.
           <b> Live</b> sends them, each claimed once. Live needs a connection with the write scopes ({WRITE_SCOPES.join(', ')}) and a typed confirmation; every change is audited.
         </p>
-        <p className="mt-1 text-xs text-neutral-600">
+        <p className="mt-1 text-xs text-fg-muted">
           Connection: {conn?.status ?? 'not connected'} · write scopes: {writeScopes ? 'granted' : 'not granted (read-only)'} · <Link href="/admin/integrations/xero" className="underline">Xero health</Link>
         </p>
       </div>
@@ -64,7 +64,7 @@ export default async function XeroActions() {
         const lastDry = mine.find((x) => x.mode === 'dry_run' && x.status !== 'skipped');
         const canLive = configure && !PLAN_ONLY[a] && (!WRITES_TO_XERO[a] || writeScopes);
         return (
-          <div key={a} className="rounded-lg border bg-white p-4 text-sm" data-testid={`action-${a}`}>
+          <div key={a} className="rounded-md border bg-surface shadow-card p-4 text-sm" data-testid={`action-${a}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-semibold"><code>{a}</code></h2>
               <span className="text-xs">
@@ -72,36 +72,36 @@ export default async function XeroActions() {
                 {WRITES_TO_XERO[a] ? '' : ` · ${NO_XERO_WRITES_NOTE}`}
               </span>
             </div>
-            <p className="mt-1 text-neutral-700">{ABOUT[a]}</p>
+            <p className="mt-1 text-fg-muted">{ABOUT[a]}</p>
             {dryRunDoesNothing(a, r.mode) ? (
               <p className="mt-1 rounded bg-status-yellow-bg px-2 py-1 text-xs text-status-yellow-fg" data-testid={`dry-run-note-${a}`}>
                 Dry run currently does nothing for this action: it saves no entries and sends no emails, it only records what it would do. Live applies them.
               </p>
             ) : null}
-            {PLAN_ONLY[a] ? <p className="mt-1 text-xs text-amber-800">{PLAN_ONLY[a]}</p> : null}
+            {PLAN_ONLY[a] ? <p className="mt-1 text-xs text-status-yellow-fg">{PLAN_ONLY[a]}</p> : null}
             {configure ? <div className="mt-2"><ModeSwitch action={a} current={parseMode(setting(a))} canLive={canLive} /></div> : null}
             {a === 'invoice.merge_attachments' && configure ? <div className="mt-2"><MergePlanForm /></div> : null}
 
-            <h3 className="mt-3 text-xs font-semibold uppercase text-neutral-600">Last runs</h3>
+            <h3 className="mt-3 text-xs font-semibold uppercase text-fg-muted">Last runs</h3>
             <table className="w-full text-xs">
-              <thead className="text-left text-neutral-600"><tr><th>When</th><th>Mode</th><th>Status</th><th>Key</th><th>Note</th></tr></thead>
+              <thead className="text-left text-fg-muted"><tr><th>When</th><th>Mode</th><th>Status</th><th>Key</th><th>Note</th></tr></thead>
               <tbody>
                 {mine.slice(0, 8).map((x) => (
                   <tr key={x.id} className="border-t">
                     <td>{formatDateTime(x.created_at, tz)}</td><td>{x.mode}</td>
-                    <td className={x.status === 'failed' ? 'text-red-800' : ''}>{x.status}</td>
+                    <td className={x.status === 'failed' ? 'text-status-red-fg' : ''}>{x.status}</td>
                     <td className="font-mono">{x.idempotency_key}</td>
                     <td>{x.error ?? x.reason ?? ''}</td>
                   </tr>
                 ))}
-                {!mine.length ? <tr><td colSpan={5} className="py-1 text-neutral-600">No runs yet.</td></tr> : null}
+                {!mine.length ? <tr><td colSpan={5} className="py-1 text-fg-muted">No runs yet.</td></tr> : null}
               </tbody>
             </table>
 
             {lastDry ? (
               <details className="mt-2">
                 <summary className="cursor-pointer text-xs">Latest dry run ({formatDateTime(lastDry.created_at, tz)}): planned requests (redacted)</summary>
-                <pre className="mt-1 max-h-96 overflow-auto rounded bg-neutral-50 p-2 text-[11px]" data-testid={`dry-run-${a}`}>
+                <pre className="mt-1 max-h-96 overflow-auto rounded bg-surface-2 p-2 text-[11px]" data-testid={`dry-run-${a}`}>
                   {JSON.stringify({ requests: lastDry.planned_requests, effects: lastDry.effects, expected: lastDry.expected }, null, 2)}
                 </pre>
               </details>
