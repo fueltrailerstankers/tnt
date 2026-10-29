@@ -41,6 +41,8 @@ export default defineConfig({
         // Test-only key (not a secret): 32 bytes of 0x07.
         ENTRY_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
         RESEND_API_KEY: '',
+        // Test-only lead intake secret (40 chars, not a real secret).
+        LEADS_WEBHOOK_SECRET: 'test-only-leads-webhook-secret-000000000',
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? '.next',
       },

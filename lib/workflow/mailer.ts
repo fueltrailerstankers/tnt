@@ -10,7 +10,10 @@ export interface Attachment {
 }
 
 export interface SendInput extends BuiltEmail {
-  entryId: string;
+  /** The entry the email belongs to; null for emails about something else (e.g. a lead). */
+  entryId: string | null;
+  /** Lead notifications (M4): email_log.lead_id; org_id is then taken from the lead. */
+  leadId?: string;
   action: string;
   eventKey: string;
   attachments: Attachment[];
@@ -71,6 +74,7 @@ export async function sendEmail(db: SupabaseClient, input: SendInput): Promise<S
 
   await db.from('email_log').insert({
     entry_id: input.entryId,
+    ...(input.leadId ? { lead_id: input.leadId } : {}),
     action: input.action,
     event_key: input.eventKey,
     to_addresses: input.to,
