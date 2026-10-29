@@ -23,7 +23,18 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Org-owned child tables get `org_id` from their parent via trigger (`tg_org_from_parent`); never trust a client-supplied `org_id`.
 - Tables with no client policies or grants (service role only): integration_events, outbox_jobs, job_runs, external_refs, action_claims, xero_connections. audit_log is append-only.
 - `tests/db/shim.sql` is a test-only stand-in for Supabase `auth`/`storage`. Never apply it to a real project. A new table must be added to `tests/db/rls.test.ts` or the coverage test fails.
-- `tests/e2e/stub-supabase.mjs` fakes Supabase Auth/REST with synthetic identities. It proves app logic, not Supabase. Real-project checks are separate.
+- `tests/e2e/mini-supabase.mjs` serves a PostgREST/Auth/Storage-compatible API over a real Postgres built from the shim + migrations, as the caller's role with JWT claims, so RLS is exercised. It supports only the query syntax the app uses and returns 400 for anything else: extend it when you add a new query pattern. Real-project checks are separate.
 - Permissions live in `lib/security/can.ts` (pure, tested). Use `requirePerm()` from `lib/security/require.ts` at the top of every server action and route handler.
 - Server actions files (`'use server'`) may export only async functions; keep helpers in separate modules.
 - Branch for the current work is set per session; do not open a PR unless asked.
+
+## Repo notes (added in M1)
+- Form engine: `lib/spec` (pure: types, layout, expressions, values, content), `lib/workflow` (rules and email templating pure; `run-action.ts` is the only place entries are saved), `components/form-engine` (client renderer).
+- Every save goes through `runAction()`: role + `allowedWhen` + per-action permission, then validation, save, files, timeline, documents, emails. Do not write `entries` anywhere else.
+- Public and role-link server actions use the service role only after the form/link checks in their own file. Staff actions start with `adminForm(slug, perm)` (`lib/admin/context.ts`).
+- Uploads: browser -> Storage via signed upload URLs into `staging/`; the server sniffs magic bytes and moves them on save. Never accept a path outside `staging/` from a client.
+- Encrypted forms (DEAL, Delivery Note) keep `data = {}` and `data_encrypted` (AES-256-GCM, AAD = entry id). Only summary/number/status are in clear; `v_*` views show nulls for them.
+- Timeline (`entry_events.diff`) stores changed field keys only, never values. `email_log` stores recipients and subject, never bodies.
+- Role-link tokens are stored as sha256 hex in `entry_links.token`. Internal roles never use bearer links; they go to `/admin`.
+- Generated PDFs are immutable versions in the `documents` bucket with sha256; the Delivery Note PDF is the signed customer record.
+- Legal text: edit the kit's `content/*.md`, then `pnpm build:content`.

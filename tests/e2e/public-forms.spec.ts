@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { attach, FAKE_PDF, PDF, PNG, sign, sql } from './helpers';
+import { attach, FAKE_PDF, PDF, PNG, sign, signIn, sql } from './helpers';
 
 const THANKS = 'Thank you for filling out the form. Your response has been recorded.';
 
@@ -121,5 +121,36 @@ test('inactive forms are not reachable publicly', async ({ page }) => {
     expect(res?.status()).toBe(404);
   } finally {
     await sql(`update forms set is_active = true where slug = 'release-form'`);
+  }
+});
+
+test('DEAL: defaults, multi-choice, POP upload, manual Total; encrypted at rest; deal and collection sheets', async ({ page }) => {
+  await page.goto('/f/deal');
+  await expect(page.getByLabel('MONTH')).toHaveValue('JAN');
+  await expect(page.getByLabel('SALES REP')).toHaveValue('MELINDA');
+  await page.getByLabel('MONTH').selectOption('MARCH');
+  await page.getByLabel('CPT').check();
+  await page.getByLabel('JHB').check();
+  await page.getByLabel('QUOTE NO').fill('QTEST-5005');
+  await page.getByLabel('PART NO 1').fill('1000DB');
+  await page.getByLabel('LINE 1', { exact: true }).fill('1000 litre metal bowser');
+  await page.getByLabel('Total').fill('12345');
+  await attach(page, 'POP', PDF);
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  const [e] = await sql<{ number: number; data: object; summary: string }>(
+    `select e.number, e.data, e.summary from entries e join forms f on f.id = e.form_id where f.slug = 'deal' and e.summary = 'QTEST-5005'`);
+  expect(e.data).toEqual({});
+  // DEAL sends no emails in Cognito.
+  expect(await sql(`select 1 from email_log l join entries e on e.id = l.entry_id where e.summary = 'QTEST-5005'`)).toHaveLength(0);
+
+  await signIn(page, `/admin/forms/deal/entries/${e.number}`);
+  await expect(page.getByLabel('QUOTE NO')).toHaveValue('QTEST-5005'); // decrypted for staff
+  await expect(page.getByLabel('CPT')).toBeChecked();
+  for (const t of [1, 3, 4]) {
+    const res = await page.request.get(`/admin/forms/deal/entries/${e.number}/documents/${t}`);
+    expect(res.status()).toBe(200);
+    expect((await res.body()).subarray(0, 5).toString()).toBe('%PDF-');
   }
 });

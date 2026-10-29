@@ -1,7 +1,7 @@
 # Trailers & Tankers platform
 
 Central platform replacing Cognito Forms and the Make.com glue. Next.js 15, TypeScript, Supabase, Vercel.
-Read `BUILD_PLAN.md` for the full plan and `CLAUDE.md` for the working rules. Current phase: **M0 (bootstrap)**.
+Read `BUILD_PLAN.md` for the full plan and `CLAUDE.md` for the working rules. Current phase: **M1 (forms engine)**. See `docs/M1.md` for what M1 covers and the points to confirm with the owner.
 
 ## Local setup
 
@@ -17,17 +17,23 @@ pnpm dev
 pnpm typecheck && pnpm lint
 pnpm test        # unit
 pnpm test:db     # applies shim + supabase/migrations to a throwaway Postgres and runs RLS tests
-pnpm test:e2e    # Playwright smoke against a Supabase stub (no real project needed)
+pnpm test:e2e    # Playwright flows against tests/e2e/mini-supabase.mjs (real Postgres, no real project)
 ```
 
 `pnpm test:db` needs `DATABASE_URL` pointing at a disposable Postgres 15+ superuser connection
 (default `postgres://postgres@127.0.0.1:54329/postgres`). It creates and drops a `tt_test` database.
 `tests/db/shim.sql` is a test-only stand-in for Supabase's `auth` and `storage` schemas.
 
+`pnpm test:e2e` uses the same `DATABASE_URL` server: `tests/e2e/mini-supabase.mjs` builds a `tt_e2e` database from
+the shim and migrations and serves a PostgREST/Auth/Storage-compatible API over it, so RLS and grants are real.
+Set `PLAYWRIGHT_CHROMIUM_PATH` to use an already installed Chromium.
+
 ## Database
 
 `supabase/migrations/0001..0003` come unchanged from the forms kit (`docs/source/tt-forms`).
 `0004` adds orgs, memberships, org-keyed RLS, audit, notification recipients, settings and integration plumbing.
+`0005` adds the forms-engine support: grid search and listing (`list_entries`), the admin overview (`form_overview`),
+immutable PDF versions with hashes, hashed role-link tokens, recipients seeded from the spec inboxes and upload limits.
 Never edit an applied migration; add a new one.
 
 Apply to a Supabase project with `supabase db push` (or paste the files in order into the SQL editor).
@@ -41,3 +47,14 @@ ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='at-least-12-characters' pnpm create-
 ```
 
 The script prints only the user id.
+
+## Forms (M1)
+
+- Public links: `/f/<slug>` for the 7 kit forms. Role links from workflow emails: `/e/<token>`.
+- Admin: `/admin` (home), `/admin/tasks`, `/admin/forms/<slug>` (entries), `/admin/settings`.
+- `ENTRY_ENCRYPTION_KEY` is required: DEAL and Delivery Note entries are encrypted with it. Generate one with
+  `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` and keep it safe; losing it loses those entries.
+- Emails: with `RESEND_API_KEY` and `MAIL_FROM` set, workflow emails are sent through Resend. Without them nothing is
+  sent and `email_log` records each email as `skipped` (log-only mode).
+- Legal text (`content/*.md`) ships as `lib/spec/content.generated.ts`. After changing the kit content run `pnpm build:content`;
+  a unit test fails if the two drift.
