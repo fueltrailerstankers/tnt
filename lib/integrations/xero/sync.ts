@@ -7,6 +7,7 @@ import { mapAttachment, mapContact, mapInvoice, mapPayment, mapQuote, type LineR
 import { backfillPasses, ENTITIES, incrementalPass, isLastPage, LIST_KEY, pageParams, shouldPause, type Entity } from './plan';
 import { XeroAuthError } from './oauth';
 import { amountDueBefore, enqueuePaid } from './write/paid';
+import { enqueueStockInvoices } from '@/lib/stock/invoice-job';
 
 // Mirror sync. Every page is written, and the cursor saved, before the next request, so a run that stops
 // (time budget, rate limit, crash) resumes where it left off. Upserts are keyed on Xero ids: replaying any
@@ -70,6 +71,7 @@ export async function upsertList(db: SupabaseClient, c: Connection, entity: Enti
     ));
     await replaceLines(db, c, 'xero_invoice_lines', 'invoice_id', mapped.map((m) => ({ id: m.row.invoice_id, lines: m.lines })));
     await enqueuePaid(db, c.orgId, before, mapped.map((m) => m.row)); // M3: invoices whose amount due became 0
+    await enqueueStockInvoices(db, c.orgId, mapped.map((m) => m.row.invoice_id)); // M6: invoice -> stock rules
   }
   return list.length;
 }
