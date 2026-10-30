@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { COGNITO_PORT, COGNITO_URL } from './tests/e2e/cognito-env';
 import { E2E_XERO, XERO_PORT, XERO_URL } from './tests/e2e/xero-env';
 
 // Ports, database and Next build dir are overridable so parallel runs do not collide.
@@ -37,6 +38,14 @@ export default defineConfig({
       gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
     },
     {
+      // Mock Cognito Forms API (forms list, entries by number, files) with synthetic data.
+      command: 'node tests/e2e/mock-cognito.mjs',
+      url: `${COGNITO_URL}/__health`,
+      reuseExistingServer: !process.env.CI,
+      env: { COGNITO_PORT: String(COGNITO_PORT) },
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
+    },
+    {
       // Dev server: NEXT_PUBLIC_* values are read at runtime, so the stub URL needs no rebuild.
       command: `pnpm exec next dev -p ${APP_PORT}`,
       url: `http://127.0.0.1:${APP_PORT}/login`,
@@ -58,6 +67,7 @@ export default defineConfig({
         XERO_LOGIN_URL: XERO_URL,
         XERO_IDENTITY_URL: XERO_URL,
         XERO_API_URL: XERO_URL,
+        COGNITO_API_URL: `${COGNITO_URL}/api`,
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? '.next',
       },

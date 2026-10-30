@@ -15,7 +15,8 @@ export interface Job {
   attempts: number;
 }
 
-export type Handler = (db: SupabaseClient, job: Job) => Promise<void>;
+/** `deadline` is when the drain stops starting jobs (ms since epoch); a long job can size its own work by it. */
+export type Handler = (db: SupabaseClient, job: Job, ctx: { deadline: number }) => Promise<void>;
 
 export async function enqueue(db: SupabaseClient, orgId: string | null, queue: string, payload: Record<string, unknown> = {}, opts: { uniquePending?: boolean } = {}) {
   if (opts.uniquePending) {
@@ -28,13 +29,14 @@ export async function enqueue(db: SupabaseClient, orgId: string | null, queue: s
   if (error) throw new Error('Could not enqueue job');
 }
 
-/** Runs due jobs until the deadline. Returns how many ran. */
-export async function drain(db: SupabaseClient, handlers: Record<string, Handler>, deadline: number, limit = 25): Promise<{ ran: number; failed: number }> {
-  const { data } = await db
+/** Runs due jobs until the deadline. Returns how many ran. `queues` limits the drain to those queues. */
+export async function drain(db: SupabaseClient, handlers: Record<string, Handler>, deadline: number, limit = 25, queues?: string[]): Promise<{ ran: number; failed: number }> {
+  const due = db
     .from('outbox_jobs')
     .select('id, org_id, queue, payload, attempts')
     .eq('status', 'pending')
-    .lte('run_at', new Date().toISOString())
+    .lte('run_at', new Date().toISOString());
+  const { data } = await (queues ? due.in('queue', queues) : due)
     .order('run_at', { ascending: true })
     .limit(limit);
   let ran = 0;
@@ -51,7 +53,7 @@ export async function drain(db: SupabaseClient, handlers: Record<string, Handler
     const handler = handlers[job.queue];
     try {
       if (!handler) throw new Error(`no handler for ${job.queue}`);
-      await handler(db, job);
+      await handler(db, job, { deadline });
       await db.from('outbox_jobs').update({ status: 'done', last_error: null }).eq('id', job.id);
       ran += 1;
     } catch (e) {

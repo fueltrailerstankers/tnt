@@ -33,6 +33,11 @@ select cron.schedule('xero-sync-full', '30 22 * * *', $$select public.call_job('
 -- Drain the outbox (webhook fetches, deal-file rebuilds) every 5 minutes.
 select cron.schedule('outbox-drain', '*/5 * * * *', $$select public.call_job('outbox')$$);
 
+-- Optional, only while a Cognito import runs from the app (/admin/forms/import): one import step every minute
+-- instead of every 5 minutes. Remove it when the import is finished.
+--   select cron.schedule('cognito-import', '* * * * *', $$select public.call_job('cognito-import')$$);
+--   select cron.unschedule('cognito-import');
+
 -- Check:   select jobname, schedule, active from cron.job;
 -- History: select * from cron.job_run_details order by start_time desc limit 20;
 --          select id, status_code, created from net._http_response order by created desc limit 20;
