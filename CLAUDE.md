@@ -55,3 +55,9 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
+
+## Repo notes (M6 stock overview and unit register)
+- Stock pages live under `app/(admin)/admin/stock`; its `layout.tsx` renders the stock tabs (`lib/stock/tabs.ts` `STOCK_TABS`, filtered by `can()`, `built` flag like NAV) for every stock page. New stock pages render inside it, start with `components/stock/StockHeader.tsx`, and still call `requirePerm`. One `stock` item in NAV.
+- Register logic is pure in `lib/stock/register.ts` (URL query, search -> PostgREST `or()`, CSV table, export audit row, Correct/Transfer inputs); reads go through `lib/stock/register-query.ts` (server-only, caller's RLS). Link to the register with `unitsHref({ model, location, status })`; `?q=<VIN>` finds a unit.
+- Unit edits call `stock_correct_unit` / `stock_move_unit` with the caller's client after `requirePerm('stock.manage')` (the RPC re-checks the role and writes the audit row); show errors with `stockMessageFor`. The CSV export writes its `stock.export` audit row with the service role and refuses without it.
+- e2e: `tests/e2e/stock-overview.spec.ts`; the stub has a factory member `factory-stock@example.invalid` (role factory). `next=` on /login takes a plain /admin path only (no query); sign in, then `page.goto` the filtered URL.
