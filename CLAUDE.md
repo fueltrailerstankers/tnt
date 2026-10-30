@@ -63,4 +63,5 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - `requirePerm()` answers 403 via `forbidden()` (`experimental.authInterrupts`, `app/forbidden.tsx`).
 - User changes go through `app/(admin)/admin/settings/users/actions.ts` (users.manage, guards in `lib/users/rules.ts`: self, admin_only, last_admin; trigger `memberships_last_admin` in SQL). Audit rows carry ids/codes only; invite links and tokens are never stored or logged.
 - Activity rendering and area mapping: `lib/activity/describe.ts`. Add a phrase there for new audit actions.
-- mini-supabase: Auth admin endpoints (invite, generate_link, users/:id ban, verify, user update) and `GET /__stub/mail?to=` for invite emails "sent".
+- Add user (temporary password): `memberships.must_change_password`; `requirePerm()` and the admin layout redirect such members to `/admin/account/password` until they change it.
+- mini-supabase: Auth admin endpoints (invite, createUser, generate_link, users/:id ban, verify, user update) and `GET /__stub/mail?to=` for invite emails "sent".
