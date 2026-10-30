@@ -61,3 +61,10 @@ null` (old 6-argument calls keep working): a resolved exception blocks only the 
 0018 (M8 form builder) depends on 0001, 0004 and 0005 only and is additive: `forms.draft_spec`, `version`,
 `archived_at`, `published_at`, `published_by`; append-only `form_versions` (members read, server-only writes,
 version 1 backfilled for every existing form); `form_data_keys(uuid)`; `form_overview()` leaves archived forms out.
+
+0022 (M8 security review) applies after 0018 and 0020 (the live DB gets 0018 then 0022 after 0011-0020;
+`tests/db/forms-server-writes.test.ts` applies them in that order): revokes insert/update/delete on `public.forms`
+from `authenticated` (server-only writes); `forms_invariants` trigger (deal/delivery-note always encrypted, no
+encryption change once entries exist, archived forms stay inactive); `entries_match_encryption` trigger (reads the
+form FOR SHARE: an entry's encryption must match its form); `sync_form_workflow(uuid, jsonb, jsonb)` (service role;
+replaces statuses and roles atomically); `form_usage(uuid)` (statuses in use, roles with live links).
