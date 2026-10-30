@@ -200,7 +200,8 @@ describe('readFormData: every new type', () => {
     for (const bad of ['12.345', 'abc', '1e5', 'R100']) expect(read(S, { 'f.Price': bad }).errors.Price, bad).toMatch(/Enter an amount/);
     const sp = mk([{ name: 'M', label: 'M', type: 'currency', row: 1 }]);
     expect(read(sp, { 'f.M': '10' }, { currency: 'ZAR' }).data.M).toEqual({ amount: 10, currency: 'ZAR' });
-    expect(read(sp, { 'f.M': '-10' }).data.M).toEqual({ amount: -10, currency: 'USD' });
+    expect(read(sp, { 'f.M': '10' }).data.M).toEqual({ amount: 10, currency: 'USD' });
+    expect(read(sp, { 'f.M': '-10' }).errors.M).toBe('Enter an amount of 0 or more.');
   });
 
   it('time: HH:MM (seconds dropped); datetime: entered in the org timezone, stored UTC', () => {
@@ -292,7 +293,7 @@ describe('validateEntry: required on every input type, lengths and ranges', () =
     expect(msgs({ 'f.Qty': '0' }).Qty).toBe('Enter 1 or more.');
     expect(msgs({ 'f.Qty': '11' }).Qty).toBe('Enter 10 or less.');
     expect(msgs({ 'f.Qty': '10' }).Qty).toBeUndefined();
-    expect(validateEntry(S, read(S, { 'f.Price': '-1' }).data, {}).Price).toBe('Enter 0 or more.');
+    expect(read(S, { 'f.Price': '-1' }).errors.Price).toBe('Enter an amount of 0 or more.');
     expect(validateEntry(S, read(S, { 'f.Price': '100000.01' }).data, {}).Price).toBe('Enter 100000 or less.');
     expect(msgs({ 'f.Due': '2025-12-31' }).Due).toBe('Enter a date on or after 2026-01-01.');
     const sp = mk([{ name: 'T', label: 'T', type: 'time', row: 1, min: '08:00', max: '17:00' }]);
