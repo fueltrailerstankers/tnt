@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { randomToken, sha256Hex } from '@/lib/security/crypto';
+import { linkStatus, type LinkStatus } from './link-status';
 
 // Role links (/e/<token>) let a public role, e.g. the Inspector, reopen one entry from an email.
 // Only sha256(token) is stored; the raw token exists only in the emailed URL.
@@ -22,10 +23,16 @@ export interface ResolvedLink {
   roleName: string;
 }
 
+/** Link and its state, including expired and revoked links (the landing page explains them; actions refuse). */
+export async function inspectRoleLink(db: SupabaseClient, token: string): Promise<{ status: LinkStatus; link: ResolvedLink | null }> {
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return { status: 'unknown', link: null };
+  const { data } = await db.from('entry_links').select('token, entry_id, role_name, expires_at, revoked_at').eq('token', sha256Hex(token)).maybeSingle();
+  const status = linkStatus(data, new Date());
+  return { status, link: data ? { id: data.token, entryId: data.entry_id, roleName: data.role_name } : null };
+}
+
+/** A link that may act now: known, not revoked, not expired. Everything that reads or saves uses this. */
 export async function resolveRoleLink(db: SupabaseClient, token: string): Promise<ResolvedLink | null> {
-  if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return null;
-  const hash = sha256Hex(token);
-  const { data } = await db.from('entry_links').select('token, entry_id, role_name, expires_at, revoked_at').eq('token', hash).maybeSingle();
-  if (!data || data.revoked_at || (data.expires_at && new Date(data.expires_at) < new Date())) return null;
-  return { id: data.token, entryId: data.entry_id, roleName: data.role_name };
+  const { status, link } = await inspectRoleLink(db, token);
+  return status === 'ok' ? link : null;
 }

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { FormRenderer } from '@/components/form-engine/FormRenderer';
-import { appEnv, publicEnv } from '@/lib/env';
+import { Icon } from '@/components/ui/Icon';
+import { appEnv, publicEnv, turnstileSiteKey } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
 import { quoteFieldOf } from '@/lib/forms/quote-fields';
 import { loadOrg } from '@/lib/forms/org';
@@ -29,7 +30,18 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <h1 className="mb-4 text-h1">{spec.name}</h1>
+      <div className="mb-6 space-y-1.5">
+        <h1 className="text-h1">{spec.name}</h1>
+        <p className="flex flex-wrap items-center gap-2 text-small text-fg-muted">
+          <span>Fill in each section, then submit at the bottom.</span>
+          {form.encrypt ? (
+            <span className="inline-flex items-center gap-1 rounded-xs bg-surface-2 px-1.5 py-0.5 text-label font-semibold tracking-normal text-fg-muted">
+              <Icon name="lock" size={12} strokeWidth={2} />
+              Encrypted
+            </span>
+          ) : null}
+        </p>
+      </div>
       <FormRenderer
         spec={spec}
         initial={defaultData(spec, { today: todayIn(org.timezone) })}
@@ -42,6 +54,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         lookup={hasLookup ? { mode: 'exact', find: findLookupPublic.bind(null, slug) } : undefined}
         quotes={quoteFieldOf(spec) ? { mode: 'check', check: checkQuotePublic.bind(null, slug) } : undefined}
         honeypot
+        turnstileSiteKey={turnstileSiteKey()}
       />
     </>
   );

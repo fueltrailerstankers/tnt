@@ -40,3 +40,8 @@ export interface ActionButton {
 export type QuoteConfig =
   | { mode: 'search'; search: (q: string) => Promise<QuoteOption[]> }
   | { mode: 'check'; check: (value: string) => Promise<{ found: boolean }> };
+
+/** Result of the staff DEAL "Import from Xero" button: string values keyed by field name, ready to fill. */
+export type QuoteImport =
+  | { ok: true; quoteNumber: string; lines: number; total: number | null; currency: string | null; fields: Record<string, string> }
+  | { ok: false; error: string };

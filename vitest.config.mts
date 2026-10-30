@@ -8,6 +8,8 @@ export default defineConfig({
     projects: [
       {
         resolve: { alias },
+        // tsconfig keeps JSX as-is for Next; unit tests that server-render components need it compiled.
+        oxc: { jsx: { runtime: 'automatic' } },
         test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' },
       },
       {
