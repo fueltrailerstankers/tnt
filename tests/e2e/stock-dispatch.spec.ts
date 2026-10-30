@@ -107,6 +107,7 @@ test('DEAL submit creates exactly one stock deal; an Update re-syncs the same de
   await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(` ${vin('A').toLowerCase()} `);
   await main.getByRole('button', { name: 'Complete dispatch →' }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/stock/units\\?q=${vin('A')}&saved=dispatch$`));
+  await expect(page.getByRole('status').filter({ hasText: 'Dispatch saved' })).toBeVisible();
 
   const [unit] = await sql<{ id: string; location_id: string; deal_year: number; sequence: number; accessories: string[]; status: string }>(
     `select id, location_id, deal_year, sequence, accessories, status from public.stock_units where org_id = $1 and vin_norm = $2`, [ORG, vin('A')]);

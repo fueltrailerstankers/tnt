@@ -3,6 +3,7 @@ import { StockHeader } from '@/components/stock/StockHeader';
 import { UnitStatusChip } from '@/components/stock/UnitStatusChip';
 import { Icon } from '@/components/ui/Icon';
 import { buttonClass, tableClass, tableWrapClass, theadClass } from '@/components/ui/styles';
+import { savedNotice } from '@/lib/stock/dispatch';
 import { EXPORT_MAX_ROWS, exportTooManyMessage, parseRegisterQuery, REGISTER_PAGE, registerHref, registerQueryString } from '@/lib/stock/register';
 import { loadLocations, loadModels, selectUnits } from '@/lib/stock/register-query';
 import { can } from '@/lib/security/can';
@@ -37,6 +38,8 @@ export default async function UnitRegister({ searchParams }: { searchParams: Pro
   const exportQs = registerQueryString(rq, { page: 1 });
   const detailQs = registerQueryString(rq);
   const detailHref = (id: string) => `/admin/stock/units/${id}${detailQs ? `?${detailQs}` : ''}`;
+  // Set by the dispatch page after a dispatch or a factory move (lib/stock/dispatch.ts savedUrl).
+  const notice = savedNotice(sp.saved);
 
   return (
     <section className="space-y-4">
@@ -52,6 +55,7 @@ export default async function UnitRegister({ searchParams }: { searchParams: Pro
           </a>
         )}
       />
+      {notice ? <p role="status" className="rounded-sm border border-status-green-fg/30 bg-status-green-bg p-2 text-sm">{notice}</p> : null}
 
       <RegisterFilters q={rq.q} model={rq.model} location={rq.location} status={rq.status} locations={locations.map((l) => ({ id: l.id, name: l.name }))} />
 
