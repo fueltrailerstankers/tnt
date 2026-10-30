@@ -96,7 +96,8 @@ export function dealsHref(q: DealsQuery, currentYear: number, over: Partial<Deal
   if (v.branch) u.set('branch', v.branch);
   if (v.dismissed) u.set('dismissed', '1');
   if (v.page > 1) u.set('page', String(v.page));
-  return `/admin/stock/deals${u.size ? `?${u}` : ''}`;
+  const s = u.toString(); // URLSearchParams.size is missing before Safari 17
+  return `/admin/stock/deals${s ? `?${s}` : ''}`;
 }
 
 /** Year select: every year from the earliest deal to the later of the newest deal and this year, newest first. */

@@ -75,7 +75,8 @@ export default async function StockActivity({ searchParams }: { searchParams: Pr
     if (from) u.set('from', from);
     if (to) u.set('to', to);
     if (p > 1) u.set('page', String(p));
-    return `/admin/stock/activity${u.size ? `?${u}` : ''}`;
+    const s = u.toString();
+    return `/admin/stock/activity${s ? `?${s}` : ''}`;
   };
 
   return (
