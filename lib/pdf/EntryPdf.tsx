@@ -23,6 +23,10 @@ export interface PdfProps {
   files: Record<string, string[]>;
   /** PNG bytes per signature field. */
   signatures: Record<string, Buffer>;
+  /** Rule 12: who signed each pad and when (server time). */
+  signedBy?: Record<string, { at: string; role: string }>;
+  /** Rule 12: the exact terms version the signer saw (sha256 of the text blocks). */
+  termsVersion?: { sha256: string } | null;
   /** Display-only lookup panel text (Delivery Note customer details). */
   lookupPanel?: Array<[string, string]>;
   timezone: string;
@@ -87,6 +91,7 @@ export function EntryPdf(p: PdfProps) {
           <Text style={styles.meta}>
             Entry #{p.entry.number} · {p.entry.status} · created {formatTime(p.entry.createdAt, tz)} · updated {formatTime(p.entry.updatedAt, tz)}
           </Text>
+          {p.termsVersion ? <Text style={styles.meta}>Terms version {p.termsVersion.sha256.slice(0, 16)} (sha256 of the terms, declaration, waiver and receipt text signed)</Text> : null}
         </View>
         {pages(p.spec).map((pg) => (
           <View key={pg.index}>
@@ -125,6 +130,11 @@ function renderCell(f: ReturnType<typeof pages>[number]['rows'][number]['cells']
           {/* react-pdf Image has no alt; the label above names it. */}
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
           {img ? <Image style={styles.sig} src={{ data: img, format: 'png' }} /> : <Text style={styles.value}> </Text>}
+          {p.signedBy?.[f.name] ? (
+            <Text style={styles.meta}>
+              Signed by the {p.signedBy[f.name].role === 'sales_rep' ? 'sales rep' : 'customer'} · {formatTime(p.signedBy[f.name].at, p.timezone)}
+            </Text>
+          ) : null}
         </Field>
       );
     }

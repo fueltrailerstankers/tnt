@@ -5,7 +5,8 @@ import { loadEntryById } from '@/lib/forms/entries';
 import { customerPanel } from '@/lib/forms/lookup';
 import { rendererFiles } from '@/lib/forms/view';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolveRoleLink } from '@/lib/workflow/links';
+import { inspectRoleLink } from '@/lib/workflow/links';
+import { Icon } from '@/components/ui/Icon';
 import { allowedActions, roleByName } from '@/lib/workflow/rules';
 import { findLookupLink, requestUploadLink, submitLink } from './actions';
 import { loadFormById } from '@/lib/forms/forms';
@@ -13,20 +14,48 @@ import { loadFormById } from '@/lib/forms/forms';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Entry · Trailers & Tankers', referrer: 'no-referrer' };
 
-function Invalid() {
+function StateCard({ icon, tone, title, children }: { icon: 'lock' | 'check' | 'warning'; tone: 'gray' | 'green' | 'yellow'; title: string; children: React.ReactNode }) {
+  const toneCls = tone === 'green' ? 'bg-status-green-bg text-status-green-fg' : tone === 'yellow' ? 'bg-status-yellow-bg text-status-yellow-fg' : 'bg-surface-2 text-fg-muted';
   return (
-    <div className="rounded border bg-surface p-6" role="status">
-      <h1 className="text-xl font-semibold">Link not valid</h1>
-      <p className="mt-2">This link has expired or is no longer valid. Ask the office to send a new one.</p>
+    <div className="mx-auto max-w-lg rounded-lg border border-border bg-surface p-6 text-center shadow-card sm:p-8" role="status">
+      <span aria-hidden="true" className={`mx-auto mb-4 flex size-12 items-center justify-center rounded-full ${toneCls}`}>
+        <Icon name={icon} size={22} strokeWidth={2} />
+      </span>
+      <h1 className="text-h1">{title}</h1>
+      <div className="mt-2 space-y-2 text-body text-fg-muted">{children}</div>
     </div>
   );
 }
 
+function Invalid() {
+  return (
+    <StateCard icon="lock" tone="gray" title="Link not valid">
+      <p>This link has expired or is no longer valid. Ask the office to send a new one.</p>
+    </StateCard>
+  );
+}
+
+function Expired() {
+  return (
+    <StateCard icon="warning" tone="yellow" title="This link has expired">
+      <p>Ask your Trailers &amp; Tankers contact to send a new one. Nothing you entered before has been lost.</p>
+    </StateCard>
+  );
+}
+
+const sastStamp = (iso: string) => {
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Johannesburg', day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Johannesburg', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
+  return { date, time };
+};
+
 export default async function RoleLinkPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const db = createAdminClient();
-  const link = await resolveRoleLink(db, token);
-  if (!link) return <Invalid />;
+  const { status, link } = await inspectRoleLink(db, token);
+  if (status === 'expired') return <Expired />;
+  if (status !== 'ok' || !link) return <Invalid />;
   const { data: row } = await db.from('entries').select('form_id').eq('id', link.entryId).maybeSingle();
   const form = row ? await loadFormById(db, row.form_id) : null;
   const entry = form ? await loadEntryById(db, form, link.entryId) : null;
@@ -39,6 +68,16 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   if (!role?.public) redirect(`/admin/forms/${form.slug}/entries/${entry.number}`);
 
   const actions = allowedActions(form.spec, entry.status, role.name).map((a) => ({ name: a.name, label: a.button }));
+  // A signed Delivery Note is the customer's record: the link confirms it instead of showing the form again.
+  if (form.slug === 'delivery-note' && actions.length === 0 && entry.status !== 'Incomplete') {
+    const { date, time } = sastStamp(entry.submittedAt ?? entry.updatedAt);
+    return (
+      <StateCard icon="check" tone="green" title="Already signed">
+        <p>This Delivery Note was signed on {date} at {time} SAST.</p>
+        <p>Reference <span className="font-mono font-semibold text-fg">DN-{entry.number}</span></p>
+      </StateCard>
+    );
+  }
   const { files, signatures } = await rendererFiles(db, entry, true);
   const lookup = form.spec.fields.find((f) => f.type === 'lookup');
   const lookupId = lookup && lookup.type === 'lookup' ? (entry.data[lookup.name] as string | undefined) : undefined;
@@ -48,7 +87,7 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   return (
     <>
       <h1 className="text-h1">{form.spec.name}</h1>
-      <p className="mb-4 text-sm text-fg-muted">
+      <p className="mb-6 mt-1.5 text-small text-fg-muted">
         Entry #{entry.number} · {entry.status}
         {actions.length === 0 ? ' · No action is available for you at this stage.' : ''}
       </p>
