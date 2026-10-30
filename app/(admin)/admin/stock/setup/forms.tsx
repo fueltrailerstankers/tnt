@@ -7,7 +7,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { cardClass } from '@/components/ui/styles';
 import { lineList, OPENING_MAX_CHARS, OPENING_TEMPLATE_HEADER, type OpeningReport } from '@/lib/stock/opening';
 import { LIVE_CONFIRMATION, RULE_MODE_ABOUT, RULE_MODE_LABEL, type InvoiceRuleMode } from '@/lib/stock/settings';
-import { importOpeningStock, rebuildDeals, saveInvoiceRules, saveStartDate, type OpeningState, type SetupState } from './actions';
+import { importOpeningStock, rebuildDeals, saveInvoiceRules, saveInvoicesFrom, saveStartDate, type OpeningState, type SetupState } from './actions';
 
 /** Dispatches without React's automatic form reset, so values survive an error. */
 const submitWith = (dispatch: (fd: FormData) => void) => (e: FormEvent<HTMLFormElement>) => {
@@ -32,6 +32,22 @@ export function StartDateForm({ current }: { current: string | null }) {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save start date'}</Button>
+        <Result state={state} />
+      </div>
+    </form>
+  );
+}
+
+export function InvoicesFromForm({ current }: { current: string | null }) {
+  const [state, dispatch, pending] = useActionState(saveInvoicesFrom, {} as SetupState);
+  return (
+    <form onSubmit={submitWith(dispatch)} className="space-y-3" data-testid="invoices-from-form" noValidate>
+      <div className="max-w-xs">
+        <Label htmlFor="invoices-from">Invoice start date</Label>
+        <Input id="invoices-from" type="date" name="invoices_from" defaultValue={current ?? ''} />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="secondary" disabled={pending}>{pending ? 'Saving…' : 'Save invoice start date'}</Button>
         <Result state={state} />
       </div>
     </form>

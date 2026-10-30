@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { actionsForKind, ACTIVITY_KINDS, activityLine, activityTime, actorLabel, type AuditRow } from '@/lib/stock/activity';
+import { actionsForKind, ACTIVITY_KINDS, activityLine, activityTime, actorLabel, memberLabel, type AuditRow } from '@/lib/stock/activity';
 
 // Synthetic audit rows (ids, VINs and codes only, as the RPCs write them).
 const row = (action: string, meta: Record<string, unknown>, actor: string | null = 'user-1'): AuditRow => ({
@@ -73,10 +73,16 @@ describe('filters, time and actor', () => {
     expect(activityTime('nope', 'Africa/Johannesburg')).toBe('');
   });
 
+  it('member label never falls back to the email', () => {
+    expect(memberLabel(' Test Admin ')).toBe('Test Admin');
+    expect(memberLabel(null)).toBe('Staff');
+    expect(memberLabel('')).toBe('Staff');
+  });
+
   it('actor: member name, or the invoice rules / system when no user acted', () => {
     const m = new Map([['user-1', 'Test Admin']]);
     expect(actorLabel(row('stock.dispatch', {}), m)).toBe('Test Admin');
-    expect(actorLabel(row('stock.dispatch', {}, 'user-2'), m)).toBe('Team member');
+    expect(actorLabel(row('stock.dispatch', {}, 'user-2'), m)).toBe('Staff');
     expect(actorLabel(row('stock.sell', {}, null), m)).toBe('Xero invoice rules');
     expect(actorLabel(row('stock.dispatch', {}, null), m)).toBe('System');
   });

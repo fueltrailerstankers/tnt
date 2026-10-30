@@ -7,8 +7,8 @@ import { formatDateTime } from '@/lib/admin/grid';
 import { loadOrg } from '@/lib/forms/org';
 import { EXCEPTION_REASON_LABEL } from '@/lib/stock/errors';
 import type { ExceptionReason } from '@/lib/stock/invoice';
-import { loadItemCodes, loadModelParts, loadStockSettings, loadUnitFacts, recordedExceptions } from '@/lib/stock/invoice-job';
-import { evaluateInvoice, exceptionKey, invoicesFromInstant, MIRROR_INVOICE_COLUMNS, outcomeView, xeroStatusLabel, type MirrorInvoiceRow } from '@/lib/stock/invoice-review';
+import { loadItemCodes, loadModelParts, loadStockSettings, loadUnitFacts, recordedExceptions, withVinConflict } from '@/lib/stock/invoice-job';
+import { evaluateInvoice, exceptionKey, invoicesFromInstant, MIRROR_INVOICE_COLUMNS, recordedState, outcomeView, xeroStatusLabel, type MirrorInvoiceRow } from '@/lib/stock/invoice-review';
 import { memberNames } from '@/lib/stock/members';
 import { RULE_MODE_LABEL } from '@/lib/stock/settings';
 import { can } from '@/lib/security/can';
@@ -60,9 +60,9 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
   // Recent stock invoices: the SCAN most recently changed mirror invoices since the stock start date, evaluated.
   let recent: Array<{ row: Row; view: ReturnType<typeof outcomeView>; vin: string | null; unitId: string | null }> = [];
   let scanned = 0;
-  if (settings.start) {
+  if (settings.invoicesFrom) {
     const { data: inv } = await db.from('xero_invoices').select(`${MIRROR_INVOICE_COLUMNS}, total, currency_code`)
-      .eq('org_id', member.orgId).gte('updated_utc', invoicesFromInstant(settings.start, tz))
+      .eq('org_id', member.orgId).gte('updated_utc', invoicesFromInstant(settings.invoicesFrom, tz))
       .order('updated_utc', { ascending: false }).limit(SCAN);
     const rows = (inv ?? []) as Row[];
     scanned = rows.length;
@@ -71,12 +71,14 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
       const [codes, units, parts, recorded] = await Promise.all([
         loadItemCodes(db, member.orgId, ids), loadUnitFacts(db, member.orgId), loadModelParts(db, member.orgId), recordedExceptions(db, member.orgId, ids),
       ]);
-      recent = rows.map((row) => {
-        const o = evaluateInvoice(row, codes.get(row.invoice_id) ?? [], units, parts);
-        if (o.kind === 'ignore') return null;
-        const state = o.kind === 'exception' ? recorded.get(exceptionKey(row.invoice_id, o.reason)) ?? null : null;
-        return { row, view: outcomeView(o, settings.rules, state), vin: o.vin, unitId: o.unitId };
-      }).filter((x) => x !== null).slice(0, SHOWN);
+      const listed = rows.map((row) => ({ row, o: evaluateInvoice(row, codes.get(row.invoice_id) ?? [], units, parts) }))
+        .filter((x) => x.o.kind !== 'ignore').slice(0, SHOWN);
+      recent = await Promise.all(listed.map(async ({ row, o: first }) => {
+        // Same as the job: an invoice that would apply while another live invoice names the VIN is a conflict.
+        const o = await withVinConflict(db, member.orgId, row, first);
+        const state = o.kind === 'exception' ? recordedState(recorded.get(exceptionKey(row.invoice_id, o.reason)), row.updated_utc) : null;
+        return { row, view: outcomeView(o, settings.rules, state), vin: o.kind === 'ignore' ? null : o.vin, unitId: o.kind === 'ignore' ? null : o.unitId };
+      }));
     }
   }
 
@@ -112,9 +114,9 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
         )}
       />
 
-      {!settings.start ? (
+      {!settings.invoicesFrom ? (
         <p role="status" className="rounded-sm border border-border bg-status-yellow-bg p-3 text-body text-status-yellow-fg" data-testid="no-start-date">
-          No stock start date is set, so no Xero invoice is checked against stock yet.
+          No invoice start date (or stock start date) is set, so no Xero invoice is checked against stock yet.
           {manage ? <> Set it in <Link href="/admin/stock/setup" className="font-semibold underline">Pilot setup</Link>.</> : ' An admin sets it in Pilot setup.'}
         </p>
       ) : null}
@@ -130,7 +132,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
           </ol>
           <p className="mt-3 rounded-sm bg-status-yellow-bg p-2 text-small text-status-yellow-fg">
             Missing, unknown or conflicting VINs, cancellations, voids and credit notes change nothing: they go to the exceptions queue for review.
-            Only invoices changed in Xero on or after the stock start date{settings.start ? ` (${settings.start})` : ''} are checked.
+            Only invoices changed in Xero on or after the invoice start date{settings.invoicesFrom ? ` (${settings.invoicesFrom})` : ''} are checked.
           </p>
           <p className="mt-2 text-small text-fg-muted">Mode: <b>{RULE_MODE_LABEL[settings.rules]}</b>. {settings.rules === 'preview'
             ? 'The outcomes below show what each invoice would do; no unit changes.'
@@ -179,7 +181,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
                     <td className={`${td} break-all`}><span className={tdLabel}>Reference / VIN</span>
                       <span>{vin ? <Link href={`/admin/stock/units?q=${encodeURIComponent(vin)}`} className="font-mono underline">{vin}</Link> : <span className="text-fg-muted">{e.reference ?? '—'}</span>}</span></td>
                     <td className={td}><span className={tdLabel}>{showResolved ? 'Resolved' : 'Raised'}</span>
-                      <span>{formatDateTime(showResolved ? e.resolved_at : e.created_at, tz)}{showResolved ? <span className="block text-small text-fg-muted">{names.get(e.resolved_by ?? '') ?? 'Team member'}: {e.resolution}</span> : null}</span></td>
+                      <span>{formatDateTime(showResolved ? e.resolved_at : e.created_at, tz)}{showResolved ? <span className="block text-small text-fg-muted">{names.get(e.resolved_by ?? '') ?? 'Staff'}: {e.resolution}</span> : null}</span></td>
                     <td className={`${td} sm:w-64`}>{!showResolved && manage ? <ResolveExceptionForm id={e.id} /> : null}</td>
                   </tr>
                 );
@@ -196,7 +198,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
           <h2 className="text-h2">Recent stock invoices</h2>
           <p className="text-small text-fg-muted">
             Sales invoices whose reference names a unit VIN or whose lines carry a model item code, among the {SCAN} most recently changed in Xero
-            {settings.start ? ` since ${settings.start}` : ''}. Invoices without a VIN or a model item code (parts, services) are not stock invoices.
+            {settings.invoicesFrom ? ` since ${settings.invoicesFrom}` : ''}. Invoices without a VIN or a model item code (parts, services) are not stock invoices.
           </p>
         </div>
         {recent.length ? (
@@ -227,7 +229,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
           </table>
         ) : (
           <p className="p-4 text-body text-fg-muted">
-            {!settings.start ? 'Set the stock start date to check invoices.' : scanned ? 'No stock invoices among the recent Xero invoices.' : 'No Xero invoices changed since the stock start date.'}
+            {!settings.invoicesFrom ? 'Set the invoice start date to check invoices.' : scanned ? 'No stock invoices among the recent Xero invoices.' : 'No Xero invoices changed since the invoice start date.'}
           </p>
         )}
       </div>

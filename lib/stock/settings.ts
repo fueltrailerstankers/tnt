@@ -6,6 +6,8 @@
 
 export const STOCK_START_KEY = 'stock.deals_from';
 export const INVOICE_RULES_KEY = 'stock.invoice_rules';
+/** First day of Xero invoice changes the invoice rules examine; unset = the stock start date. */
+export const INVOICES_FROM_KEY = 'stock.invoices_from';
 
 export const INVOICE_RULE_MODES = ['off', 'preview', 'live'] as const;
 export type InvoiceRuleMode = (typeof INVOICE_RULE_MODES)[number];
@@ -52,21 +54,30 @@ export function parseInvoiceRules(v: unknown): InvoiceRuleMode {
 }
 
 export interface StockSettings {
-  /** Stock start date ("YYYY-MM-DD"): DEAL entries created and Xero invoices changed on or after it. */
+  /** Stock start date ("YYYY-MM-DD"): DEAL entries created on or after it become stock deals. */
   start: string | null;
+  /** The stored 'stock.invoices_from' (null = follow the stock start date). */
+  invoicesFromSetting: string | null;
+  /** Effective first day of invoice changes checked: invoicesFromSetting, else start; null = no invoice examined. */
+  invoicesFrom: string | null;
   rules: InvoiceRuleMode;
 }
 
 /** Reads the stock settings from app_settings rows ({ key, value }). */
 export function stockSettingsFrom(rows: ReadonlyArray<{ key: string; value: unknown }> | null | undefined): StockSettings {
   const get = (k: string) => rows?.find((r) => r.key === k)?.value;
-  return { start: parseStockStart(get(STOCK_START_KEY)), rules: parseInvoiceRules(get(INVOICE_RULES_KEY)) };
+  const start = parseStockStart(get(STOCK_START_KEY));
+  const invoicesFromSetting = parseStockStart(get(INVOICES_FROM_KEY));
+  return { start, invoicesFromSetting, invoicesFrom: invoicesFromSetting ?? start, rules: parseInvoiceRules(get(INVOICE_RULES_KEY)) };
 }
 
-/** Why a rules change is refused, or null when it may be saved. Live needs the typed confirmation "live". */
-export function checkRulesSwitch(to: InvoiceRuleMode, typed: string | null | undefined): string | null {
-  if (to === 'live' && (typed ?? '').trim().toLowerCase() !== LIVE_CONFIRMATION) {
-    return `Type "${LIVE_CONFIRMATION}" to switch the invoice rules to live.`;
-  }
+/**
+ * Why a rules change is refused, or null when it may be saved. Live needs the typed confirmation "live" and an
+ * invoice start date (without one no invoice is examined, so live would silently do nothing).
+ */
+export function checkRulesSwitch(to: InvoiceRuleMode, typed: string | null | undefined, invoicesFrom: string | null): string | null {
+  if (to !== 'live') return null;
+  if (!invoicesFrom) return 'Set the invoice start date (or the stock start date) before switching the invoice rules to live.';
+  if ((typed ?? '').trim().toLowerCase() !== LIVE_CONFIRMATION) return `Type "${LIVE_CONFIRMATION}" to switch the invoice rules to live.`;
   return null;
 }

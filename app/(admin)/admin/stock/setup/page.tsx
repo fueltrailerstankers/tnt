@@ -7,7 +7,7 @@ import { loadStockSettings } from '@/lib/stock/invoice-job';
 import { RULE_MODE_LABEL } from '@/lib/stock/settings';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { InvoiceRulesForm, OpeningStockImport, RebuildDealsForm, StartDateForm } from './forms';
+import { InvoiceRulesForm, InvoicesFromForm, OpeningStockImport, RebuildDealsForm, StartDateForm } from './forms';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Pilot setup · Trailers & Tankers' };
@@ -44,8 +44,8 @@ export default async function StockSetup() {
           <div>
             <h2 className="text-h2">Stock start date</h2>
             <p className="text-small text-fg-muted">
-              DEAL entries created on or after this date become stock deals, and Xero invoices changed on or after it are checked against stock.
-              Leave it empty to import no deals and check no invoices (older deals and sales stay out of the lists).
+              DEAL entries created on or after this date become stock deals. Unless an invoice start date is set, Xero invoices changed on or
+              after it are checked against stock too. Leave it empty to import no deals (older deals stay out of the lists).
             </p>
           </div>
           <p className="text-body">Current: <b data-testid="current-start">{settings.start ?? 'not set'}</b></p>
@@ -60,7 +60,19 @@ export default async function StockSetup() {
             </div>
             <span data-testid="current-rules"><StatusChip status={RULE_MODE_LABEL[settings.rules]} color={settings.rules === 'live' ? 'green' : settings.rules === 'preview' ? 'teal' : 'gray'} /></span>
           </div>
+          {!settings.invoicesFrom ? (
+            <p role="status" className="rounded-sm bg-status-yellow-bg p-2 text-small text-status-yellow-fg" data-testid="rules-need-date">
+              Set an invoice start date (or the stock start date) before going live: without one no invoice is examined.
+            </p>
+          ) : null}
           <InvoiceRulesForm current={settings.rules} />
+          <div className="border-t border-border pt-3">
+            <p className="mb-2 text-small text-fg-muted">
+              Invoice start date: only Xero invoices and credit notes changed on or after it are checked. Empty = the stock start date.
+              Now: <b data-testid="current-invoices-from">{settings.invoicesFrom ?? 'not set'}</b>{settings.invoicesFromSetting ? '' : settings.invoicesFrom ? ' (stock start date)' : ''}.
+            </p>
+            <InvoicesFromForm current={settings.invoicesFromSetting} />
+          </div>
         </div>
       </div>
 

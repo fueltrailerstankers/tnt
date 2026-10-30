@@ -6,7 +6,7 @@ import { enqueue } from '@/lib/jobs/outbox';
 import { enqueueStockSweep } from '@/lib/stock/invoice-job';
 import { OPENING_MAX_CHARS, openingReport, parseOpeningCsv, planOpening, unitInsert, type ExistingUnit, type OpeningReport } from '@/lib/stock/opening';
 import {
-  checkRulesSwitch, INVOICE_RULE_MODES, INVOICE_RULES_KEY, isIsoDate, parseInvoiceRules, parseStockStart, RULE_MODE_LABEL, STOCK_START_KEY,
+  checkRulesSwitch, INVOICE_RULE_MODES, INVOICE_RULES_KEY, INVOICES_FROM_KEY, isIsoDate, stockSettingsFrom, parseInvoiceRules, parseStockStart, RULE_MODE_LABEL, STOCK_START_KEY,
 } from '@/lib/stock/settings';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -61,7 +61,30 @@ export async function saveStartDate(_prev: SetupState, fd: FormData): Promise<Se
   // The invoice rules look at invoices changed since the start date: re-check them now rather than tonight.
   if (to) await enqueueStockSweep(db, member.orgId);
   revalidatePath(PAGE);
-  return { ok: to ? `Stock start date set to ${to}. Use Rebuild deals to import the deals since then.` : 'Stock start date cleared. No new deals are imported and no invoices are checked.', at: Date.now() };
+  return { ok: to ? `Stock start date set to ${to}. Use Rebuild deals to import the deals since then.` : 'Stock start date cleared. No new deals are imported (and, unless an invoice start date is set, no invoices are checked).', at: Date.now() };
+}
+
+/** Invoice start date ('stock.invoices_from'): first day of Xero changes the invoice rules examine. Empty = follow the stock start date. */
+export async function saveInvoicesFrom(_prev: SetupState, fd: FormData): Promise<SetupState> {
+  const member = await requirePerm('stock.manage');
+  const parsed = StartDate.safeParse({ start: str(fd, 'invoices_from') });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Enter a valid date.', at: Date.now() };
+  const to = parsed.data.start || null;
+  const db = createAdminClient();
+  const from = parseStockStart(await currentValue(db, member.orgId, INVOICES_FROM_KEY));
+  if (from === to) return { ok: to ? `The invoice start date is already ${to}.` : 'The invoice start date follows the stock start date.', at: Date.now() };
+  const { error } = to
+    ? await db.from('app_settings').upsert(
+      { org_id: member.orgId, key: INVOICES_FROM_KEY, value: to, updated_by: member.userId, updated_at: new Date().toISOString() },
+      { onConflict: 'org_id,key' },
+    )
+    : await db.from('app_settings').delete().eq('org_id', member.orgId).eq('key', INVOICES_FROM_KEY);
+  if (error) return { error: 'The invoice start date could not be saved.', at: Date.now() };
+  await audit(db, member.orgId, member.userId, 'stock.settings', 'app_settings', INVOICES_FROM_KEY, { key: INVOICES_FROM_KEY, from, to });
+  await enqueueStockSweep(db, member.orgId);
+  revalidatePath(PAGE);
+  revalidatePath('/admin/stock/invoices');
+  return { ok: to ? `Invoice start date set to ${to}.` : 'The invoice start date now follows the stock start date.', at: Date.now() };
 }
 
 const Rules = z.object({ mode: z.enum(INVOICE_RULE_MODES), confirm: z.string().max(40) });
@@ -72,9 +95,10 @@ export async function saveInvoiceRules(_prev: SetupState, fd: FormData): Promise
   const parsed = Rules.safeParse({ mode: str(fd, 'mode'), confirm: str(fd, 'confirm') });
   if (!parsed.success) return { error: 'Choose off, preview or live.', at: Date.now() };
   const { mode, confirm } = parsed.data;
-  const refused = checkRulesSwitch(mode, confirm);
-  if (refused) return { error: refused, at: Date.now() };
   const db = createAdminClient();
+  const { data: rows } = await db.from('app_settings').select('key, value').eq('org_id', member.orgId).in('key', [STOCK_START_KEY, INVOICES_FROM_KEY]);
+  const refused = checkRulesSwitch(mode, confirm, stockSettingsFrom(rows as Array<{ key: string; value: unknown }> | null).invoicesFrom);
+  if (refused) return { error: refused, at: Date.now() };
   const stored = await currentValue(db, member.orgId, INVOICE_RULES_KEY);
   const from = parseInvoiceRules(stored);
   if (from === mode && stored !== undefined) return { ok: `The invoice rules are already ${RULE_MODE_LABEL[mode]}.`, at: Date.now() };
@@ -89,7 +113,7 @@ export async function saveInvoiceRules(_prev: SetupState, fd: FormData): Promise
   revalidatePath('/admin/stock/invoices');
   return {
     ok: mode === 'live'
-      ? 'Invoice rules are live. Invoices changed since the stock start date are being applied.'
+      ? 'Invoice rules are live. Invoices changed since the invoice start date are being applied.'
       : `Invoice rules: ${RULE_MODE_LABEL[mode]}.`,
     at: Date.now(),
   };

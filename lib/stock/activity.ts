@@ -4,7 +4,7 @@
 
 import { EXCEPTION_REASON_LABEL } from './errors';
 import type { ExceptionReason } from './invoice';
-import { RULE_MODE_LABEL, parseInvoiceRules, INVOICE_RULES_KEY, STOCK_START_KEY } from './settings';
+import { RULE_MODE_LABEL, parseInvoiceRules, INVOICE_RULES_KEY, INVOICES_FROM_KEY, STOCK_START_KEY } from './settings';
 
 export interface AuditRow {
   id: number | string;
@@ -99,6 +99,7 @@ export function activityLine(row: AuditRow, ctx: ActivityContext = {}): string {
     }
     case 'stock.settings': {
       if (m.key === STOCK_START_KEY) return str(m.to) ? `Stock start date set to ${str(m.to)}` : 'Stock start date cleared';
+      if (m.key === INVOICES_FROM_KEY) return str(m.to) ? `Invoice start date set to ${str(m.to)}` : 'Invoice start date cleared (follows the stock start date)';
       if (m.key === INVOICE_RULES_KEY) {
         const from = RULE_MODE_LABEL[parseInvoiceRules(m.from)];
         const to = RULE_MODE_LABEL[parseInvoiceRules(m.to)];
@@ -132,9 +133,14 @@ export function activityTime(iso: string, timeZone: string): string {
   return `${p.year}/${p.month}/${p.day}, ${p.hour}:${p.minute}:${p.second}`;
 }
 
+/** A member's display name: the full name, else "Staff" (never the email: personal data stays off stock pages). */
+export function memberLabel(fullName: unknown): string {
+  return typeof fullName === 'string' && fullName.trim() ? fullName.trim() : 'Staff';
+}
+
 /** Who did it: the member's name, or the job that did it when no user did (the invoice rules run as the server). */
 export function actorLabel(row: Pick<AuditRow, 'actor_user' | 'action'>, names: ReadonlyMap<string, string>): string {
-  if (row.actor_user) return names.get(row.actor_user) ?? 'Team member';
+  if (row.actor_user) return names.get(row.actor_user) ?? 'Staff';
   if (row.action === 'stock.reserve' || row.action === 'stock.sell' || row.action === 'stock.exception') return 'Xero invoice rules';
   return 'System';
 }

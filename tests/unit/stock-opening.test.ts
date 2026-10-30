@@ -195,3 +195,12 @@ describe('planOpening and the report', () => {
     expect(avail).toMatchObject({ location_id: 'FACTORY', status: 'available', sold_at: null, invoice_number: null });
   });
 });
+
+describe('item 9: VIN characters', () => {
+  it('a VIN must be letters and digits only after normalising', () => {
+    const p = parseOpeningCsv(csv('TESTVIN-000000001,3000D,JHB,available,,,,,', 'TEST VIN 000000002,3000D,JHB,available,,,,,', 'TESTVIN/0000003,3000D,JHB,available,,,,,'), CTX);
+    expect(p.errors.map((e) => [e.line, e.field])).toEqual([[2, 'vin'], [4, 'vin']]);
+    expect(p.errors[0].message).toBe('VIN may contain only letters and digits.');
+    expect(p.rows.map((r) => r.vin)).toEqual(['TESTVIN000000002']);
+  });
+});

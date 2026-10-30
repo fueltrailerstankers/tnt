@@ -3,11 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { XeroApiError, XeroReader } from './client';
 import { xeroConfig } from './config';
 import { loadConnection, type Connection } from './connection';
-import { mapAttachment, mapContact, mapInvoice, mapPayment, mapQuote, type LineRow } from './mappers';
-import { backfillPasses, ENTITIES, incrementalPass, isLastPage, LIST_KEY, pageParams, shouldPause, type Entity } from './plan';
+import { mapAttachment, mapContact, mapCreditNote, mapInvoice, mapPayment, mapQuote, type LineRow } from './mappers';
+import { backfillPasses, ENTITIES, QUICK_ENTITIES, incrementalPass, isLastPage, LIST_KEY, pageParams, shouldPause, type Entity } from './plan';
 import { XeroAuthError } from './oauth';
 import { amountDueBefore, enqueuePaid } from './write/paid';
-import { enqueueStockInvoices } from '@/lib/stock/invoice-job';
+import { enqueueStockCreditNotes, enqueueStockInvoices } from '@/lib/stock/invoice-job';
 
 // Mirror sync. Every page is written, and the cursor saved, before the next request, so a run that stops
 // (time budget, rate limit, crash) resumes where it left off. Upserts are keyed on Xero ids: replaying any
@@ -55,6 +55,11 @@ export async function upsertList(db: SupabaseClient, c: Connection, entity: Enti
   if (!list.length) return 0;
   if (entity === 'contacts') {
     await must(db.from('xero_contacts').upsert(list.map((j) => ({ ...base(c), ...mapContact(j) })), { onConflict: 'org_id,contact_id' }));
+  } else if (entity === 'credit_notes') {
+    // Read-only mirror (M6): sales credit notes feed the stock invoice rules as exceptions.
+    const rows = list.map(mapCreditNote);
+    await must(db.from('xero_credit_notes').upsert(rows.map((r) => ({ ...base(c), ...r })), { onConflict: 'org_id,credit_note_id' }));
+    await enqueueStockCreditNotes(db, c.orgId, rows.filter((r) => r.credit_note_type === 'ACCRECCREDIT').map((r) => r.credit_note_id));
   } else if (entity === 'payments') {
     await must(db.from('xero_payments').upsert(list.map((j) => ({ ...base(c), ...mapPayment(j) })), { onConflict: 'org_id,payment_id' }));
   } else if (entity === 'quotes') {
@@ -152,7 +157,7 @@ async function syncAttachments(db: SupabaseClient, reader: XeroReader, deadline:
   return n;
 }
 
-/** One sync run within a time budget. quick = invoices + payments (daytime); full = everything (nightly, manual). */
+/** One sync run within a time budget. quick = invoices, credit notes and payments (daytime); full = everything (nightly, manual). */
 export async function runXeroSync(db: SupabaseClient, orgId: string, mode: SyncMode, budgetMs = 45_000): Promise<SyncResult> {
   const conn = await loadConnection(db, orgId);
   if (!conn || conn.status !== 'connected') return { status: 'skipped', reason: 'not connected', processed: 0, calls: 0, entities: {} };
@@ -162,7 +167,7 @@ export async function runXeroSync(db: SupabaseClient, orgId: string, mode: SyncM
   let complete = true;
   let current: string = 'start';
   try {
-    for (const e of mode === 'quick' ? (['invoices', 'payments'] as Entity[]) : ENTITIES) {
+    for (const e of mode === 'quick' ? QUICK_ENTITIES : ENTITIES) {
       current = e;
       const r = await syncEntity(db, reader, e, deadline);
       entities[e] = r.processed;

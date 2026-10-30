@@ -143,7 +143,7 @@ export default async function StockActivity({ searchParams }: { searchParams: Pr
                 <li key={d.id} className="px-4 py-3" data-testid="dismissal-row">
                   <p className="text-body font-semibold">Dismissed {dealKey.get(d.deal_id) ?? 'deal'}</p>
                   <p className="break-words text-body">{d.reason}</p>
-                  <p className="text-small text-fg-muted">{activityTime(d.dismissed_at, tz)} · {d.dismissed_by ? names.get(d.dismissed_by) ?? 'Team member' : 'System'}</p>
+                  <p className="text-small text-fg-muted">{activityTime(d.dismissed_at, tz)} · {d.dismissed_by ? names.get(d.dismissed_by) ?? 'Staff' : 'System'}</p>
                 </li>
               ))}
             </ul>

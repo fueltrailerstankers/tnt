@@ -219,7 +219,8 @@ export function parseOpeningCsv(text: string, ctx: OpeningContext): ParsedOpenin
     const vin = normalizeVin(cell(r, 'vin'));
     if (!vin) bad('vin', 'VIN is missing.');
     else if (vin.length < VIN_MIN_LENGTH || vin.length > VIN_MAX_LENGTH) bad('vin', `VIN must be ${VIN_MIN_LENGTH} to ${VIN_MAX_LENGTH} characters.`);
-    else push(byVin, vin, r.line);
+    else if (!/^[A-Z0-9]+$/.test(vin)) bad('vin', 'VIN may contain only letters and digits.');
+    if (vin && /^[A-Z0-9]{5,40}$/.test(vin)) push(byVin, vin, r.line);
 
     const rawModel = cell(r, 'model');
     const model = models.get(partKey(rawModel)) ?? null;
