@@ -1,6 +1,7 @@
 // Snapshot of how each of the 7 kit forms renders, reads, validates and displays. The baseline in
 // tests/fixtures/kit-forms/baseline.json was written from the engine BEFORE M8 (field types, required,
-// show-when); kit-forms-unchanged.test.ts compares the current engine with it. Synthetic values only.
+// show-when): the UI branch at 617699f (forms UI handoff), without any M8 change. kit-forms-unchanged.test.ts
+// compares the current engine with it. Synthetic values only.
 //
 // Regenerate (only when a kit change is intended): KIT_BASELINE=write pnpm test tests/unit/kit-forms-unchanged.test.ts
 import { createHash } from 'node:crypto';
@@ -103,6 +104,14 @@ export function renderVariants(spec: FormSpec, extra: Partial<FormRendererProps>
   };
 }
 
+/**
+ * The one intended markup change M8 makes to the kit forms: aria-required on required inputs (the * the UI
+ * shows is aria-hidden, so screen readers need it). Everything else must match byte for byte.
+ */
+export function normaliseHtml(h: string): string {
+  return h.replace(/ aria-required="true"/g, '');
+}
+
 export function sha(s: string | Buffer): string {
   return createHash('sha256').update(s).digest('hex');
 }
@@ -139,7 +148,7 @@ export async function kitSnapshot(spec: FormSpec) {
     columns: { choices: columnChoices(spec), defaults: defaultColumns(spec) },
     export: { masked: exportTable(spec, rows, TZ, false), revealed: exportTable(spec, rows, TZ, true) },
     email: entryDetailRows(spec, sample.data, counts),
-    html: { publicNew: sha(html.publicNew), staffExisting: sha(html.staffExisting), readOnly: sha(html.readOnly) },
+    html: { publicNew: sha(normaliseHtml(html.publicNew)), staffExisting: sha(normaliseHtml(html.staffExisting)), readOnly: sha(normaliseHtml(html.readOnly)) },
     pdf: { sample: await pdfHash(spec, sample.data), blank: await pdfHash(spec, {}) },
   };
 }
