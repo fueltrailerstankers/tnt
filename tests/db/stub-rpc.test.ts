@@ -52,4 +52,12 @@ describe('mini-supabase rpc', () => {
   it('rejects identifiers it does not expect before running anything', async () => {
     await expect(runRpc(db, 'form_overview(); drop table x; --', {}, quote)).rejects.toThrow(/unsupported identifier/);
   });
+
+  it('an array of objects reaches a jsonb parameter as JSON (sync_form_workflow, M8)', async () => {
+    const form = (await db.query(`select id from public.forms where slug = 'job-card' and org_id = $1`, [ORG_A])).rows[0].id;
+    await as(db, 'service_role', null, async () => {
+      await runRpc(db, 'sync_form_workflow', { p_form: form, p_statuses: [{ name: 'Incomplete', color: 'gray', sort_order: 0 }], p_roles: [{ name: 'Public', is_public: true }] }, quote);
+      expect((await db.query(`select name from public.form_statuses where form_id = $1`, [form])).rows).toEqual([{ name: 'Incomplete' }]);
+    });
+  });
 });

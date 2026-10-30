@@ -9,7 +9,10 @@
 export async function runRpc(client, fn, body, quote) {
   const values = [];
   const args = body && typeof body === 'object' ? Object.entries(body) : [];
-  const sqlArgs = args.map(([k, v]) => { values.push(v); return `${quote(k)} => $${values.length}`; }).join(', ');
+  // An array of objects is a json/jsonb argument: send it as JSON text (as PostgREST does), not as a Postgres
+  // array. Arrays of scalars stay Postgres arrays (text[]/uuid[] parameters); plain objects already go as JSON.
+  const enc = (v) => (Array.isArray(v) && v.some((x) => x !== null && typeof x === 'object') ? JSON.stringify(v) : v);
+  const sqlArgs = args.map(([k, v]) => { values.push(enc(v)); return `${quote(k)} => $${values.length}`; }).join(', ');
   const r = await client.query(`select coalesce(json_agg(x), '[]'::json) as j from public.${quote(fn)}(${sqlArgs}) x`, values);
   const kind = await client.query(
     `select p.proretset, t.typtype from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_type t on t.oid = p.prorettype
