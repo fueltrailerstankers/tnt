@@ -24,7 +24,6 @@ export function KeyForm({ hasKey }: { hasKey: boolean }) {
         <input
           id={id} name="key" type="password" autoComplete="off" spellCheck={false} required minLength={8}
           className={inputClass} placeholder="Paste the key from Cognito: Organization settings, Integrations, API"
-          key={state.ok ? 'saved' : 'editing'}
         />
         <button type="submit" className={buttonClass('primary', 44)} disabled={pending}>{pending ? 'Saving…' : hasKey ? 'Replace key' : 'Save key'}</button>
       </div>
