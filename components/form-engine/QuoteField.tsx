@@ -25,13 +25,13 @@ export function QuoteField(p: Props) {
   const errProps = p.err ? { 'aria-invalid': true, 'aria-describedby': `${p.id}-err` } : {};
   return (
     <div>
-      <label htmlFor={p.id} className={p.hideLabel ? 'sr-only' : 'mb-1 block text-sm font-medium'}>{p.label}</label>
+      <label htmlFor={p.id} className={p.hideLabel ? 'sr-only' : 'mb-1.5 block text-small font-semibold text-fg'}>{p.label}</label>
       {p.config.mode === 'search' ? (
         <SearchInput {...p} search={p.config.search} errProps={errProps} />
       ) : (
         <CheckInput {...p} check={p.config.check} errProps={errProps} />
       )}
-      {p.err ? <p id={`${p.id}-err`} className="mt-1 text-sm text-status-red-fg">{p.err}</p> : null}
+      {p.err ? <p id={`${p.id}-err`} className="mt-1.5 text-small text-status-red-fg">{p.err}</p> : null}
     </div>
   );
 }
@@ -142,7 +142,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
         role="listbox"
         aria-label="Xero quotes"
         hidden={!showList}
-        className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded border border-border-strong bg-surface text-sm shadow-lg"
+        className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-sm border border-border bg-surface p-1 text-body shadow-overlay"
       >
         {options.map((o, i) => (
           <li
@@ -150,7 +150,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
             id={optId(i)}
             role="option"
             aria-selected={i === active}
-            className={`cursor-pointer px-3 py-2 ${i === active ? 'bg-accent text-accent-fg' : 'hover:bg-surface-2'}`}
+            className={`cursor-pointer rounded-xs px-3 py-2 ${i === active ? 'bg-accent-soft text-accent-text' : 'hover:bg-surface-2'}`}
             // mousedown, not click: runs before the input's blur closes the list.
             onMouseDown={(e) => {
               e.preventDefault();
@@ -162,7 +162,7 @@ function SearchInput(p: InnerProps & { search: (q: string) => Promise<QuoteOptio
           </li>
         ))}
       </ul>
-      <p aria-live="polite" className="mt-1 text-xs text-status-yellow-fg">{notFound ? 'Not found in Xero' : ''}</p>
+      <p aria-live="polite" className="mt-1.5 text-small font-medium text-status-yellow-fg">{notFound ? 'Not found in Xero' : ''}</p>
     </div>
   );
 }
@@ -190,7 +190,7 @@ function CheckInput(p: InnerProps & { check: (value: string) => Promise<{ found:
         />
         <button
           type="button"
-          className="rounded border px-3 disabled:opacity-60"
+          className="h-12 flex-none rounded-pill border border-border-strong bg-surface px-4 text-body font-semibold text-fg hover:bg-surface-2 disabled:opacity-60 sm:h-10"
           disabled={p.disabled || busy || !bareQuoteNo(value)}
           onClick={async () => {
             const v = value;
@@ -208,7 +208,7 @@ function CheckInput(p: InnerProps & { check: (value: string) => Promise<{ found:
           Check
         </button>
       </div>
-      <p aria-live="polite" className={`mt-1 text-sm ${current?.found ? 'text-status-green-fg' : 'text-fg-muted'}`}>
+      <p aria-live="polite" className={`mt-1.5 text-small font-medium ${current?.found ? 'text-status-green-fg' : 'text-fg-muted'}`}>
         {current ? (current.found ? 'Quote found' : 'Not found in Xero (you can still submit)') : ''}
       </p>
     </>

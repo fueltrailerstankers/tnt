@@ -142,9 +142,45 @@ export function mapInvoice(j: J) {
       fully_paid_on: xeroDate(j.FullyPaidOnDate),
       has_attachments: j.HasAttachments === true,
       updated_utc: xeroTimestamp(j.UpdatedDateUTC),
+      credit_note_applied: creditNoteApplied(j),
       raw: j,
     },
     lines: lines(j, currency),
+  };
+}
+
+/**
+ * Credit notes allocated to an invoice: the sum of CreditNotes[].AppliedAmount. Xero's AmountCredited also counts
+ * prepayments and overpayments, which are payments, not credits (M6 stock rules).
+ */
+export function creditNoteApplied(j: J): number {
+  const list = Array.isArray(j.CreditNotes) ? (j.CreditNotes as unknown[]) : [];
+  const cents = list.reduce<number>((a, c) => a + Math.round((num((c as J | null)?.AppliedAmount) ?? 0) * 100), 0);
+  return cents / 100;
+}
+
+/** A credit note (GET /CreditNotes) and the invoices it is allocated to. */
+export function mapCreditNote(j: J) {
+  const c = contactRef(j);
+  const allocations = Array.isArray(j.Allocations) ? (j.Allocations as J[]) : [];
+  const invoiceIds = [...new Set(allocations
+    .map((a) => (a && typeof a.Invoice === 'object' && a.Invoice ? str((a.Invoice as J).InvoiceID) : null))
+    .filter((x): x is string => !!x))];
+  return {
+    credit_note_id: String(j.CreditNoteID),
+    credit_note_number: str(j.CreditNoteNumber),
+    credit_note_type: str(j.Type),
+    reference: str(j.Reference),
+    status: str(j.Status),
+    contact_id: str(c.ContactID),
+    contact_name: str(c.Name),
+    credit_note_date: xeroDate(j.DateString ?? j.Date),
+    currency_code: str(j.CurrencyCode),
+    total: money(j.Total),
+    remaining_credit: money(j.RemainingCredit),
+    invoice_ids: invoiceIds,
+    updated_utc: xeroTimestamp(j.UpdatedDateUTC),
+    raw: j,
   };
 }
 

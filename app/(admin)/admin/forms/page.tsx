@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { buttonClass, cardClass } from '@/components/ui/styles';
+import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
 import { createClient } from '@/lib/supabase/server';
 
@@ -16,14 +17,18 @@ interface Overview {
 }
 
 export default async function FormsIndex() {
-  await requirePerm('forms.read');
+  const member = await requirePerm('forms.read');
+  const canImport = can(member, 'import.run');
   const db = await createClient();
   const { data } = await db.rpc('form_overview');
   const forms = (data ?? []) as Overview[];
 
   return (
     <section className="space-y-5">
-      <h1 className="text-h1">Forms</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-h1">Forms</h1>
+        {canImport ? <Link href="/admin/forms/import" className={buttonClass('secondary', 36)}>Import from Cognito</Link> : null}
+      </div>
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {forms.map((f) => (
           <li key={f.form_id} className={`${cardClass} flex flex-col gap-3 p-4`} data-testid={`form-card-${f.slug}`}>
@@ -37,6 +42,7 @@ export default async function FormsIndex() {
             <div className="mt-auto flex flex-wrap gap-2">
               <Link href={`/admin/forms/${f.slug}/new`} className={buttonClass('primary', 36)}>New entry</Link>
               <Link href={`/admin/forms/${f.slug}`} className={buttonClass('secondary', 36)}>Entries</Link>
+              {canImport ? <Link href={`/admin/forms/import#form-${f.slug}`} className={buttonClass('ghost', 36)}>Import entries</Link> : null}
             </div>
           </li>
         ))}

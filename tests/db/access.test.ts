@@ -1,4 +1,4 @@
-// 0014 (M7): access maps, has_access(), per-area RLS, status, last-admin trigger, stock RPC gate. Synthetic data only.
+// 0021 (M7): access maps, has_access(), per-area RLS, status, last-admin trigger, stock RPC gate. Synthetic data only.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from 'pg';
 import { AREAS, clampAccess, PRESET_ACCESS, ROLES, type AccessMap, type Area } from '@/lib/security/can';
@@ -23,7 +23,7 @@ const TABLE_AREA: Array<[string, Area]> = [
   ['entries', 'forms'], ['entry_files', 'forms'], ['entry_events', 'forms'], ['entry_documents', 'forms'], ['email_log', 'forms'],
   ['deal_files', 'deals'],
   ['xero_quotes', 'quotes'], ['xero_quote_lines', 'quotes'],
-  ['xero_invoices', 'invoices'], ['xero_invoice_lines', 'invoices'], ['xero_payments', 'invoices'], ['xero_attachments', 'invoices'],
+  ['xero_invoices', 'invoices'], ['xero_invoice_lines', 'invoices'], ['xero_credit_notes', 'invoices'], ['xero_payments', 'invoices'], ['xero_attachments', 'invoices'],
   ['xero_sync_state', 'integrations'],
   ['leads', 'leads'], ['lead_events', 'leads'], ['lead_sources', 'leads'],
   ['stock_locations', 'stock'], ['stock_models', 'stock'], ['stock_deals', 'stock'], ['stock_units', 'stock'], ['stock_deal_dismissals', 'stock'],
@@ -69,6 +69,7 @@ beforeAll(async () => {
   await db.query(`insert into public.xero_payments(org_id, tenant_id, payment_id, invoice_id, amount, currency_code, raw) values ($1,'t','pm7','im7',1,'ZAR','{}')`, [ORG]);
   await db.query(`insert into public.xero_attachments(org_id, attachment_id, parent_type, parent_id, raw) values ($1,'am7','Invoice','im7','{}')`, [ORG]);
   await db.query(`insert into public.xero_sync_state(org_id, entity) values ($1,'invoices')`, [ORG]);
+  await db.query(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, raw) values ($1,'t','cnm7','{}')`, [ORG]);
   await db.query(`insert into public.lead_sources(org_id, key, name) values ($1, 'test', 'Test')`, [ORG]);
   const lead = await db.query(`insert into public.leads(org_id, source, name, email, email_norm) values ($1,'test','Lead M7','lead-m7@example.invalid','lead-m7@example.invalid') returning id`, [ORG]);
   await db.query(`insert into public.lead_events(lead_id, kind, meta) values ($1,'created','{}')`, [lead.rows[0].id]);

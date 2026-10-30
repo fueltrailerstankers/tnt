@@ -21,7 +21,7 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   const [me, org, { data: rows }] = await Promise.all([
     loadMember(db, member.orgId, member.userId),
     loadOrg(db, member.orgId),
-    // Own rows only (0014 audit_own_select lets every member read what they did).
+    // Own rows only (0021 audit_own_select lets every member read what they did).
     db.from('audit_log').select('id, created_at, actor_user, action, entity, entity_id, meta').eq('org_id', member.orgId)
       .eq('actor_user', member.userId).order('created_at', { ascending: false }).limit(20),
   ]);

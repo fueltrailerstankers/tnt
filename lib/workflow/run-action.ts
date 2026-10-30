@@ -11,12 +11,15 @@ import { can, type Member } from '@/lib/security/can';
 import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
 import { readFormData, renderSummary, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
+import { SIGNING, signatureMeta, termsBlocksFor } from '@/lib/terms/signing';
+import { ensureTermsVersion } from '@/lib/terms/versions';
 import { buildEmail, eventKey } from './email-template';
 import { createRoleLink } from './links';
 import { MAX_ATTACHMENT_BYTES, sendEmail, type Attachment } from './mailer';
 import { enqueue } from '@/lib/jobs/outbox';
 import { queueOf } from '@/lib/integrations/xero/write/types';
 import { actionsForSave } from '@/lib/integrations/xero/write/triggers';
+import { enqueueStockJobsForSave } from '@/lib/stock/deal-jobs';
 import { actionPermission, findAction, internalRole, isActionAllowed, NEW_ENTRY_STATUS, publicRole, roleByName } from './rules';
 
 /** Who is acting. Public = the anonymous /f/<slug> link; link = a role link from an email; staff = signed-in member. */
@@ -146,10 +149,15 @@ export async function runAction(input: RunInput): Promise<RunResult> {
     await moveObject(db, s.ref.path, to);
     newRows.push({ entry_id: id, field_key: s.field, kind: 'file', storage_path: to, file_name: displayFileName(s.ref.name), content_type: c.contentType, size_bytes: c.size, sort_order: sortBase + i });
   }
+  // Rule 12: signatures on a signing form record the exact terms version shown, the signer role and the server time.
+  const termsVersionId = SIGNING[form.slug] && plan.newSignatures.length ? await ensureTermsVersion(db, form.orgId, SIGNING[form.slug].key, termsBlocksFor(spec)) : null;
   for (const [i, s] of plan.newSignatures.entries()) {
     const to = finalPath(form.slug, id, s.field, 'signature.png');
     const size = await saveSignature(db, to, s.dataUrl);
-    newRows.push({ entry_id: id, field_key: s.field, kind: 'signature', storage_path: to, file_name: `${s.field}.png`, content_type: 'image/png', size_bytes: size, sort_order: sortBase + plan.staged.length + i });
+    newRows.push({
+      entry_id: id, field_key: s.field, kind: 'signature', storage_path: to, file_name: `${s.field}.png`, content_type: 'image/png', size_bytes: size, sort_order: sortBase + plan.staged.length + i,
+      ...(signatureMeta(form.slug, s.field, termsVersionId, now) ?? {}),
+    });
   }
   if (newRows.length) {
     const { error } = await db.from('entry_files').insert(newRows);
@@ -238,6 +246,7 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
   const org = await loadOrg(db, form.orgId);
   const adminLink = `${env.APP_URL}/admin/forms/${form.slug}/entries/${entry.number}`;
   await enqueueXeroActions(db, form, entry, action.name).catch(() => undefined); // M3: see below
+  await enqueueStockJobsForSave(db, form.orgId, form.slug, action.name, entry.id).catch(() => undefined); // M6: DEAL -> stock deal
 
   if (SIGNED_DOCUMENT_FORMS.has(form.slug) && entry.status !== NEW_ENTRY_STATUS) {
     await ensureDocument(db, form, entry, 1, org.timezone, actorUser).catch(() => undefined);
@@ -322,5 +331,7 @@ export async function systemUpdateEntry(
     entry_id: entry.id, action: eventAction, from_status: entry.status, to_status: entry.status,
     actor_user: null, actor_role: SYSTEM_ROLE, diff: { changed },
   });
+  // M6: the quote import fills the DEAL's part numbers and lines: re-sync its stock deal.
+  await enqueueStockJobsForSave(db, form.orgId, form.slug, 'Update', entry.id).catch(() => undefined);
   return { ok: true, changed };
 }

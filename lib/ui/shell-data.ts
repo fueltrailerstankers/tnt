@@ -70,8 +70,5 @@ export function showsXeroStatus(member: Member): boolean {
   return can(member, 'quotes.read') || can(member, 'invoices.read') || can(member, 'integrations.read');
 }
 
-export function initials(name: string | null, fallback: string): string {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return fallback.slice(0, 2).toUpperCase();
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-}
+// Kept for existing imports; the pure helper lives in lib/ui/initials.ts so client components can use it.
+export { initials } from './initials';

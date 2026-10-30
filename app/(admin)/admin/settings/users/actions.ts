@@ -14,7 +14,7 @@ import { audit, loadMember, otherActiveAdmins } from '@/lib/users/service';
 
 // Users & access server actions. Each one: requirePerm('users.manage') first, Zod validation, then the service-role
 // client with every query filtered by member.orgId. Audit rows carry ids and codes only (never emails, names or
-// links). The last-admin and self lock-out guards run here; 0014's trigger backs up the last-admin rule in SQL.
+// links). The last-admin and self lock-out guards run here; 0021's trigger backs up the last-admin rule in SQL.
 
 const Uuid = z.guid();
 const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v : undefined; };

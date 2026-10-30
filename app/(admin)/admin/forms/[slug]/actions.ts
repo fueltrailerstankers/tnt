@@ -2,10 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import type { SubmitState, UploadTicket } from '@/components/form-engine/types';
+import type { QuoteImport, SubmitState, UploadTicket } from '@/components/form-engine/types';
 import { adminForm } from '@/lib/admin/context';
 import { loadEntryByNumber, loadFiles } from '@/lib/forms/entries';
 import { customerPanel } from '@/lib/forms/lookup';
+import { dealFieldsFromQuote } from '@/lib/integrations/xero/write/plan-deal';
+import { dealImportFields } from '@/lib/forms/deal-import';
 import { checkableQuoteNo, QUOTE_COLUMNS, QUOTE_SEARCH_MAX, quoteFieldOf, quoteOptions, quoteSearchFilter, type QuoteOption, type QuoteRow } from '@/lib/forms/quote-fields';
 import { DOCS_BUCKET, ENTRY_BUCKET, issueUploads, removeObjects } from '@/lib/forms/storage';
 import { validateUploadRequest } from '@/lib/forms/uploads';
@@ -64,6 +66,24 @@ export async function searchQuotesStaff(slug: string, q: string): Promise<QuoteO
       .order('quote_date', { ascending: false, nullsFirst: false }).order('quote_number', { ascending: false }).limit(QUOTE_SEARCH_MAX),
   ]);
   return quoteOptions([...((exact?.data ?? []) as QuoteRow[]), ...((list.data ?? []) as QuoteRow[])]);
+}
+
+/**
+ * DEAL "Import from Xero" (handoff DealForm): reads the mirrored quote and its lines (never calls or writes Xero)
+ * and returns the values the form fills in: LINE/PARTNO 1..8 and Total, the same mapping as the Submit job.
+ */
+export async function importQuoteStaff(slug: string, quoteNo: string): Promise<QuoteImport> {
+  const { member, userDb } = await adminForm(slug, 'entries.write');
+  if (slug !== 'deal' || !can(member, 'xero.read')) return { ok: false, error: 'Import from Xero is not available for this form.' };
+  const no = checkableQuoteNo(quoteNo);
+  if (!no) return { ok: false, error: 'Type a quote number first.' };
+  const { data: quote } = await userDb.from('xero_quotes').select('quote_id, quote_number, total, currency_code')
+    .eq('org_id', member.orgId).eq('quote_no', no).limit(1).maybeSingle();
+  if (!quote || (quote.quote_number ?? '').toUpperCase() !== `QU-${no}`) return { ok: false, error: `QU-${no} is not in the Xero mirror yet.` };
+  const { data: lines } = await userDb.from('xero_quote_lines').select('line_no, item_code, description, quantity, unit_amount')
+    .eq('org_id', member.orgId).eq('quote_id', quote.quote_id).order('line_no', { ascending: true }).limit(50);
+  const { target, linesImported, total } = dealFieldsFromQuote(quote, lines ?? []);
+  return { ok: true, quoteNumber: quote.quote_number as string, lines: linesImported, total, currency: (quote.currency_code as string | null) ?? null, fields: dealImportFields(target) };
 }
 
 /** Manual status change (e.g. Store Room APPROVAL -> APPROVED EMAILED). */

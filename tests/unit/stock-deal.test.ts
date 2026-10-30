@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { dealFromEntry, dealLocation, dealYear, detectModel, johannesburgYear } from '@/lib/stock/deal';
-import { STOCK_MODELS } from '@/lib/stock/models';
+import { dealFromEntry, dealLocation, dealYear, detectModel, johannesburgYear, partBase } from '@/lib/stock/deal';
+import { isModelItemCode } from '@/lib/stock/invoice';
+import { partKey, STOCK_MODELS } from '@/lib/stock/models';
 
 // Synthetic DEAL data only (no customer fields: they never reach stock).
 const PARTS = STOCK_MODELS.map((m) => m.partNumber);
@@ -41,6 +42,28 @@ describe('dealFromEntry', () => {
     expect(detectModel({ PARTNO5: 'ctll 3d', PARTNO7: '3000D' }, PARTS)).toEqual({ modelPart: 'CTLL3D', line: 5 });
     expect(detectModel({ PARTNO8: '3000d' }, PARTS)).toEqual({ modelPart: '3000D', line: 8 });
     expect(detectModel({ PARTNO9: '3000D' }, PARTS)).toEqual({ modelPart: null, line: null });
+  });
+
+  it('falls back to the part number before a suffix (CTLL1-GWM, 3000D/RED); an exact match on any line wins', () => {
+    expect(detectModel({ PARTNO1: 'hose', PARTNO2: 'CTLL1-GWM' }, PARTS)).toEqual({ modelPart: 'CTLL1', line: 2 });
+    expect(detectModel({ PARTNO1: '3000d/red' }, PARTS)).toEqual({ modelPart: '3000D', line: 1 });
+    expect(detectModel({ PARTNO1: 'BOX02 ISO' }, PARTS)).toEqual({ modelPart: 'BOX02', line: 1 });
+    expect(detectModel({ PARTNO1: '3000D/RED', PARTNO3: '1000 db' }, PARTS)).toEqual({ modelPart: '1000DB', line: 3 });
+    expect(detectModel({ PARTNO1: '-3000D', PARTNO2: 'XCTLL1', PARTNO3: 'SPARE-WHEEL' }, PARTS)).toEqual({ modelPart: null, line: null });
+  });
+
+  it('uses the same suffix rule as isModelItemCode (invoices)', () => {
+    const keys = new Set(PARTS.map(partKey));
+    for (const c of ['3000D', ' ctll 1 ', 'CTLL1-GWM', '3000D/RED', 'BOX02 ISO', '1000DB_X', 'CT1.2', 'TS25:A', 'SPARE-WHEEL', '5000DX', '-3000D', 'XCTLL1', ' ']) {
+      expect(detectModel({ PARTNO1: c }, PARTS).modelPart !== null, c).toBe(isModelItemCode(c, keys));
+    }
+    expect(partBase(' CTLL1-GWM ')).toBe('CTLL1');
+  });
+
+  it('does not keep the model line as an accessory when the model came from a suffixed part number', () => {
+    const d = dealFromEntry({ DATECREATED: '2026-01-02', PARTNO1: 'hose', LINE1: 'Sample hose reel', PARTNO2: 'CTLL1-GWM', LINE2: 'Cattle trailer, GWM fitment' }, ENTRY, PARTS);
+    expect(d.model_part).toBe('CTLL1');
+    expect(d.accessories).toEqual(['Sample hose reel']);
   });
 
   it('leaves the model null (Model not recognised) and keeps every line as an accessory when nothing matches', () => {

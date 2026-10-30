@@ -2,7 +2,7 @@
 //
 // Each member has an access level per area (the menus): none | read | write. Presets (the roles) fill the levels;
 // any area can then be changed, which makes the member "Custom". The resolved map is stored on the membership
-// (memberships.access), so SQL (public.has_access, 0014) and can() read the same thing.
+// (memberships.access), so SQL (public.has_access, 0021) and can() read the same thing.
 //
 // Permissions keep their names; each resolves to (area, level) rules or is admin-only. Add a permission here before
 // using it anywhere, and cover it in tests/unit/can.test.ts. Roles mirror the app_role enum (0001, plus `factory`
@@ -164,7 +164,7 @@ export const RULES: Record<Permission, Rule> = {
   'stock.dispatch': w('stock'),
   'stock.export': r('stock'),
   'stock.manage': { admin: true },
-  // Invoice review (stock Invoices tab, exceptions queue) shows Xero references: stock and invoices (0014 RLS agrees).
+  // Invoice review (stock Invoices tab, exceptions queue) shows Xero references: stock and invoices (0021 RLS agrees).
   'stock.invoices': { all: [['stock', 'read'], ['invoices', 'read']] },
 };
 

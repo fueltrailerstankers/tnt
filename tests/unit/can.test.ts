@@ -86,7 +86,7 @@ describe('can: presets', () => {
     expect(holders('stock.export')).toEqual(['admin', 'staff', 'reviewer', 'factory']);
     expect(holders('stock.dispatch')).toEqual(['admin', 'staff', 'factory']);
     expect(holders('stock.manage')).toEqual(['admin']);
-    // Invoice review: stock read and invoices read, so never factory (0014 RLS agrees).
+    // Invoice review: stock read and invoices read, so never factory (0021 RLS agrees).
     expect(holders('stock.invoices')).toEqual(['admin', 'staff', 'reviewer']);
   });
 

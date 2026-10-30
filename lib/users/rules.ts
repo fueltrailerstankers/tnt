@@ -74,7 +74,7 @@ export type GuardError = 'self' | 'last_admin' | 'admin_only';
 const isActiveAdmin = (m: Pick<MemberState, 'role' | 'status'>) => m.role === 'admin' && m.status === 'active';
 
 /**
- * Guards for a change to a member (the server action checks these; 0014's trigger is the SQL backstop for the
+ * Guards for a change to a member (the server action checks these; 0021's trigger is the SQL backstop for the
  * last admin). `next` is the member after the change, null for removal. `otherActiveAdmins` excludes the target.
  * - self: nobody changes their own preset, access or status, or removes themselves (no self lock-out).
  * - admin_only: only an admin creates, changes, disables or removes an admin account (a member with Users write

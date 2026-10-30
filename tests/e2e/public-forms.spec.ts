@@ -83,13 +83,36 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(THANKS)).toBeVisible();
 
+  // Five steps (handoff): each step blocks Next until its signatures are captured; signature 1 unlocks only
+  // after the terms are scrolled to the end.
   await page.goto('/f/delivery-note');
-  await page.getByRole('button', { name: 'Submit' }).click();
-  await expect(page.getByText('Enter the Trailer VIN or an Email')).toBeVisible();
-  await expect(page.getByText('Enter the Trailer VIN or the Invoice No')).toBeVisible();
-
+  const next = page.getByRole('button', { name: 'Next' });
+  await next.click(); // step 1 has no signatures
+  await expect(page.getByRole('group', { name: 'Terms and warranty' })).toBeVisible();
   await expect(page.getByText('STANDARD TRADING TERMS AND CONDITIONS.')).toBeVisible();
+  await next.click();
+  await expect(page.getByText('Sign here to continue.').first()).toBeVisible();
+  await expect(page.getByText('Scroll to the end of the terms above to sign.')).toBeVisible();
+  await page.getByTestId('terms-scroll').evaluate((el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); });
+  await expect(page.getByText('Read to the end')).toBeVisible();
+  await sign(page, 'Signature4');
+  await sign(page, 'Signature');
+  await next.click();
   await expect(page.getByText('POLYURETHANE TANKS WAIVER')).toBeVisible();
+  await sign(page, 'Signature2');
+  await sign(page, 'Signature3');
+  await next.click();
+  await sign(page, 'SalesRepSignature');
+  await next.click();
+  await attach(page, 'Pic1FRONT', PNG);
+  await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible();
+
+  // Server rules still apply: no VIN, no email, no invoice no. The summary lists them; the form jumps to step 1.
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText('Enter the Trailer VIN or an Email').first()).toBeVisible();
+  await expect(page.getByText('Enter the Trailer VIN or the Invoice No').first()).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Trailer and customer' })).toBeVisible();
+
   await page.getByLabel('Trailer Vin NO').fill('TESTVIN0000000042');
   await page.getByLabel('Quote no:').fill('QTEST-3003');
   await page.getByRole('button', { name: 'Find' }).click();
@@ -98,8 +121,7 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   await expect(page.getByTestId('customer-panel')).toContainText('*********0123');
   await expect(page.getByTestId('customer-panel')).not.toContainText('0000000000123');
 
-  for (const s of ['Signature4', 'Signature', 'Signature2', 'Signature3', 'SalesRepSignature']) await sign(page, s);
-  await attach(page, 'Pic1FRONT', PNG);
+  for (let i = 0; i < 4; i++) await next.click(); // signatures are kept while moving between steps
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText(THANKS)).toBeVisible();
 
@@ -109,8 +131,16 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   expect(e.data).toEqual({}); // encrypted form: nothing readable in data
   expect(e.data_encrypted).toBeTruthy();
   expect(e.data_encrypted).not.toContain(Buffer.from('TESTVIN').toString('hex'));
-  const sigs = await sql(`select field_key from entry_files where entry_id = $1 and kind = 'signature' order by field_key`, [e.id]);
+  const sigs = await sql<{ field_key: string; signer_role: string; sign_method: string; signed_at: string | null; terms_version_id: string | null }>(
+    `select field_key, signer_role, sign_method, signed_at, terms_version_id from entry_files where entry_id = $1 and kind = 'signature' order by field_key`, [e.id]);
   expect(sigs.map((s) => s.field_key)).toEqual(['SalesRepSignature', 'Signature', 'Signature2', 'Signature3', 'Signature4']);
+  // Rule 12: each signature records its signer, the server time and the exact terms version shown.
+  expect(sigs.map((s) => s.signer_role)).toEqual(['sales_rep', 'customer', 'customer', 'customer', 'customer']);
+  expect(new Set(sigs.map((s) => s.sign_method))).toEqual(new Set(['draw']));
+  expect(sigs.every((s) => s.signed_at)).toBe(true);
+  expect(new Set(sigs.map((s) => s.terms_version_id)).size).toBe(1);
+  const [tv] = await sql<{ key: string; blocks: number }>(`select key, jsonb_array_length(body) as blocks from terms_versions where id = $1`, [sigs[0].terms_version_id]);
+  expect(tv).toEqual({ key: 'delivery-note', blocks: 4 });
   const docs = await sql<{ sha256: string; size_bytes: string }>(`select sha256, size_bytes from entry_documents where entry_id = $1 and template_number = 1`, [e.id]);
   expect(docs).toHaveLength(1);
   expect(docs[0].sha256).toMatch(/^[0-9a-f]{64}$/);

@@ -7,9 +7,9 @@ import { Icon } from '@/components/ui/Icon';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { activeKey } from '@/lib/ui/nav';
+import { canSearch, type SearchAccess } from '@/lib/ui/search';
 import { GlobalSearch } from './GlobalSearch';
-import { canSearch } from '@/lib/ui/search';
-import type { SearchScope, ShellNavItem, ShellUser, ShellXero } from './types';
+import type { ShellNavItem, ShellUser, ShellXero } from './types';
 import { UserMenu } from './UserMenu';
 
 function Badge({ text, small = false }: { text: string; small?: boolean }) {
@@ -31,8 +31,8 @@ const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
  * Both are rendered and switched with CSS so there is no layout shift and no second data fetch.
  */
 export function ShellFrame({
-  items, user, xero, search, signOut, children,
-}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; search: SearchScope | null; signOut: () => Promise<void>; children: ReactNode }) {
+  items, user, xero, signOut, children, searchAccess,
+}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; signOut: () => Promise<void>; children: ReactNode; searchAccess?: SearchAccess | null }) {
   const pathname = usePathname();
   const current = activeKey(pathname, items);
   const [menu, setMenu] = useState(false);
@@ -44,7 +44,7 @@ export function ShellFrame({
   const drawer = useRef<HTMLElement>(null);
   const tabs = items.filter((i) => i.tab);
   // Search routes only to areas the member can read; with none of them there is no search.
-  const searchable = canSearch(search) ? search! : null;
+  const searchable = canSearch(searchAccess) ? searchAccess! : null;
 
   // Navigating closes the drawer and the phone search row.
   useEffect(() => { setMenu(false); setPhoneSearch(false); }, [pathname]);
@@ -127,7 +127,7 @@ export function ShellFrame({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Desktop top bar */}
         <header className="hidden flex-wrap items-center gap-3 border-b border-border bg-surface px-7 py-[11px] lg:flex">
-          {searchable ? <GlobalSearch inputRef={deskSearch} scope={searchable} className="max-w-[560px] flex-1 basis-72" /> : null}
+          {searchable ? <GlobalSearch inputRef={deskSearch} access={searchable} className="max-w-[560px] flex-1 basis-72" /> : null}
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
             <UserMenu name={user.name} initials={user.initials} role={user.role} signOut={signOut} />
@@ -163,7 +163,7 @@ export function ShellFrame({
         </header>
         {phoneSearch && searchable ? (
           <div className="border-b border-border bg-surface px-3 py-2 lg:hidden">
-            <GlobalSearch inputRef={phoneSearchInput} scope={searchable} showHint={false} className="h-11 w-full" />
+            <GlobalSearch inputRef={phoneSearchInput} access={searchable} showHint={false} className="h-11 w-full" />
           </div>
         ) : null}
 

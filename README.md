@@ -43,6 +43,13 @@ Design tokens, fonts (Manrope, JetBrains Mono) and light/dark themes are in `app
 | `/leads`, `/leads/pipeline`, Documents | not built yet (hidden from navigation) |
 | `/f/...`, `/e/[token]` | unchanged |
 
+### Forms (UI)
+
+All seven forms share one renderer (`components/form-engine/FormRenderer.tsx`) driven by the spec plus a
+presentation layer (`lib/spec/presentation.ts`) for section cards, packed columns and steps. Public forms are
+phone-first (48px controls, 16px text) and show a secure badge; set `TURNSTILE_SECRET_KEY` and
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` in production to turn on the Cloudflare Turnstile check.
+
 ## Database
 
 `supabase/migrations/0001..0003` come unchanged from the forms kit (`docs/source/tt-forms`).

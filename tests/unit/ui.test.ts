@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { activeKey, badgeLabel, homeShowsForms, NAV, visibleNav } from '@/lib/ui/nav';
-import { searchTarget } from '@/lib/ui/search';
+import { activeKey, badgeLabel, homeShowsForms, MAX_PHONE_TABS, NAV, phoneTabKeys, visibleNav } from '@/lib/ui/nav';
+import { searchAccessOf, searchTarget } from '@/lib/ui/search';
 import { STATUS_TONE, toneFor } from '@/lib/ui/status';
 import { nextTheme, parseTheme, resolveTheme } from '@/lib/ui/theme';
 import type { Member } from '@/lib/security/can';
@@ -90,5 +90,56 @@ describe('global search routing', () => {
   });
   it('ignores empty input', () => {
     expect(searchTarget('   ')).toBeNull();
+  });
+});
+
+describe('phone bottom bar (M6 stock)', () => {
+  const tabsFor = (role: Member['role']) => {
+    const nav = visibleNav(member(role));
+    const keys = phoneTabKeys(nav);
+    return nav.filter((n) => keys.has(n.key)).map((n) => n.key);   // displayed in NAV order
+  };
+  it('factory staff get Home and Stock', () => {
+    expect(NAV.find((n) => n.key === 'stock')?.tab).toBe(true);
+    expect(tabsFor('factory')).toEqual(['home', 'stock']);
+  });
+  it('never more than 5 items; office roles keep their bar, reviewers have room for Stock', () => {
+    expect(MAX_PHONE_TABS).toBe(5);
+    for (const r of ['admin', 'staff', 'reviewer', 'inspector', 'factory'] as const) expect(tabsFor(r).length, r).toBeLessThanOrEqual(5);
+    expect(tabsFor('admin')).toEqual(['home', 'tasks', 'forms', 'deals', 'leads']);
+    expect(tabsFor('staff')).toEqual(['home', 'tasks', 'forms', 'deals', 'leads']);
+    expect(tabsFor('reviewer')).toEqual(['home', 'tasks', 'forms', 'deals', 'stock']);
+  });
+  it('picks by priority, keeps unlisted tab items last, and honours a smaller max', () => {
+    const items = [{ key: 'x', tab: true }, { key: 'stock', tab: true }, { key: 'home', tab: true }, { key: 'quotes', tab: false }];
+    expect([...phoneTabKeys(items, 2)].sort()).toEqual(['home', 'stock']);
+    expect(phoneTabKeys(items).has('quotes')).toBe(false);
+  });
+  it('the shell builds the bar with phoneTabKeys and passes search access', () => {
+    const shell = readFileSync(path.resolve(__dirname, '../../components/shell/AppShell.tsx'), 'utf8');
+    expect(shell).toContain('tab: tabKeys.has(n.key)');
+    expect(shell).toContain('searchAccess={searchAccessOf(member)}');
+    const frame = readFileSync(path.resolve(__dirname, '../../components/shell/ShellFrame.tsx'), 'utf8');
+    // M7: only shown when something is searchable.
+    expect(frame.match(/<GlobalSearch [^>]*access=\{searchable\}/g)).toHaveLength(2);
+  });
+});
+
+describe('global search for stock-only members (M6 stock)', () => {
+  it('sends a VIN (and anything else) to the unit register when the member cannot read Xero', () => {
+    const factory = searchAccessOf(member('factory'));
+    expect(factory).toEqual({ deals: false, quotes: false, invoices: false, stock: true });
+    expect(searchTarget('TT9DEMO24D0010482', factory)).toBe('/admin/stock/units?q=TT9DEMO24D0010482');
+    expect(searchTarget('inv-20931', factory)).toBe('/admin/stock/units?q=inv-20931');
+    expect(searchTarget(' 2026 / 248 ', factory)).toBe('/admin/stock/units?q=2026%20%2F%20248');
+  });
+  it('office roles keep the Xero and deal file routing', () => {
+    for (const r of ['admin', 'staff', 'reviewer'] as const) {
+      const a = searchAccessOf(member(r));
+      expect(searchTarget('TT9DEMO24D0010482', a), r).toBe('/admin/deal-files?q=TT9DEMO24D0010482');
+      expect(searchTarget('QU-10482', a), r).toBe('/admin/xero/quotes?q=QU-10482');
+    }
+    expect(searchAccessOf(null)).toEqual({ deals: false, quotes: false, invoices: false, stock: false });
+    expect(searchTarget('TT9DEMO24D0010482', { deals: false, quotes: false, invoices: false, stock: false })).toBeNull();
   });
 });

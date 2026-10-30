@@ -11,15 +11,15 @@ const keys = (m: Member) => visibleNav(m).map((n) => n.key);
 
 describe('nav follows the access map', () => {
   it('presets', () => {
-    expect(keys(member('admin'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices', 'leads', 'integrations', 'settings']);
-    expect(keys(member('staff'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices', 'leads']);
-    expect(keys(member('reviewer'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices']);
-    expect(keys(member('factory'))).toEqual(['home']);
+    expect(keys(member('admin'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices', 'stock', 'leads', 'integrations', 'settings']);
+    expect(keys(member('staff'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices', 'stock', 'leads']);
+    expect(keys(member('reviewer'))).toEqual(['home', 'tasks', 'forms', 'deals', 'quotes', 'invoices', 'stock']);
+    expect(keys(member('factory'))).toEqual(['home', 'stock']);
     expect(keys(member('inspector'))).toEqual([]);
   });
 
   it('a custom map shows exactly the readable areas', () => {
-    expect(keys(member('staff', { quotes: 'none', home: 'none', integrations: 'read' }))).toEqual(['tasks', 'forms', 'deals', 'invoices', 'leads', 'integrations']);
+    expect(keys(member('staff', { quotes: 'none', home: 'none', integrations: 'read' }))).toEqual(['tasks', 'forms', 'deals', 'invoices', 'stock', 'leads', 'integrations']);
     // Tasks need Forms read as well.
     expect(keys(member('staff', { forms: 'none' }))).not.toContain('tasks');
   });

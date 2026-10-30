@@ -1,4 +1,5 @@
--- 0014: M7 users, access levels and activity log (docs/M7.md).
+-- 0021: M7 users, access levels and activity log (docs/M7.md). Written against the schema as of 0020: it only
+-- redefines the role gate `stock_require_role` (same signature), so the 0016/0017/0019 stock RPC bodies stay as they are.
 --
 -- Each membership stores its resolved access map (area -> none | read | write), the preset it came from (or
 -- 'custom') and a status (invited | active | disabled). public.has_access() reads the caller's membership and the
@@ -239,6 +240,8 @@ drop policy xero_payments_select on public.xero_payments;
 create policy xero_payments_select on public.xero_payments for select to authenticated using (public.has_access(org_id, 'invoices', 'read'));
 drop policy xero_attachments_select on public.xero_attachments;
 create policy xero_attachments_select on public.xero_attachments for select to authenticated using (public.has_access(org_id, 'invoices', 'read'));
+drop policy xero_credit_notes_select on public.xero_credit_notes;
+create policy xero_credit_notes_select on public.xero_credit_notes for select to authenticated using (public.has_access(org_id, 'invoices', 'read'));
 drop policy xero_contacts_select on public.xero_contacts;
 create policy xero_contacts_select on public.xero_contacts for select to authenticated
   using (public.has_access(org_id, 'quotes', 'read') or public.has_access(org_id, 'invoices', 'read'));

@@ -81,6 +81,14 @@ test('Inspector role link opens the entry read-only once it has moved on; bad to
 
   await page.goto('/e/not-a-real-token-but-long-enough-xx');
   await expect(page.getByRole('heading', { name: 'Link not valid' })).toBeVisible();
+
+  // An expired link says so (and still opens nothing).
+  const old = 'e2e-synthetic-role-link-token-expired1';
+  await sql(`insert into entry_links(token, entry_id, role_name, expires_at) values ($1, $2, 'Inspector', now() - interval '1 day')`,
+    [createHash('sha256').update(old).digest('hex'), e.id]);
+  await page.goto(`/e/${old}`);
+  await expect(page.getByRole('heading', { name: 'This link has expired' })).toBeVisible();
+  await expect(page.getByLabel('TRAILER VIN NUMBER')).toHaveCount(0);
 });
 
 test('Store Room APPROVAL is a task; staff set APPROVED EMAILED by hand', async ({ page }) => {

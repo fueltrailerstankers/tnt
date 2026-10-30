@@ -1,0 +1,83 @@
+// Stock settings (org app_settings 'stock.*', docs/M6.md section 4): parsing, defaults and the rules switch. Pure.
+// The keys are written only by the Pilot setup server actions (stock.manage, then the service role); RLS (0011
+// settings_no_client_stock_*) rejects client writes. Values are JSON strings: "2026-03-01", "preview".
+
+// No imports: the setup page's client forms use this module.
+
+export const STOCK_START_KEY = 'stock.deals_from';
+export const INVOICE_RULES_KEY = 'stock.invoice_rules';
+/** First day of Xero invoice changes the invoice rules examine; unset = the stock start date. */
+export const INVOICES_FROM_KEY = 'stock.invoices_from';
+
+export const INVOICE_RULE_MODES = ['off', 'preview', 'live'] as const;
+export type InvoiceRuleMode = (typeof INVOICE_RULE_MODES)[number];
+/** Unset (or unreadable) = preview: the rules are evaluated and shown, no unit changes. */
+export const DEFAULT_INVOICE_RULES: InvoiceRuleMode = 'preview';
+/** What an admin types to switch the invoice rules to live. */
+export const LIVE_CONFIRMATION = 'live';
+
+export const RULE_MODE_LABEL: Record<InvoiceRuleMode, string> = { off: 'Off', preview: 'Preview', live: 'Live' };
+
+export const RULE_MODE_ABOUT: Record<InvoiceRuleMode, string> = {
+  off: 'Xero invoices are not checked against stock.',
+  preview: 'Each stock invoice shows what it would do on Invoice review. No unit changes and no exceptions are recorded.',
+  live: 'Unpaid invoices reserve their unit, paid invoices mark it sold, and doubtful invoices go to the exceptions queue.',
+};
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** A real calendar date "YYYY-MM-DD" between 2000 and 2100. */
+export function isIsoDate(s: string): boolean {
+  const m = ISO_DATE.exec(s);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (y < 2000 || y > 2100) return false;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+/**
+ * 'stock.deals_from' -> "YYYY-MM-DD", or null when unset or unreadable. Same reading as the deal sync: a JSON
+ * string, an object { date } or a full timestamp (its first 10 characters).
+ */
+export function parseStockStart(v: unknown): string | null {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return parseStockStart((v as { date?: unknown }).date);
+  if (typeof v !== 'string') return null;
+  const s = v.trim().slice(0, 10);
+  return isIsoDate(s) ? s : null;
+}
+
+/** 'stock.invoice_rules' -> off | preview | live; anything else (unset included) is preview. */
+export function parseInvoiceRules(v: unknown): InvoiceRuleMode {
+  const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  return (INVOICE_RULE_MODES as readonly string[]).includes(s) ? (s as InvoiceRuleMode) : DEFAULT_INVOICE_RULES;
+}
+
+export interface StockSettings {
+  /** Stock start date ("YYYY-MM-DD"): DEAL entries created on or after it become stock deals. */
+  start: string | null;
+  /** The stored 'stock.invoices_from' (null = follow the stock start date). */
+  invoicesFromSetting: string | null;
+  /** Effective first day of invoice changes checked: invoicesFromSetting, else start; null = no invoice examined. */
+  invoicesFrom: string | null;
+  rules: InvoiceRuleMode;
+}
+
+/** Reads the stock settings from app_settings rows ({ key, value }). */
+export function stockSettingsFrom(rows: ReadonlyArray<{ key: string; value: unknown }> | null | undefined): StockSettings {
+  const get = (k: string) => rows?.find((r) => r.key === k)?.value;
+  const start = parseStockStart(get(STOCK_START_KEY));
+  const invoicesFromSetting = parseStockStart(get(INVOICES_FROM_KEY));
+  return { start, invoicesFromSetting, invoicesFrom: invoicesFromSetting ?? start, rules: parseInvoiceRules(get(INVOICE_RULES_KEY)) };
+}
+
+/**
+ * Why a rules change is refused, or null when it may be saved. Live needs the typed confirmation "live" and an
+ * invoice start date (without one no invoice is examined, so live would silently do nothing).
+ */
+export function checkRulesSwitch(to: InvoiceRuleMode, typed: string | null | undefined, invoicesFrom: string | null): string | null {
+  if (to !== 'live') return null;
+  if (!invoicesFrom) return 'Set the invoice start date (or the stock start date) before switching the invoice rules to live.';
+  if ((typed ?? '').trim().toLowerCase() !== LIVE_CONFIRMATION) return `Type "${LIVE_CONFIRMATION}" to switch the invoice rules to live.`;
+  return null;
+}
