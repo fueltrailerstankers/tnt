@@ -17,6 +17,7 @@ const ORG_READABLE = [
   'lead_sources', 'routing_rules', 'leads', 'lead_events',
   'xero_action_runs', // M3: org admins only
   'stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals', // M6
+  'xero_credit_notes', // M6 0019
   'saved_views', 'terms_versions', // 0015: own saved views; terms versions readable by members
   'import_runs', // Cognito import: org admins only
 ];
@@ -59,6 +60,7 @@ beforeAll(async () => {
   await db.query(`insert into public.xero_invoices(org_id, tenant_id, invoice_id, invoice_number, currency_code, total, raw) values ($1,'t','i1','INV-90001','ZAR',100,'{}')`, [ORG_A]);
   await db.query(`insert into public.xero_invoice_lines(org_id, invoice_id, line_no, description) values ($1,'i1',1,'x')`, [ORG_A]);
   await db.query(`insert into public.xero_payments(org_id, tenant_id, payment_id, invoice_id, amount, currency_code, raw) values ($1,'t','p1','i1',100,'ZAR','{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, credit_note_type, raw) values ($1,'t','cn1','ACCRECCREDIT','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_attachments(org_id, attachment_id, parent_type, parent_id, raw) values ($1,'a1','Invoice','i1','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_sync_state(org_id, entity) values ($1,'invoices')`, [ORG_A]);
   await db.query(`insert into public.deal_files(org_id, quote_no, quote_id) values ($1,'90001','q1')`, [ORG_A]);

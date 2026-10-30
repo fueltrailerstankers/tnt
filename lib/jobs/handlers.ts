@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { rebuildDealFiles } from '@/lib/deal-files/job';
+import { enqueueStockSweep, runStockInvoicesJob } from '@/lib/stock/invoice-job';
 import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sync';
 import { processLeadEvent } from '@/lib/leads/intake-job';
 import { rematchOpenLeads } from '@/lib/leads/service';
@@ -48,6 +49,8 @@ export const HANDLERS: Record<string, Handler> = {
   },
   // In-app Cognito import: one time-boxed slice of an import run ({ run_id }); re-enqueues itself until done.
   'cognito.import': runImportJob,
+  // M6: Xero mirror invoices -> unit reserved / sold per stock.invoice_rules (ids after upserts, nightly sweep).
+  'stock.invoices': runStockInvoicesJob,
 };
 
 export async function drainOutbox(db: SupabaseClient, budgetMs: number) {
@@ -70,6 +73,8 @@ export async function scheduledSync(db: SupabaseClient, mode: SyncMode, budgetMs
     if (r.processed > 0 || mode === 'full') await enqueue(db, org_id, 'deal-files.rebuild', {}, { uniquePending: true });
     // Leads are matched against the mirror: refresh the matches after each nightly full sync (M4).
     if (mode === 'full') await enqueue(db, org_id, 'leads.rematch', {}, { uniquePending: true });
+    // Stock invoice rules over every invoice changed since the stock start date, nightly (M6).
+    if (mode === 'full') await enqueueStockSweep(db, org_id);
     results.push({ org: org_id, status: r.status, processed: r.processed, calls: r.calls, reason: r.reason });
   }
   return results;

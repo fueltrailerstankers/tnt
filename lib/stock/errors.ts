@@ -191,4 +191,5 @@ export const EXCEPTION_REASON_LABEL: Record<ExceptionReason, string> = {
   invoice_linked_other_unit: 'Invoice linked to another unit',
   unit_linked_other_invoice: 'Unit linked to another invoice',
   unit_sold: 'Unit already sold',
+  vin_on_several_invoices: 'VIN on more than one invoice',
 };

@@ -17,8 +17,8 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0013 | M1 fix | DEAL DATE CREATED defaults to today (spec update) |
 | 0015 | UI handoff | saved views (own rows), append-only terms versions, signature metadata on entry_files |
 | 0016 | M6 deals | `stock_remove_untouched_deal` (service role): the DEAL sync removes an out-of-scope deal only when it never had a unit, dismissal or stock audit row, checked in the delete itself (dismissal history cascades on delete) |
-| 0016 | M6 dispatch | `stock_remove_untouched_deal` (stock-dispatch branch) |
 | 0017 | M6 overview | optimistic locking: optional `p_expected_updated_at` on `stock_correct_unit` / `stock_move_unit` (raises `UNIT_CHANGED` under the row lock); the 0011 bodies are kept as internal `*_unchecked`, so calls without it behave as before; grants as 0011 |
+| 0019 | M6 invoices | `xero_credit_notes` read-only mirror, `xero_invoices.credit_note_applied`, `stock_invoice_exceptions.source_updated_utc`, `stock_apply_invoice` with optional `p_source_updated` |
 | 0020 | M5 | in-app Cognito import: `cognito_api_keys` (one per org, AES-256-GCM with ENCRYPTION_KEY, last 4 characters in clear; service role only) and `import_runs` (per form, dry_run/apply, cursor + counts-only report; org admins read, server writes; one queued/running run per form) |
 
 The live project got 0012 and 0013 before 0010/0011: apply 0010 and 0011 next (with the Supabase CLI: `supabase db push --include-all`). 0012 depends on 0008 only.
@@ -50,3 +50,10 @@ It is additive:
 **Reserved numbers (work in progress on other branches; pick the next free number above these):**
 0014 users and access (M7), 0018 form builder (M8),
 0016 (dispatch) and 0017 (overview) are M6 stock. 0015 is the UI handoff foundation. Next free number: 0021.
+0014 users and access (M7), 0016-0017 stock pages (M6, only if needed), 0018 form builder (M8),
+0020 in-app Cognito import. 0015 is the UI handoff foundation. Next free number: 0021.
+`0019_stock_invoice_guard.sql` (M6 stock invoices review, branch `m6-invoices`): `xero_credit_notes` (read-only
+mirror of Xero /CreditNotes; RLS like the other `xero_*` mirror tables, factory excluded), `xero_invoices.
+credit_note_applied` (sum of CreditNotes[].AppliedAmount, backfilled from `raw`), `stock_invoice_exceptions.
+source_updated_utc`, and `stock_apply_invoice` re-created with a 7th argument `p_source_updated timestamptz default
+null` (old 6-argument calls keep working): a resolved exception blocks only the same or an older Xero state.

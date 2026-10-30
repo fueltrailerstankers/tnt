@@ -21,6 +21,8 @@ export const EXCEPTION_REASONS = [
   'invoice_linked_other_unit',
   'unit_linked_other_invoice',
   'unit_sold',
+  // Two live invoices name the same VIN: neither is applied (stock.invoices job, M6 review).
+  'vin_on_several_invoices',
 ] as const;
 export type ExceptionReason = (typeof EXCEPTION_REASONS)[number];
 

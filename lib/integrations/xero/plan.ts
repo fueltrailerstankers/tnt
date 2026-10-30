@@ -5,8 +5,10 @@
 //   - plus open documents older than that (open quotes, unpaid invoices), so nothing current is missed.
 // After the backfill, each run is incremental from the high-water mark of UpdatedDateUTC.
 
-export type Entity = 'contacts' | 'quotes' | 'invoices' | 'payments';
-export const ENTITIES: Entity[] = ['contacts', 'quotes', 'invoices', 'payments'];
+export type Entity = 'contacts' | 'quotes' | 'invoices' | 'credit_notes' | 'payments';
+export const ENTITIES: Entity[] = ['contacts', 'quotes', 'invoices', 'credit_notes', 'payments'];
+/** Daytime quick sync: what moves stock and money (credit notes feed the stock invoice rules, M6). */
+export const QUICK_ENTITIES: Entity[] = ['invoices', 'credit_notes', 'payments'];
 
 export interface Pass {
   path: string;
@@ -18,14 +20,15 @@ export const PATHS: Record<Entity, string> = {
   contacts: '/Contacts',
   quotes: '/Quotes',
   invoices: '/Invoices',
+  credit_notes: '/CreditNotes',
   payments: '/Payments',
 };
 
 /** Xero array key in each list response. */
-export const LIST_KEY: Record<Entity, string> = { contacts: 'Contacts', quotes: 'Quotes', invoices: 'Invoices', payments: 'Payments' };
+export const LIST_KEY: Record<Entity, string> = { contacts: 'Contacts', quotes: 'Quotes', invoices: 'Invoices', credit_notes: 'CreditNotes', payments: 'Payments' };
 
-/** Page sizes: Contacts, Invoices and Payments accept pageSize; Quotes pages at Xero's default of 100. */
-export const PAGE_SIZE: Record<Entity, number> = { contacts: 200, quotes: 100, invoices: 200, payments: 200 };
+/** Page sizes: Contacts, Invoices and Payments accept pageSize; Quotes and CreditNotes page at Xero's default of 100. */
+export const PAGE_SIZE: Record<Entity, number> = { contacts: 200, quotes: 100, invoices: 200, credit_notes: 100, payments: 200 };
 
 export function backfillPasses(entity: Entity, from: string): Pass[] {
   const since = `${from}T00:00:00Z`;
@@ -47,7 +50,7 @@ export function incrementalPass(entity: Entity, modifiedSince: string | null, fr
 
 export function pageParams(entity: Entity, page: number): Record<string, string> {
   const p: Record<string, string> = { page: String(page) };
-  if (entity !== 'quotes') p.pageSize = String(PAGE_SIZE[entity]);
+  if (entity !== 'quotes' && entity !== 'credit_notes') p.pageSize = String(PAGE_SIZE[entity]);
   if (entity === 'invoices' || entity === 'contacts') p.summaryOnly = 'false';
   return p;
 }
