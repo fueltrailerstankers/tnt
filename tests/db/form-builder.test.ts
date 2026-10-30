@@ -64,12 +64,14 @@ describe('0018 form builder', () => {
     await expect(as(db, 'anon', null, () => db.query(`select public.form_data_keys($1)`, [formId]))).rejects.toThrow(/permission denied/);
   });
 
-  it('archived forms leave form_overview; only admins can archive', async () => {
+  it('archived forms leave form_overview; clients cannot write forms (0022), the server archives', async () => {
     const before = await as(db, 'authenticated', STAFF, async () => (await db.query(`select slug from public.form_overview()`)).rows.map((r) => r.slug));
     expect(before).toContain('job-card');
-    expect(await as(db, 'authenticated', STAFF, async () => (await db.query(`update public.forms set archived_at = now() where id = $1`, [formId])).rowCount)).toBe(0);
-    await as(db, 'authenticated', ADMIN, async () => {
-      expect((await db.query(`update public.forms set archived_at = now() where id = $1`, [formId])).rowCount).toBe(1);
+    await expect(as(db, 'authenticated', ADMIN, () => db.query(`update public.forms set archived_at = now(), is_active = false where id = $1`, [formId]))).rejects.toThrow(/permission denied/);
+    await as(db, 'service_role', null, async () => {
+      await db.query(`update public.forms set archived_at = now(), is_active = false where id = $1`, [formId]);
+      await db.query(`set local role authenticated`);
+      await db.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: ADMIN, role: 'authenticated' })]);
       const after = (await db.query(`select slug from public.form_overview()`)).rows.map((r) => r.slug);
       expect(after).not.toContain('job-card');
     });

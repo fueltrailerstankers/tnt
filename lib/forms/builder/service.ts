@@ -28,20 +28,14 @@ export async function orgSlugs(db: SupabaseClient, orgId: string): Promise<strin
   return (data ?? []).map((r) => r.slug as string);
 }
 
-/** form_statuses / form_roles mirror the published spec's workflow. */
+/** form_statuses / form_roles mirror the published spec's workflow; replaced in one database call (atomic). */
 async function syncWorkflowRows(db: SupabaseClient, formId: string, spec: FormSpec) {
-  await db.from('form_statuses').delete().eq('form_id', formId);
-  await db.from('form_roles').delete().eq('form_id', formId);
-  const statuses = spec.workflow.statuses.map((s, i) => ({ form_id: formId, name: s.name, color: s.color, sort_order: i, archived: !!s.archived }));
-  const roles = spec.workflow.roles.map((r) => ({ form_id: formId, name: r.name, is_public: !!r.public }));
-  if (statuses.length) {
-    const { error } = await db.from('form_statuses').insert(statuses);
-    if (error) throw new Error('form_statuses: could not sync');
-  }
-  if (roles.length) {
-    const { error } = await db.from('form_roles').insert(roles);
-    if (error) throw new Error('form_roles: could not sync');
-  }
+  const { error } = await db.rpc('sync_form_workflow', {
+    p_form: formId,
+    p_statuses: spec.workflow.statuses.map((s, i) => ({ name: s.name, color: s.color, sort_order: i, archived: !!s.archived })),
+    p_roles: spec.workflow.roles.map((r) => ({ name: r.name, is_public: !!r.public })),
+  });
+  if (error) throw new Error('could not sync the workflow rows');
 }
 
 function columnsOf(spec: FormSpec) {
@@ -96,7 +90,12 @@ export async function dataContext(userDb: SupabaseClient, form: FormRecord) {
   const { data: keys, error: e2 } = await userDb.rpc('form_data_keys', { p_form: form.id });
   if (e2) throw new Error('form_data_keys failed');
   const withData = fieldsWithData(form.spec, (keys ?? []) as string[], { encrypted: form.encrypt, hasEntries });
-  return { hasEntries, withData, encrypted: form.encrypt };
+  const { data: usage, error: e3 } = await userDb.rpc('form_usage', { p_form: form.id });
+  if (e3) throw new Error('form_usage failed');
+  const rows = (usage ?? []) as Array<{ kind: string; name: string }>;
+  const statusesInUse = new Set(rows.filter((r) => r.kind === 'status').map((r) => r.name));
+  const rolesWithLinks = new Set(rows.filter((r) => r.kind === 'role').map((r) => r.name));
+  return { hasEntries, withData, encrypted: form.encrypt, statusesInUse, rolesWithLinks };
 }
 
 /** Publishes a draft: builder rules + guards, then version + 1 (optimistic on the version), history, workflow rows. */

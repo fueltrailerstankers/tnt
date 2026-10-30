@@ -71,6 +71,9 @@ export interface ChangeContext {
   hasEntries: boolean;
   /** forms.encrypt_entries now. */
   encrypted: boolean;
+  /** Statuses that entries are in, and roles with live role links (form_usage). */
+  statusesInUse?: Set<string>;
+  rolesWithLinks?: Set<string>;
 }
 
 /** Guards between the published spec and the next one. Empty when the change is safe. */
@@ -91,6 +94,10 @@ export function changeProblems(prev: FormSpec, next: FormSpec, ctx: ChangeContex
       if (gone.length) out.push(`"${f.label.trim() || f.name}" has data: its parts cannot be removed (${gone.join(', ')}).`);
     }
   }
+  const nextStatuses = new Set(next.workflow.statuses.map((s) => s.name));
+  for (const s of ctx.statusesInUse ?? []) if (!nextStatuses.has(s)) out.push(`Status "${s}" has entries: it cannot be removed (mark it archived instead).`);
+  const nextRoles = new Set(next.workflow.roles.map((r) => r.name));
+  for (const r of ctx.rolesWithLinks ?? []) if (!nextRoles.has(r)) out.push(`Role "${r}" has live role links: it cannot be removed or renamed.`);
   if (ctx.hasEntries && !!next.settings.encryptEntries !== ctx.encrypted) {
     out.push(ctx.encrypted ? 'Encryption cannot be turned off once the form has entries.' : 'Encryption can only be turned on before the first entry.');
   }
