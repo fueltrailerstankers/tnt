@@ -18,17 +18,17 @@ export default async function NewEntry({ params }: { params: Promise<{ slug: str
   const options = lookup && lookup.type === 'lookup' ? await lookupOptions(db, form.orgId, lookup.lookup.sourceForm, lookup.lookup.displayField) : null;
 
   return (
-    <section className="space-y-4">
-      <p className="text-xs text-fg-muted">
-        <Link href="/admin" className="underline">Home</Link> / <Link href={`/admin/forms/${slug}`} className="underline">{form.spec.name}</Link> / New entry
-      </p>
+    <section className="mx-auto max-w-5xl space-y-5">
+      <nav aria-label="Breadcrumb" className="text-small text-fg-muted">
+        <Link href="/admin/forms" className="text-fg-muted hover:text-fg">Forms</Link> / <Link href={`/admin/forms/${slug}`} className="text-fg-muted hover:text-fg">{form.spec.name}</Link> / <span className="text-fg">New entry</span>
+      </nav>
       <h1 className="text-h1">New entry · {form.spec.name}</h1>
       {actions.length ? null : (
-        <p className="rounded bg-status-yellow-bg p-3 text-sm">
+        <p className="rounded-md bg-status-yellow-bg px-4 py-3 text-body text-status-yellow-fg">
           This form&apos;s first step belongs to its public role ({form.spec.workflow.roles.find((r) => r.public)?.name}). Use the public link to start an entry.
         </p>
       )}
-      <div className="rounded-md border bg-surface shadow-card p-4">
+      <div className="min-w-0">
         <StaffForm
           form={form} number={null} initial={defaultData(form.spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency })}
           files={{}} signatures={{}} actions={actions} lookupOptions={options} lookupPanel={[]} version={null} timeZone={org.timezone} currency={org.currency}

@@ -181,3 +181,9 @@
 
   a { color: var(--accenttext); }
 }
+
+/* Saved signatures are black ink on transparent PNG; invert them on dark surfaces so they stay readable. */
+[data-theme="dark"] .ink-adapt { filter: invert(1); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ink-adapt { filter: invert(1); }
+}

@@ -5,7 +5,7 @@ import type { LookupOption } from '@/lib/forms/lookup-types';
 import { publicEnv } from '@/lib/env';
 import { quoteFieldOf } from '@/lib/forms/quote-fields';
 import type { EntryData } from '@/lib/spec/values';
-import { lookupPanelStaff, requestUploadStaff, saveEntryStaff, searchQuotesStaff } from './actions';
+import { importQuoteStaff, lookupPanelStaff, requestUploadStaff, saveEntryStaff, searchQuotesStaff } from './actions';
 
 /** Server wrapper that wires the renderer to the staff actions for one form (and entry). */
 export function StaffForm(props: {
@@ -38,6 +38,7 @@ export function StaffForm(props: {
       lookupPanel={props.lookupPanel}
       quotes={quoteFieldOf(props.form.spec) ? { mode: 'search', search: searchQuotesStaff.bind(null, slug) } : undefined}
       hidden={props.version ? { __version: props.version } : {}}
+      importQuote={slug === 'deal' ? importQuoteStaff.bind(null, slug) : undefined}
       timeZone={props.timeZone}
       currency={props.currency}
     />

@@ -11,6 +11,8 @@ import { can, type Member } from '@/lib/security/can';
 import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
 import { defaultData, prepareSave, readFormData, renderSummary, todayIn, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
+import { SIGNING, signatureMeta, termsBlocksFor } from '@/lib/terms/signing';
+import { ensureTermsVersion } from '@/lib/terms/versions';
 import { buildEmail, eventKey } from './email-template';
 import { createRoleLink } from './links';
 import { MAX_ATTACHMENT_BYTES, sendEmail, type Attachment } from './mailer';
@@ -151,10 +153,15 @@ export async function runAction(input: RunInput): Promise<RunResult> {
     await moveObject(db, s.ref.path, to);
     newRows.push({ entry_id: id, field_key: s.field, kind: 'file', storage_path: to, file_name: displayFileName(s.ref.name), content_type: c.contentType, size_bytes: c.size, sort_order: sortBase + i });
   }
+  // Rule 12: signatures on a signing form record the exact terms version shown, the signer role and the server time.
+  const termsVersionId = SIGNING[form.slug] && plan.newSignatures.length ? await ensureTermsVersion(db, form.orgId, SIGNING[form.slug].key, termsBlocksFor(spec)) : null;
   for (const [i, s] of plan.newSignatures.entries()) {
     const to = finalPath(form.slug, id, s.field, 'signature.png');
     const size = await saveSignature(db, to, s.dataUrl);
-    newRows.push({ entry_id: id, field_key: s.field, kind: 'signature', storage_path: to, file_name: `${s.field}.png`, content_type: 'image/png', size_bytes: size, sort_order: sortBase + plan.staged.length + i });
+    newRows.push({
+      entry_id: id, field_key: s.field, kind: 'signature', storage_path: to, file_name: `${s.field}.png`, content_type: 'image/png', size_bytes: size, sort_order: sortBase + plan.staged.length + i,
+      ...(signatureMeta(form.slug, s.field, termsVersionId, now) ?? {}),
+    });
   }
   if (newRows.length) {
     const { error } = await db.from('entry_files').insert(newRows);

@@ -52,10 +52,14 @@ async function render(db: SupabaseClient, form: FormRecord, entry: EntryRecord, 
   const files = await loadFiles(db, entry.id);
   const names: Record<string, string[]> = {};
   const signatures: Record<string, Buffer> = {};
+  const signedBy: Record<string, { at: string; role: string }> = {};
+  let termsVersionId: string | null = null;
   for (const f of files) {
     if (f.kind === 'signature') {
       const b = await downloadObject(db, ENTRY_BUCKET, f.storagePath);
       if (b) signatures[f.fieldKey] = b;
+      if (f.signedAt && f.signerRole) signedBy[f.fieldKey] = { at: f.signedAt, role: f.signerRole };
+      termsVersionId ??= f.termsVersionId ?? null;
     } else {
       (names[f.fieldKey] ??= []).push(f.fileName);
     }
@@ -63,6 +67,7 @@ async function render(db: SupabaseClient, form: FormRecord, entry: EntryRecord, 
   const lookup = form.spec.fields.find((f) => f.type === 'lookup');
   const lookupId = lookup && 'name' in lookup ? (entry.data[lookup.name] as string | undefined) : undefined;
   const panel = lookup && lookup.type === 'lookup' && lookupId ? await customerPanel(db, form.orgId, lookup.lookup.sourceForm, lookupId, false) : undefined;
+  const { data: tv } = termsVersionId ? await db.from('terms_versions').select('sha256').eq('id', termsVersionId).maybeSingle() : { data: null };
   return renderToBuffer(
     <EntryPdf
       spec={form.spec}
@@ -71,6 +76,8 @@ async function render(db: SupabaseClient, form: FormRecord, entry: EntryRecord, 
       data={entry.data}
       files={names}
       signatures={signatures}
+      signedBy={signedBy}
+      termsVersion={tv ? { sha256: tv.sha256 as string } : null}
       lookupPanel={panel}
       timezone={timezone}
       generatedAt={generatedAt}

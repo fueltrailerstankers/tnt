@@ -18,14 +18,12 @@ export function dealKey(entryId: string) {
   return `deal.import_quote:${entryId}`;
 }
 
-export function planDealImport(input: DealInput): Plan {
-  const key = dealKey(input.entry.id);
-  const no = quoteNoOf(text(input.entry.data.QUOTENO));
-  if (!no) return emptyPlan('deal.import_quote', key, 'skip', 'DEAL has no quote number');
-  const quote = input.quotes.find((q) => (q.quote_number ?? '').toUpperCase() === `QU-${no}`);
-  if (!quote) return emptyPlan('deal.import_quote', key, 'retry', 'quote not found in Xero');
-
-  const lines = input.lines.slice().sort((a, b) => a.line_no - b.line_no).slice(0, DEAL_LINES);
+/**
+ * DEAL fields a quote fills: LINEn = Description and PARTNOn = ItemCode for lines 1..8 (in line order), and
+ * Total = the quote total. Shared by the Submit job and the staff "Import from Xero" button so both fill alike.
+ */
+export function dealFieldsFromQuote(quote: Pick<QuoteIn, 'total'>, quoteLines: QuoteLineIn[]): { target: Record<string, unknown>; linesImported: number; total: number | null } {
+  const lines = quoteLines.slice().sort((a, b) => a.line_no - b.line_no).slice(0, DEAL_LINES);
   const target: Record<string, unknown> = {};
   lines.forEach((l, i) => {
     target[`LINE${i + 1}`] = l.description ?? '';
@@ -33,6 +31,17 @@ export function planDealImport(input: DealInput): Plan {
   });
   const total = money(quote.total);
   if (total !== null) target.Total = total;
+  return { target, linesImported: lines.length, total };
+}
+
+export function planDealImport(input: DealInput): Plan {
+  const key = dealKey(input.entry.id);
+  const no = quoteNoOf(text(input.entry.data.QUOTENO));
+  if (!no) return emptyPlan('deal.import_quote', key, 'skip', 'DEAL has no quote number');
+  const quote = input.quotes.find((q) => (q.quote_number ?? '').toUpperCase() === `QU-${no}`);
+  if (!quote) return emptyPlan('deal.import_quote', key, 'retry', 'quote not found in Xero');
+
+  const { target, linesImported, total } = dealFieldsFromQuote(quote, input.lines);
 
   // Only fields that change; empty strings clear a field (the quote line has no code).
   const fields: Record<string, unknown> = {};
@@ -43,7 +52,7 @@ export function planDealImport(input: DealInput): Plan {
   }
   const plan: Plan = {
     action: 'deal.import_quote', idempotencyKey: key, status: 'ready', requests: [], effects: [],
-    expected: { quoteNumber: quote.quote_number, linesImported: lines.length, total, currency: quote.currency_code },
+    expected: { quoteNumber: quote.quote_number, linesImported, total, currency: quote.currency_code },
   };
   if (Object.keys(fields).length) plan.effects.push({ kind: 'entry.patch', formSlug: 'deal', entryId: input.entry.id, fields });
   else plan.reason = 'DEAL already matches the quote';
