@@ -696,21 +696,23 @@ function FieldView(p: ViewProps) {
       return (
         <div aria-live="polite">
           <span className={labelCls}>Customer details</span>
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 rounded-sm border border-border bg-surface-2 p-4 text-body sm:grid-cols-2" data-testid="customer-panel">
+          <div className="rounded-sm border border-border bg-surface-2 p-4 text-body" data-testid="customer-panel">
             {p.panel.length ? (
-              p.panel.map(([k, val]) => (
-                <div key={k} className="min-w-0">
-                  <dt className="text-label font-medium tracking-normal text-fg-muted">{k}</dt>
-                  <dd className="font-medium text-fg">{val || '-'}</dd>
-                </div>
-              ))
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
+                {p.panel.map(([k, val]) => (
+                  <div key={k} className="min-w-0">
+                    <dt className="text-label font-medium tracking-normal text-fg-muted">{k}</dt>
+                    <dd className="font-medium text-fg">{val || '-'}</dd>
+                  </div>
+                ))}
+              </dl>
             ) : (
-              <dd className="flex items-center gap-2 text-fg-muted sm:col-span-2">
+              <p className="flex items-center gap-2 text-fg-muted">
                 <Icon name="info" size={16} strokeWidth={2} />
                 Choose a quote no to show the customer.
-              </dd>
+              </p>
             )}
-          </dl>
+          </div>
         </div>
       );
     case 'section':

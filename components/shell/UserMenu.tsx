@@ -23,14 +23,15 @@ export function UserMenu({ name, initials, role, signOut }: { name: string; init
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`User menu, ${name}, ${role}`}
         onClick={() => setOpen((o) => !o)}
         className="flex h-[38px] items-center gap-2 rounded-pill border border-border bg-surface pl-1 pr-2 text-fg"
       >
+        {/* The accessible name is built from the visible text (WCAG 2.5.3 label in name): "User menu Test Admin admin". */}
+        <span className="sr-only">User menu </span>
         <span aria-hidden="true" className="flex size-[30px] items-center justify-center rounded-sm bg-accent-soft text-xs font-bold text-accent-text">{initials}</span>
-        <span className="hidden flex-col items-start leading-tight sm:flex">
+        <span className="flex-col items-start leading-tight max-sm:sr-only sm:flex">
           <span className="text-small font-semibold">{name}</span>
-          <span className="text-[11px] capitalize text-fg-muted">{role}</span>
+          <span className="text-[11px] capitalize text-fg-muted"> {role}</span>
         </span>
         <Icon name="chevronDown" size={14} strokeWidth={2} />
       </button>
