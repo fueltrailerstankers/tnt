@@ -1,8 +1,8 @@
 // Generic "view" PDF (document #1) for every form: title, entry number and status, every field in
 // spec order including blanks, content blocks (T&Cs, waiver) verbatim, checklist, signatures as images.
 // The Delivery Note's #1 is this document: T&Cs, waiver and all five signatures are spec fields.
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import { contentBlocks, type Block } from '@/lib/spec/content';
+import { Document, Image, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { pages } from '@/lib/spec/layout';
 import type { FormSpec } from '@/lib/spec/types';
 import { displayValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
@@ -43,6 +43,11 @@ export const styles = StyleSheet.create({
   content: { border: '0.5pt solid #bbb', padding: 6, marginBottom: 4 },
   para: { fontSize: 7.5, marginBottom: 3, lineHeight: 1.3 },
   bold: { fontFamily: 'Helvetica-Bold' },
+  italic: { fontFamily: 'Helvetica-Oblique' },
+  boldItalic: { fontFamily: 'Helvetica-BoldOblique' },
+  link: { color: '#1a4f8b', textDecoration: 'underline' },
+  heading: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginTop: 6, marginBottom: 2 },
+  help: { fontSize: 7, color: '#555', marginTop: 1 },
   sig: { height: 50, objectFit: 'contain', alignSelf: 'flex-start' },
   table: { borderTop: '0.5pt solid #bbb' },
   tr: { flexDirection: 'row', borderBottom: '0.5pt solid #bbb', paddingVertical: 2 },
@@ -53,16 +58,46 @@ export function formatTime(iso: string, timezone: string): string {
   return new Intl.DateTimeFormat('en-ZA', { timeZone: timezone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
 
+function spanStyle(s: Span) {
+  if (s.href) return styles.link;
+  if (s.bold && s.italic) return styles.boldItalic;
+  if (s.italic) return styles.italic;
+  return s.bold ? styles.bold : undefined;
+}
+
+function SpanText({ s }: { s: Span }) {
+  return s.href ? <Link src={s.href} style={spanStyle(s)}>{s.text}</Link> : <Text style={spanStyle(s)}>{s.text}</Text>;
+}
+
 export function Blocks({ blocks }: { blocks: Block[] }) {
   return (
     <>
-      {blocks.map((b, i) => (
-        <Text key={i} style={styles.para}>
-          {b.spans.map((s, j) => (
-            <Text key={j} style={s.bold ? styles.bold : undefined}>{s.text}</Text>
-          ))}
-        </Text>
-      ))}
+      {blocks.map((b, i) => {
+        if (b.kind === 'list') {
+          return (
+            <View key={i}>
+              {b.items.map((it, j) => (
+                <Text key={j} style={styles.para}>
+                  {b.ordered ? `${j + 1}. ` : '• '}
+                  {it.map((s, k) => <SpanText key={k} s={s} />)}
+                </Text>
+              ))}
+            </View>
+          );
+        }
+        if (b.kind === 'heading') {
+          return (
+            <Text key={i} style={[styles.para, styles.bold]}>
+              {b.spans.map((s, j) => <SpanText key={j} s={s} />)}
+            </Text>
+          );
+        }
+        return (
+          <Text key={i} style={styles.para}>
+            {b.spans.map((s, j) => (s.italic || s.href ? <SpanText key={j} s={s} /> : <Text key={j} style={s.bold ? styles.bold : undefined}>{s.text}</Text>))}
+          </Text>
+        );
+      })}
     </>
   );
 }

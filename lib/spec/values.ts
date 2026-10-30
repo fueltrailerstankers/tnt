@@ -399,12 +399,8 @@ export interface PreparedSave {
  * The same function runs in the browser before submitting, so both sides agree.
  */
 export function prepareSave(spec: FormSpec, read: Pick<ReadResult, 'data' | 'errors'>, ctx: { audience: Audience; previous: EntryData }): PreparedSave {
-  const data: EntryData = { ...read.data };
   const locked = lockedFor(spec, ctx.audience);
-  for (const name of locked) {
-    if (ctx.previous[name] !== undefined) data[name] = ctx.previous[name];
-    else delete data[name];
-  }
+  const data = applyLocks(spec, read.data, ctx);
   const hidden = hiddenNames(spec, data);
   for (const name of hidden) {
     const f = fieldNamed(spec, name);
@@ -414,6 +410,34 @@ export function prepareSave(spec: FormSpec, read: Pick<ReadResult, 'data' | 'err
   const skip = new Set([...locked, ...hidden]);
   const errors = Object.fromEntries(Object.entries(read.errors).filter(([k]) => !skip.has(k)));
   return { data, skip, errors };
+}
+
+/** A copy of `data` where the fields the audience may not change hold `previous` values. */
+export function applyLocks(spec: FormSpec, data: EntryData, ctx: { audience: Audience; previous: EntryData }): EntryData {
+  const out: EntryData = { ...data };
+  for (const name of lockedFor(spec, ctx.audience)) {
+    if (ctx.previous[name] !== undefined) out[name] = ctx.previous[name];
+    else delete out[name];
+  }
+  return out;
+}
+
+/** Files/signatures each field will hold according to the post (the browser's view of planFiles' counts). */
+export function postedFileCounts(read: Pick<ReadResult, 'files' | 'signatures'>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, refs] of Object.entries(read.files)) out[k] = refs.length;
+  for (const [k, s] of Object.entries(read.signatures)) out[k] = s ? 1 : 0;
+  return out;
+}
+
+/**
+ * The browser's check before submitting: the same reading, locking, show-when and validation the server
+ * runs (runAction), so required and show-when are enforced on both sides. Returns field -> message.
+ */
+export function checkPost(spec: FormSpec, fd: Getter, ctx: ReadOptions & { audience: Audience; previous: EntryData }): Record<string, string> {
+  const read = readFormData(spec, fd, ctx);
+  const prep = prepareSave(spec, read, ctx);
+  return { ...validateEntry(spec, prep.data, postedFileCounts(read), { skip: prep.skip }), ...prep.errors };
 }
 
 /** Drops internalOnly fields from a spec, for the public form (their labels never reach the browser). */

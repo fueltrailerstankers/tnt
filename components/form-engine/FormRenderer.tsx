@@ -1,11 +1,15 @@
 'use client';
 
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from 'react';
-import { contentBlocks, type Block } from '@/lib/spec/content';
+import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { pages, type Cell } from '@/lib/spec/layout';
-import type { FormSpec } from '@/lib/spec/types';
-import type { ChecklistRow, EntryData } from '@/lib/spec/values';
+import { utcToZoned } from '@/lib/spec/time';
+import type { FieldSpec, FormSpec } from '@/lib/spec/types';
+import { applyLocks, checkPost, displayValue, lockedFor, publicSpec, readFormData, type Audience, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import { hasShowWhen, hiddenFields, isHeading } from '@/lib/spec/visibility';
 import { isQuoteField } from '@/lib/forms/quote-fields';
+import { ChoiceInput, CurrencyInput, RatingInput, SectionHeading, YesNoInput } from './fields';
+import { a11y, ErrorText, HelpText, inputCls, Label, Legend } from './parts';
 import { FileField } from './FileField';
 import { QuoteField } from './QuoteField';
 import { SignaturePad } from './SignaturePad';
@@ -28,25 +32,48 @@ export interface FormRendererProps {
   hidden?: Record<string, string>;
   /** Public forms carry a honeypot field that real people never see. */
   honeypot?: boolean;
+  /**
+   * M8: who fills the form. 'public' (public link, role links) hides internalOnly fields and shows readOnly
+   * fields as not editable; the server applies the same rules (prepareSave). Default 'staff'.
+   */
+  audience?: Audience;
+  /** Org timezone for datetime fields (entered and shown in it, stored UTC). Default UTC. */
+  timeZone?: string;
+  /** Org currency code for currency fields that do not name one. Default USD. */
+  currency?: string;
 }
 
 export function FormRenderer(props: FormRendererProps) {
-  const { spec } = props;
+  const audience = props.audience ?? 'staff';
+  const spec = useMemo(() => (audience === 'public' ? publicSpec(props.spec) : props.spec), [audience, props.spec]);
   const allPages = useMemo(() => pages(spec), [spec]);
   const [state, formAction, pending] = useActionState(props.submit, {} as SubmitState);
+  // Errors found in the browser before submitting (same rules as the server; see checkPost).
+  const [local, setLocal] = useState<SubmitState | null>(null);
   const [page, setPage] = useState(0);
   const [panel, setPanel] = useState(props.lookupPanel ?? []);
   const top = useRef<HTMLFormElement>(null);
   const readOnly = props.actions.length === 0;
-  const errors = state.errors ?? {};
+  const shown = local ?? state;
+  const errors = shown.errors ?? {};
+  const readOpts = { timeZone: props.timeZone, currency: props.currency };
+
+  // Show-when: track the current values only when the form has rules (the kit forms have none).
+  const track = useMemo(() => hasShowWhen(spec), [spec]);
+  const [live, setLive] = useState<EntryData>(props.initial);
+  const hidden = useMemo(
+    () => (track ? hiddenFields(spec, applyLocks(spec, live, { audience, previous: props.initial })) : new Set<FieldSpec>()),
+    [track, spec, live, audience, props.initial],
+  );
+  const locked = useMemo(() => lockedFor(spec, audience), [spec, audience]);
 
   // After a failed save, jump to the first page with an error.
   useEffect(() => {
-    if (!state.at || !state.errors) return;
-    const first = allPages.findIndex((p) => p.rows.some((r) => r.cells.some((c) => 'name' in c.field && state.errors![c.field.name])));
+    if (!shown.at || !shown.errors) return;
+    const first = allPages.findIndex((p) => p.rows.some((r) => r.cells.some((c) => 'name' in c.field && shown.errors![c.field.name])));
     if (first >= 0) setPage(first);
     top.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state.at, state.errors, allPages]);
+  }, [shown.at, shown.errors, allPages]);
 
   const multiPage = allPages.length > 1;
   return (
@@ -60,8 +87,15 @@ export function FormRenderer(props: FormRendererProps) {
         e.preventDefault();
         const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
         const fd = new FormData(e.currentTarget, submitter);
+        const found = checkPost(props.spec, fd, { ...readOpts, audience, previous: props.initial });
+        if (Object.keys(found).length) {
+          setLocal({ message: 'Please correct the highlighted fields.', errors: found, at: Date.now() });
+          return;
+        }
+        setLocal(null);
         startTransition(() => formAction(fd));
       }}
+      onChange={track ? (e) => setLive(readFormData(spec, new FormData(e.currentTarget), readOpts).data) : undefined}
     >
       {Object.entries(props.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
@@ -83,8 +117,8 @@ export function FormRenderer(props: FormRendererProps) {
           ))}
         </ol>
       ) : null}
-      {state.message ? (
-        <p role="alert" className="rounded bg-status-red-bg p-3 text-sm text-status-red-fg">{state.message}</p>
+      {shown.message ? (
+        <p role="alert" className="rounded bg-status-red-bg p-3 text-sm text-status-red-fg">{shown.message}</p>
       ) : null}
 
       {allPages.map((p) => (
@@ -93,8 +127,11 @@ export function FormRenderer(props: FormRendererProps) {
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-24">
             {p.rows.flatMap((r) =>
               r.cells.map((c, i) => (
-                <div key={`${r.row}-${i}`} className="min-w-0 md:[grid-column:var(--gc)]" style={{ '--gc': `${c.col} / span ${c.span}` } as React.CSSProperties}>
-                  <FieldView cell={c} {...props} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} />
+                <div key={`${r.row}-${i}`} className="min-w-0 md:[grid-column:var(--gc)]" style={{ '--gc': `${c.col} / span ${c.span}` } as React.CSSProperties} hidden={hidden.has(c.field) || undefined}>
+                  <FieldView
+                    cell={c} {...props} spec={spec} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel}
+                    locked={'name' in c.field && locked.has(c.field.name)}
+                  />
                 </div>
               )),
             )}
@@ -129,34 +166,37 @@ type ViewProps = FormRendererProps & {
   readOnly: boolean;
   panel: Array<[string, string]>;
   setPanel: (p: Array<[string, string]>) => void;
+  /** Public role on a readOnly field. */
+  locked: boolean;
 };
 
-const inputCls = (err?: string) =>
-  `w-full rounded border px-3 py-2 text-base md:text-sm bg-surface disabled:bg-surface-2 ${err ? 'border-danger' : 'border-border-strong'}`;
-
-function Label({ htmlFor, text, hidden }: { htmlFor: string; text: string; hidden?: boolean }) {
-  return (
-    <label htmlFor={htmlFor} className={hidden ? 'sr-only' : 'mb-1 block text-sm font-medium'}>
-      {text}
-    </label>
-  );
-}
-
-function ErrorText({ msg, id }: { msg?: string; id: string }) {
-  return msg ? <p id={id} className="mt-1 text-sm text-status-red-fg">{msg}</p> : null;
+function SpanView({ s }: { s: Span }) {
+  let node: React.ReactNode = s.bold ? <strong>{s.text}</strong> : <span>{s.text}</span>;
+  if (s.italic) node = <em>{node}</em>;
+  if (s.href) node = <a href={s.href} target="_blank" rel="noopener noreferrer" className="underline">{node}</a>;
+  return node;
 }
 
 export function ContentView({ blocks, scroll }: { blocks: Block[]; scroll: boolean }) {
   return (
     <div className={`rounded border border-border-strong bg-surface-2 p-3 text-sm leading-relaxed ${scroll ? 'max-h-80 overflow-y-auto' : ''}`} tabIndex={scroll ? 0 : undefined}>
-      {blocks.map((b, i) => (
-        <p key={i} className="mb-2 last:mb-0">
-          {b.spans.map((s, j) => (s.bold ? <strong key={j}>{s.text}</strong> : <span key={j}>{s.text}</span>))}
-        </p>
-      ))}
+      {blocks.map((b, i) => {
+        if (b.kind === 'list') {
+          const items = b.items.map((it, j) => <li key={j}>{it.map((s, k) => <SpanView key={k} s={s} />)}</li>);
+          return b.ordered ? <ol key={i} className="mb-2 list-decimal pl-5 last:mb-0">{items}</ol> : <ul key={i} className="mb-2 list-disc pl-5 last:mb-0">{items}</ul>;
+        }
+        if (b.kind === 'heading') return <p key={i} className="mb-2 font-semibold last:mb-0">{b.spans.map((s, j) => <SpanView key={j} s={s} />)}</p>;
+        return (
+          <p key={i} className="mb-2 last:mb-0">
+            {b.spans.map((s, j) => (s.bold && !s.italic && !s.href ? <strong key={j}>{s.text}</strong> : !s.italic && !s.href ? <span key={j}>{s.text}</span> : <SpanView key={j} s={s} />))}
+          </p>
+        );
+      })}
     </div>
   );
 }
+
+const INPUT_TYPE: Record<string, string> = { text: 'text', email: 'email', date: 'date', number: 'number', phone: 'tel', url: 'url', time: 'time', datetime: 'datetime-local' };
 
 function FieldView(p: ViewProps) {
   const f = p.cell.field;
@@ -166,13 +206,20 @@ function FieldView(p: ViewProps) {
   const id = `f-${name}`;
   const err = p.errors[name];
   const v = p.initial[name];
-  const errProps = err ? { 'aria-invalid': true, 'aria-describedby': `${id}-err` } : {};
   const label = 'label' in f ? f.label.trim() || name : name;
+  // M8 options (absent on the kit forms, so their markup is unchanged).
+  const help = 'help' in f ? f.help : undefined;
+  const req = !!p.spec.settings.markRequired && 'required' in f && f.required === true;
+  const errProps = a11y(id, err, help, req);
+  const hideLabel = 'hideLabel' in f && !!f.hideLabel;
+  const locked = p.locked || undefined;
+
+  if (f.type === 'section' && isHeading(f)) return <SectionHeading id={id} title={label} description={f.description} />;
 
   if (f.type === 'text' && p.quotes && isQuoteField(p.spec.slug, name)) {
     return (
       <QuoteField
-        id={id} name={name} label={label} hideLabel={'hideLabel' in f && !!f.hideLabel}
+        id={id} name={name} label={label} hideLabel={hideLabel}
         value={v === undefined || v === null ? '' : String(v)} err={err} disabled={p.readOnly}
         config={p.quotes} inputClassName={inputCls(err)}
       />
@@ -184,59 +231,100 @@ function FieldView(p: ViewProps) {
     case 'email':
     case 'date':
     case 'number':
+    case 'phone':
+    case 'url':
+    case 'time':
+    case 'datetime': {
+      const value =
+        v === undefined || v === null ? ''
+        : f.type === 'datetime' ? utcToZoned(String(v), p.timeZone ?? 'UTC')
+        : f.type === 'phone' ? displayValue(v)
+        : String(v);
+      const ph = 'placeholder' in f && f.placeholder ? f.placeholder : undefined;
       return (
         <div>
-          <Label htmlFor={id} text={label} hidden={'hideLabel' in f && f.hideLabel} />
+          <Label htmlFor={id} text={label} hidden={hideLabel} required={req} />
           <input
             id={id}
             name={`f.${name}`}
-            type={f.type === 'number' ? 'number' : f.type}
+            type={INPUT_TYPE[f.type]}
             step={f.type === 'number' ? (f.integer ? 1 : 'any') : undefined}
-            inputMode={f.type === 'number' ? (f.integer ? 'numeric' : 'decimal') : undefined}
-            placeholder={'hideLabel' in f && f.hideLabel ? label : undefined}
-            defaultValue={v === undefined || v === null ? '' : String(v)}
+            inputMode={f.type === 'number' ? (f.integer ? 'numeric' : 'decimal') : f.type === 'phone' ? 'tel' : f.type === 'url' ? 'url' : undefined}
+            placeholder={ph ?? (hideLabel ? label : undefined)}
+            defaultValue={value}
             autoComplete="off"
-            className={inputCls(err)}
+            className={f.type === 'text' && f.pattern === 'uppercase' ? `${inputCls(err)} uppercase` : inputCls(err)}
             {...errProps}
+            readOnly={locked}
+            min={f.type === 'number' || f.type === 'date' || f.type === 'time' ? f.min : undefined}
+            max={f.type === 'number' || f.type === 'date' || f.type === 'time' ? f.max : undefined}
+            maxLength={f.type === 'text' ? f.maxLength : undefined}
           />
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
+    }
     case 'textarea':
       return (
         <div>
-          <Label htmlFor={id} text={label} />
-          <textarea id={id} name={`f.${name}`} rows={3} defaultValue={(v as string) ?? ''} className={inputCls(err)} {...errProps} />
+          <Label htmlFor={id} text={label} required={req} />
+          <textarea
+            id={id} name={`f.${name}`} rows={f.rows ?? 3} defaultValue={(v as string) ?? ''} className={inputCls(err)} {...errProps}
+            placeholder={f.placeholder} readOnly={locked} maxLength={f.maxLength}
+          />
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
+    case 'currency':
+      return (
+        <CurrencyInput
+          id={id} name={name} label={label} err={err} help={help} required={req} locked={p.locked} hideLabel={hideLabel}
+          currency={f.currency ?? p.currency ?? 'USD'} placeholder={f.placeholder} value={v}
+        />
+      );
+    case 'yesno':
+      return <YesNoInput id={id} name={name} label={label} err={err} help={help} required={req} locked={p.locked} style={f.style} value={v} />;
+    case 'rating':
+      return <RatingInput id={id} name={name} label={label} err={err} help={help} required={req} locked={p.locked} value={v} />;
     case 'choice':
+      if (f.other || (f.style === 'radio' && !f.multi)) {
+        return (
+          <ChoiceInput
+            id={id} name={name} label={label} err={err} help={help} required={req} locked={p.locked}
+            style={f.style} multi={!!f.multi} options={f.options} other={!!f.other} value={v}
+          />
+        );
+      }
       if (f.style === 'checkboxes' || f.multi) {
         const selected = new Set(Array.isArray(v) ? (v as string[]) : v ? [String(v)] : []);
         return (
           <fieldset {...errProps}>
-            <legend className="mb-1 text-sm font-medium">{label}</legend>
+            <Legend text={label} required={req} />
             <div className="flex flex-wrap gap-4">
               {f.options.map((o) => (
                 <label key={o} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name={`f.${name}`} value={o} defaultChecked={selected.has(o)} className="h-5 w-5" />
+                  <input type="checkbox" name={`f.${name}`} value={o} defaultChecked={selected.has(o)} className="h-5 w-5" disabled={locked} />
                   {o}
                 </label>
               ))}
             </div>
+            <HelpText text={help} id={`${id}-help`} />
             <ErrorText msg={err} id={`${id}-err`} />
           </fieldset>
         );
       }
       return (
         <div>
-          <Label htmlFor={id} text={label} />
-          <select id={id} name={`f.${name}`} defaultValue={(v as string) ?? ''} className={inputCls(err)} {...errProps}>
+          <Label htmlFor={id} text={label} required={req} />
+          <select id={id} name={`f.${name}`} defaultValue={(v as string) ?? ''} className={inputCls(err)} {...errProps} disabled={locked}>
             <option value="" />
             {f.options.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
@@ -246,15 +334,16 @@ function FieldView(p: ViewProps) {
       const partLabel: Record<string, string> = { Line1: 'Address Line 1', Line2: 'Address Line 2', PostalCode: 'Postal / Zip Code', State: 'State / Province / Region' };
       return (
         <fieldset {...errProps}>
-          <legend className="mb-1 text-sm font-medium">{label}</legend>
+          <Legend text={label} required={req} />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {f.parts.map((part) => (
               <div key={part} className={f.type === 'address' && part.startsWith('Line') ? 'sm:col-span-2' : ''}>
                 <label htmlFor={`${id}-${part}`} className="text-xs text-fg-muted">{partLabel[part] ?? part}</label>
-                <input id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)} />
+                <input id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)} readOnly={locked} />
               </div>
             ))}
           </div>
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </fieldset>
       );
@@ -283,13 +372,21 @@ function FieldView(p: ViewProps) {
       return <ChecklistView spec={p.spec} rows={(p.initial.checklist as ChecklistRow[] | undefined) ?? []} label={label} />;
     case 'file':
       return (
-        <FileField
-          name={name} label={label} multi={!!f.multi} maxFiles={f.maxFiles} accept={f.accept}
-          existing={p.files[name] ?? []} upload={p.upload} supabase={p.supabase} error={err} disabled={p.readOnly}
-        />
+        <>
+          <FileField
+            name={name} label={label} multi={!!f.multi} maxFiles={f.maxFiles} accept={f.accept}
+            existing={p.files[name] ?? []} upload={p.upload} supabase={p.supabase} error={err} disabled={p.readOnly || p.locked}
+          />
+          <HelpText text={help} id={`${id}-help`} />
+        </>
       );
     case 'signature':
-      return <SignaturePad name={name} label={label} existing={p.signatures[name] ?? null} error={err} disabled={p.readOnly} />;
+      return (
+        <>
+          <SignaturePad name={name} label={label} existing={p.signatures[name] ?? null} error={err} disabled={p.readOnly || p.locked} />
+          <HelpText text={help} id={`${id}-help`} />
+        </>
+      );
   }
 }
 

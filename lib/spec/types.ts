@@ -208,6 +208,8 @@ export const FormSpec = z.object({
     preventLookup: z.boolean().optional(),
     hasLookups: z.boolean().optional(),
     isLookupSourceFor: z.array(z.string()).optional(),
+    /** M8: show a * (and aria-required) on required fields. Off for the kit forms, which keep Cognito's look. */
+    markRequired: z.boolean().optional(),
   }),
   fields: z.array(FieldSpec),
   workflow: z.object({ roles: z.array(Role), statuses: z.array(Status), actions: z.array(Action) }),

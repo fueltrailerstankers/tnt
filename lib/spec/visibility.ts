@@ -22,7 +22,8 @@ function rule(expr: string): Rule {
   return r;
 }
 
-export function isHeading(f: FieldSpec): f is Extract<FieldSpec, { type: 'section' }> {
+/** A section without `children` is an M8 heading; the kit checklist section has them. */
+export function isHeading(f: FieldSpec): boolean {
   return f.type === 'section' && f.children === undefined;
 }
 
