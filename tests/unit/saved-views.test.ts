@@ -121,7 +121,7 @@ describe('input schemas', () => {
 // ---------------------------------------------------------------------------
 type Row = Record<string, unknown>;
 
-function fakeDb(seed: Row[] = []) {
+function fakeDb(seed: Row[] = [], opts: { insertError?: { code: string; message: string } } = {}) {
   const rows: Row[] = seed.map((r) => ({ ...r }));
   const queries: Array<{ op: string; filters: Array<[string, unknown]> }> = [];
   let n = 0;
@@ -135,6 +135,7 @@ function fakeDb(seed: Row[] = []) {
     const run = async () => {
       queries.push({ op, filters });
       if (op === 'insert') {
+        if (opts.insertError) return { data: null, error: opts.insertError, count: null };
         if (rows.some((r) => ['org_id', 'user_id', 'scope', 'name'].every((k) => r[k] === payload[k]))) {
           return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' }, count: null };
         }
@@ -185,6 +186,11 @@ describe('saved views CRUD', () => {
     await expect(createSavedView(f.db, STAFF, { scope: 'form:job-card', name: 'Durban branch' })).rejects.toMatchObject({ code: 'duplicate' });
     const full = fakeDb(Array.from({ length: VIEWS_PER_LIST_MAX }, (_, i) => mine({ id: `v${i}`, name: `View ${i}` })));
     await expect(createSavedView(full.db, STAFF, { scope: 'form:job-card', name: 'One more' })).rejects.toMatchObject({ code: 'limit' });
+  });
+
+  it('maps the database cap (a save that raced past the count, or the per-user cap) to the limit error', async () => {
+    const f = fakeDb([], { insertError: { code: '54000', message: 'saved_views: limit reached' } });
+    await expect(createSavedView(f.db, STAFF, { scope: 'leads', name: 'Raced' })).rejects.toMatchObject({ code: 'limit' });
   });
 
   it('checks the list permission before touching the database', async () => {

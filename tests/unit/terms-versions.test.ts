@@ -59,6 +59,8 @@ describe('canonical text and hash', () => {
       [{ id: 't', text: 'x' }, { id: 't', text: 'y' }],
       [{ id: 't', text: '  \n ' }],
       [{ id: 't', text: 'a\u0000b' }],
+      [{ id: 't', text: 'lone \ud800 surrogate' }],
+      [{ id: 't', text: 'lone \udc00 surrogate' }],
       [{ id: 't' }],
     ]) {
       expect(() => termsSha256(bad as never), JSON.stringify(bad)).toThrow(/terms:/);
@@ -72,6 +74,24 @@ describe('canonical text and hash', () => {
     expect(verifyTermsBody(BLOCKS, sha.toUpperCase())).toBe(false);
     expect(verifyTermsBody({ not: 'an array' }, sha)).toBe(false);
     expect(verifyTermsBody([], sha)).toBe(false);
+  });
+
+  it('verifies only a body that is already canonical (no extra keys, LF line endings)', () => {
+    const sha = termsSha256(BLOCKS);
+    // Same hash after dropping the key or rewriting line endings, but not the text that was stored and shown.
+    expect(verifyTermsBody(BLOCKS.map((b) => ({ ...b, html: '<b>unhashed</b>' })), sha)).toBe(false);
+    const lf = [{ id: 'terms', text: 'Line one\nLine two' }];
+    expect(verifyTermsBody([{ id: 'terms', text: 'Line one\r\nLine two' }], termsSha256(lf))).toBe(false);
+    expect(verifyTermsBody(lf, termsSha256(lf))).toBe(true);
+    // Key order in a stored object (jsonb sorts keys) does not matter.
+    expect(verifyTermsBody(BLOCKS.map(({ id, text }) => ({ text, id })), sha)).toBe(true);
+  });
+
+  it('keeps astral characters and combining marks as given (no Unicode normalisation)', () => {
+    const composed = [{ id: 't', text: 'Caf\u00e9 \u{1F69A}' }];
+    const decomposed = [{ id: 't', text: 'Cafe\u0301 \u{1F69A}' }];
+    expect(canonicalTermsText(composed)).toBe('[{"id":"t","text":"Caf\u00e9 \u{1F69A}"}]');
+    expect(termsSha256(composed)).not.toBe(termsSha256(decomposed));
   });
 });
 

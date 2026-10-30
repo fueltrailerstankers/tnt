@@ -1,6 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Client } from 'pg';
 import { as, connect } from './helpers';
+
+vi.mock('server-only', () => ({}));
+const { termsSha256 } = await import('@/lib/terms/versions');
 
 // 0015 UI handoff: saved views, terms versions, signature metadata on entry_files. Synthetic data only.
 const ORG_A = '00000000-0000-0000-0000-000000000001';
@@ -29,6 +32,15 @@ async function asService<T>(fn: () => Promise<T>): Promise<T> {
 
 const count = async (sql: string, params: unknown[] = []) => Number((await db.query(sql, params)).rows[0].n);
 
+/** Inserts a terms version with the sha256 computed by the database over the body; returns its id. */
+const insertTerms = async (org: string, key: string, body: string): Promise<string> => (await db.query(
+  `insert into public.terms_versions(org_id, key, sha256, body) select $1, $2, public.terms_body_sha256(b), b from (select $3::jsonb as b) x returning id`,
+  [org, key, body],
+)).rows[0].id;
+
+/** ISO time relative to now, for signed_at values that must not lie after the row's created_at. */
+const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+
 beforeAll(async () => {
   db = await connect();
   await db.query(
@@ -44,14 +56,8 @@ beforeAll(async () => {
     `insert into public.saved_views(org_id, user_id, scope, name, query) values ($1,$2,'form:job-card','Durban branch','{"view":"unread","q":"durban"}') returning id`,
     [ORG_A, ADMIN_A],
   )).rows[0].id;
-  termsA = (await db.query(
-    `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"terms","text":"Synthetic terms A."}]') returning id`,
-    [ORG_A, SHA('a')],
-  )).rows[0].id;
-  termsE = (await db.query(
-    `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"terms","text":"Synthetic terms E."}]') returning id`,
-    [ORG_E, SHA('e')],
-  )).rows[0].id;
+  termsA = await insertTerms(ORG_A, 'delivery-note', '[{"id":"terms","text":"Synthetic terms A."}]');
+  termsE = await insertTerms(ORG_E, 'delivery-note', '[{"id":"terms","text":"Synthetic terms E."}]');
   const form = await db.query(`select id from public.forms where slug = 'delivery-note' and org_id = $1`, [ORG_A]);
   entryA = (await db.query(
     `insert into public.entries(form_id, number, status, summary) values ($1, 0, 'Submitted', 'TT9DEMO24D0010482') returning id`,
@@ -111,6 +117,35 @@ describe('saved_views', () => {
       await expect(as(db, 'authenticated', ADMIN_A, () =>
         db.query(`update public.saved_views set ${set} where id = $1`, [viewA]))).rejects.toThrow(/permission denied/);
     }
+  });
+
+  it('a client cannot choose the id or backdate created_at (insert column grants)', async () => {
+    for (const [col, val] of [['id', '00000000-0000-0000-0000-00000000d001'], ['created_at', '2001-01-01T00:00:00Z']]) {
+      await expect(as(db, 'authenticated', STAFF_A, () =>
+        db.query(`insert into public.saved_views(org_id, user_id, scope, name, ${col}) values ($1,$2,'leads','Backdated',$3)`, [ORG_A, STAFF_A, val]),
+      )).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it('caps views at 50 per list and 500 per user, even through the API', async () => {
+    await as(db, 'authenticated', STAFF_A, async () => {
+      await db.query(
+        `insert into public.saved_views(org_id, user_id, scope, name) select $1, $2, 'xero_quotes', 'View ' || g from generate_series(1, 50) g`,
+        [ORG_A, STAFF_A],
+      );
+      await expect(db.query(`insert into public.saved_views(org_id, user_id, scope, name) values ($1,$2,'xero_quotes','View 51')`, [ORG_A, STAFF_A]))
+        .rejects.toThrow(/limit reached/);
+    });
+    await as(db, 'authenticated', STAFF_A, async () => {
+      // Any form slug is a valid scope format, so the per-user cap is what bounds a member's rows.
+      await db.query(
+        `insert into public.saved_views(org_id, user_id, scope, name) select $1, $2, 'form:junk-' || g, 'View' from generate_series(1, 500) g`,
+        [ORG_A, STAFF_A],
+      );
+      expect(await count(`select count(*) as n from public.saved_views`)).toBe(500);
+      await expect(db.query(`insert into public.saved_views(org_id, user_id, scope, name) values ($1,$2,'leads','One more')`, [ORG_A, STAFF_A]))
+        .rejects.toThrow(/limit reached/);
+    });
   });
 
   it('names are unique per user and list; other users may reuse a name', async () => {
@@ -192,9 +227,10 @@ describe('terms_versions', () => {
 
   it('the service role inserts and reads, and cannot update', async () => {
     await asService(async () => {
+      const body = [{ id: 't', text: 'v2' }];
       const r = await db.query(
-        `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"t","text":"v2"}]') returning id`,
-        [ORG_A, SHA('d')],
+        `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,$3::jsonb) returning id`,
+        [ORG_A, termsSha256(body), JSON.stringify(body)],
       );
       expect(r.rows[0].id).toBeTruthy();
       await expect(db.query(`update public.terms_versions set key = 'x' where id = $1`, [termsA])).rejects.toThrow(/permission denied/);
@@ -202,28 +238,69 @@ describe('terms_versions', () => {
   });
 
   it('one row per (org, key, sha256); the same text may exist in another org', async () => {
-    await expect(db.query(
-      `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"t","text":"x"}]')`, [ORG_A, SHA('a')],
-    )).rejects.toThrow(/duplicate key/);
+    const same = '[{"id":"terms","text":"Synthetic terms A."}]';
+    await expect(insertTerms(ORG_A, 'delivery-note', same)).rejects.toThrow(/duplicate key/);
     await db.query('begin');
     try {
-      await db.query(`insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"t","text":"x"}]')`, [ORG_E, SHA('a')]);
+      await insertTerms(ORG_E, 'delivery-note', same);
     } finally {
       await db.query('rollback');
     }
   });
 
-  it('checks key, sha256 and body shape', async () => {
-    for (const [key, sha, body] of [
-      ['Delivery Note', SHA('f'), '[{"id":"t","text":"x"}]'],
-      ['delivery-note', 'ABC', '[{"id":"t","text":"x"}]'],
-      ['delivery-note', SHA('F'), '[{"id":"t","text":"x"}]'],
-      ['delivery-note', SHA('f'), '[]'],
-      ['delivery-note', SHA('f'), '{"id":"t"}'],
-    ]) {
-      await expect(db.query(`insert into public.terms_versions(org_id, key, sha256, body) values ($1,$2,$3,$4::jsonb)`, [ORG_A, key, sha, body]))
-        .rejects.toThrow(/check constraint/);
+  it('checks key and body format', async () => {
+    const ok = '[{"id":"t","text":"x"}]';
+    for (const body of ['[]', '{"id":"t"}', '"text"']) {
+      await expect(db.query(`insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,$3::jsonb)`, [ORG_A, SHA('f'), body]))
+        .rejects.toThrow(/body must be/);
     }
+    await expect(db.query(
+      `insert into public.terms_versions(org_id, key, sha256, body) select $1, 'Delivery Note', public.terms_body_sha256(b), b from (select $2::jsonb as b) x`, [ORG_A, ok],
+    )).rejects.toThrow(/check constraint/);
+  });
+
+  it('accepts only {id, text} blocks with unique ids and LF line endings', async () => {
+    for (const body of [
+      '[{"id":"t","text":"x","html":"<b>not hashed</b>"}]',
+      '[{"id":"t"}]',
+      '[{"id":"t","text":1}]',
+      '["just text"]',
+      '[{"id":"T","text":"x"}]',
+      '[{"id":"t","text":""}]',
+      '[{"id":"t","text":"a\\r\\nb"}]',
+      '[{"id":"t","text":"x"},{"id":"t","text":"y"}]',
+    ]) {
+      await expect(insertTerms(ORG_A, 'shape-test', body), body).rejects.toThrow(/body must be/);
+    }
+  });
+
+  it('rejects a sha256 that does not match the body', async () => {
+    for (const sha of [SHA('f'), SHA('F'), 'ABC', termsSha256([{ id: 't', text: 'other text' }])]) {
+      await expect(db.query(
+        `insert into public.terms_versions(org_id, key, sha256, body) values ($1,'delivery-note',$2,'[{"id":"t","text":"x"}]')`, [ORG_A, sha],
+      )).rejects.toThrow(/sha256 does not match|check constraint/);
+    }
+  });
+
+  it('hashes exactly as lib/terms/versions.ts, over every BMP code point and astral text', async () => {
+    let bmp = '';
+    for (let cp = 1; cp <= 0xffff; cp++) if (cp < 0xd800 || cp > 0xdfff) bmp += String.fromCodePoint(cp);
+    const blocks = [
+      { id: 'all-bmp', text: bmp.replace(/\r/g, '') },
+      { id: 'astral', text: 'Signed 😀 👩‍👩‍👧 𝔘 \u{10FFFF} \u{1F1FF}\u{1F1E6}' },
+      { id: 'tricky', text: 'a"b\\c/d\u2028\u2029\u007f\u0085\u200e\u202e\t\n\b\f\u0001\u001f e\u0301 é' },
+    ];
+    const sha = termsSha256(blocks);
+    const r = await db.query(`select public.terms_body_sha256($1::jsonb) as sha`, [JSON.stringify(blocks)]);
+    expect(r.rows[0].sha).toBe(sha);
+    await asService(async () => {
+      await db.query(`insert into public.terms_versions(org_id, key, sha256, body) values ($1,'parity',$2,$3::jsonb)`, [ORG_A, sha, JSON.stringify(blocks)]);
+    });
+  });
+
+  it('the hash function is not callable by clients', async () => {
+    await expect(as(db, 'authenticated', ADMIN_A, () => db.query(`select public.terms_body_sha256('[]'::jsonb)`)))
+      .rejects.toThrow(/permission denied/);
   });
 });
 
@@ -238,9 +315,9 @@ describe('entry_files signature metadata', () => {
   };
 
   it('the server stores signed_at, signer_role, sign_method and the terms version of the same org', async () => {
-    const r = await insertSig({ signed_at: '2026-10-29T13:02:00Z', signer_role: 'customer', sign_method: 'draw', terms_version_id: termsA });
+    const r = await insertSig({ signed_at: ago(3), signer_role: 'customer', sign_method: 'draw', terms_version_id: termsA });
     expect(r.rows[0].org_id).toBe(ORG_A);
-    const rep = await insertSig({ signed_at: '2026-10-29T13:05:00Z', signer_role: 'sales_rep', sign_method: 'type' });
+    const rep = await insertSig({ signed_at: ago(1), signer_role: 'sales_rep', sign_method: 'type' });
     const seen = await as(db, 'authenticated', STAFF_A, async () =>
       (await db.query(`select signer_role, sign_method, terms_version_id from public.entry_files where id = any($1::uuid[]) order by signer_role`, [[r.rows[0].id, rep.rows[0].id]])).rows);
     expect(seen).toEqual([
@@ -256,9 +333,14 @@ describe('entry_files signature metadata', () => {
   it('checks method and role, and keeps the metadata on signature rows only', async () => {
     await expect(insertSig({ sign_method: 'scribble' })).rejects.toThrow(/check constraint/);
     await expect(insertSig({ signer_role: 'Inspector A. Demo' })).rejects.toThrow(/check constraint/);
-    await expect(insertSig({ signed_at: '2026-10-29T13:02:00Z' }, 'file')).rejects.toThrow(/check constraint/);
+    await expect(insertSig({ signed_at: ago(1) }, 'file')).rejects.toThrow(/check constraint/);
     await expect(insertSig({ terms_version_id: termsA }, 'document')).rejects.toThrow(/check constraint/);
     await insertSig({}, 'file');
+  });
+
+  it('a signature is never dated after the row that stores it (5 minutes of skew allowed)', async () => {
+    await expect(insertSig({ signed_at: ago(-60) })).rejects.toThrow(/entry_files_signed_at_check/);
+    await insertSig({ signed_at: ago(-2) });
   });
 
   it('existing rows and inserts without metadata still work (additive, nullable)', async () => {

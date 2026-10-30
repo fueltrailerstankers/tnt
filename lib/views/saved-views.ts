@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { z } from 'zod';
 import { assertPerm, type Member } from '@/lib/security/can';
 import {
-  SavedViewCreate, SavedViewDelete, SavedViewUpdate, VIEWS_PER_LIST_MAX,
+  SavedViewCreate, SavedViewDelete, SavedViewUpdate, VIEWS_PER_LIST_MAX, VIEWS_PER_USER_MAX,
   scopePermission, viewHref, viewQuerySchema, viewScope,
   type ViewQuery, type ViewScope,
 } from './query';
@@ -47,6 +47,9 @@ const toView = (r: Row, scope: ViewScope, query: ViewQuery): SavedView =>
 
 const failed = (error: { message: string }): Error => new Error(`saved_views: ${error.message}`);
 const DUPLICATE = 'You already have a view with this name.';
+const LIMIT = `You can save up to ${VIEWS_PER_LIST_MAX} views per list (${VIEWS_PER_USER_MAX} in all). Delete one first.`;
+/** program_limit_exceeded: raised by the saved_views_limit trigger (0015), e.g. when two saves race the cap. */
+const LIMIT_CODE = '54000';
 
 /** The caller's own views of one list, by name. Rows whose stored query no longer validates are skipped. */
 export async function listSavedViews(userDb: SupabaseClient, member: Member, scope: string): Promise<SavedView[]> {
@@ -70,13 +73,12 @@ export async function createSavedView(userDb: SupabaseClient, member: Member, in
   const { count, error: countError } = await userDb.from('saved_views').select('id', { count: 'exact', head: true })
     .eq('org_id', member.orgId).eq('user_id', member.userId).eq('scope', v.scope);
   if (countError) throw failed(countError);
-  if ((count ?? 0) >= VIEWS_PER_LIST_MAX) {
-    throw new SavedViewError('limit', `You can save up to ${VIEWS_PER_LIST_MAX} views per list. Delete one first.`);
-  }
+  if ((count ?? 0) >= VIEWS_PER_LIST_MAX) throw new SavedViewError('limit', LIMIT);
   const { data, error } = await userDb.from('saved_views')
     .insert({ org_id: member.orgId, user_id: member.userId, scope: v.scope, name: v.name, query: v.query })
     .select(COLUMNS);
   if (error?.code === '23505') throw new SavedViewError('duplicate', DUPLICATE);
+  if (error?.code === LIMIT_CODE) throw new SavedViewError('limit', LIMIT);
   if (error) throw failed(error);
   const row = (data as Row[] | null)?.[0];
   if (!row) throw new Error('saved_views: insert returned no row');

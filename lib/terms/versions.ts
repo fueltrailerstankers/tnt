@@ -10,7 +10,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // Server part: ensureTermsVersion (service-role client, only after the form or role-link checks).
 //
 // The text is verbatim (typos intentional, see content/*.md). The only normalisation is line endings
-// (CRLF/CR -> LF), so the same content checked out on another OS hashes the same.
+// (CRLF/CR -> LF), so the same content checked out on another OS hashes the same. No Unicode normalisation:
+// the hash is over the exact code points shown.
+//
+// The database recomputes the same hash on insert (public.terms_body_sha256, 0015) and refuses a row whose
+// sha256 does not match its body, so a stored version is always the hashed text.
 
 export interface TermsBlock {
   /** Stable block id, e.g. 'terms', 'declaration', 'waiver', 'receipt'. */
@@ -26,9 +30,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Upper bound on all block text together (the DN terms are ~40k characters). */
 export const TERMS_MAX_CHARS = 1_000_000;
 
+/** A lone UTF-16 surrogate: not valid Unicode, and Postgres text cannot store it. */
+const LONE_SURROGATE = /\p{Cs}/u;
+
 /**
- * Validates blocks (non-empty list, unique well-formed ids, non-empty text, no NUL which jsonb cannot store)
- * and returns them in order with only `id` and `text`, line endings normalised to LF. Throws on bad input.
+ * Validates blocks (non-empty list, unique well-formed ids, non-empty text, no NUL or lone surrogate, which
+ * Postgres text cannot store) and returns them in order with only `id` and `text`, line endings normalised to
+ * LF. Throws on bad input.
  */
 export function normaliseTermsBlocks(blocks: readonly TermsBlock[]): TermsBlock[] {
   if (!Array.isArray(blocks) || blocks.length === 0) throw new Error('terms: at least one block is required');
@@ -42,6 +50,7 @@ export function normaliseTermsBlocks(blocks: readonly TermsBlock[]): TermsBlock[
     const text = b.text.replace(/\r\n?/g, '\n');
     if (!text.trim()) throw new Error(`terms: block ${b.id} is empty`);
     if (text.includes('\u0000')) throw new Error(`terms: block ${b.id} contains a NUL character`);
+    if (LONE_SURROGATE.test(text)) throw new Error(`terms: block ${b.id} contains invalid Unicode`);
     total += text.length;
     if (total > TERMS_MAX_CHARS) throw new Error('terms: text is too long');
     return { id: b.id, text };
@@ -49,8 +58,9 @@ export function normaliseTermsBlocks(blocks: readonly TermsBlock[]): TermsBlock[
 }
 
 /**
- * The exact string that is hashed: JSON of the normalised [{id, text}] list in display order. JSON keeps block
- * boundaries unambiguous (no separator can be forged inside a text) and is reproducible in any language.
+ * The exact string that is hashed: JSON of the normalised [{id, text}] list in display order, as JSON.stringify
+ * writes it (keys id then text, no whitespace, non-ASCII unescaped). JSON keeps block boundaries unambiguous
+ * (no separator can be forged inside a text); Postgres rebuilds the same string with to_json (0015).
  */
 export function canonicalTermsText(blocks: readonly TermsBlock[]): string {
   return JSON.stringify(normaliseTermsBlocks(blocks).map(({ id, text }) => ({ id, text })));
@@ -61,11 +71,21 @@ export function termsSha256(blocks: readonly TermsBlock[]): string {
   return createHash('sha256').update(canonicalTermsText(blocks), 'utf8').digest('hex');
 }
 
-/** True when a stored terms_versions body hashes to its sha256 (e.g. before embedding it in a signed PDF). */
+const isExactBlock = (b: unknown): b is TermsBlock =>
+  !!b && typeof b === 'object' && !Array.isArray(b)
+  && Object.keys(b).sort().join(',') === 'id,text';
+
+/**
+ * True when a stored terms_versions body is already canonical (blocks of exactly {id, text}, LF line endings)
+ * and hashes to its sha256, e.g. before embedding it in a signed PDF. A body that only hashes the same after
+ * dropping extra keys or rewriting line endings is not the text that was signed, so it fails.
+ */
 export function verifyTermsBody(body: unknown, sha256: string): boolean {
-  if (!SHA256.test(sha256) || !Array.isArray(body)) return false;
+  if (!SHA256.test(sha256) || !Array.isArray(body) || !body.every(isExactBlock)) return false;
   try {
-    return termsSha256(body as TermsBlock[]) === sha256;
+    const normalised = normaliseTermsBlocks(body);
+    if (normalised.some((b, i) => b.text !== body[i].text)) return false;
+    return termsSha256(normalised) === sha256;
   } catch {
     return false;
   }

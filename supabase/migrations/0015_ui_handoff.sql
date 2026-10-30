@@ -8,9 +8,9 @@
 -- 2) terms_versions: the exact legal text blocks shown to a signer (Delivery Note terms, waiver, declaration,
 --    receipt), stored once per (org, key, sha256). Written by the server only (service role, after the form or
 --    role-link checks) through lib/terms/versions.ts. Append-only, like audit_log.
--- 3) entry_files signature metadata: signed_at (client time, stored UTC), signer_role, sign_method and
---    terms_version_id. Additive and nullable; only signature rows may carry them. entry_files stays
---    server-written (0005), so these columns are set by runAction only.
+-- 3) entry_files signature metadata: signed_at (UTC, server-set, never after the row is stored), signer_role,
+--    sign_method and terms_version_id. Additive and nullable; only signature rows may carry them. entry_files
+--    stays server-written (0005: no client insert, update or delete), so these columns are set by runAction only.
 
 -- ---------------------------------------------------------------------------
 -- Saved views
@@ -37,9 +37,32 @@ create policy saved_views_own on public.saved_views for all to authenticated
   with check (user_id = (select auth.uid()) and public.is_org_member(org_id));
 
 revoke all on public.saved_views from anon, authenticated;
-grant select, insert, delete on public.saved_views to authenticated;
-grant update (name, query) on public.saved_views to authenticated;   -- a view never moves to another user, org or list
+grant select, delete on public.saved_views to authenticated;
+-- Clients never choose id or created_at, and a view never moves to another user, org or list.
+grant insert (org_id, user_id, scope, name, query) on public.saved_views to authenticated;
+grant update (name, query) on public.saved_views to authenticated;
 grant all on public.saved_views to service_role;
+
+-- Caps, enforced here too because a member can reach the table through the API without the app's checks:
+-- 50 views per list (VIEWS_PER_LIST_MAX) and 500 per user and org (VIEWS_PER_USER_MAX; the scope format allows
+-- any form slug). Inserts are serialised per (org, user) so concurrent saves cannot overshoot. Runs as the
+-- caller: RLS limits the count to the caller's own rows, which are the only rows its insert may add to.
+create or replace function public.saved_views_limit() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('saved_views:' || new.org_id::text || ':' || new.user_id::text, 0));
+  if (select count(*) from public.saved_views v
+      where v.org_id = new.org_id and v.user_id = new.user_id and v.scope = new.scope) >= 50
+     or (select count(*) from public.saved_views v
+         where v.org_id = new.org_id and v.user_id = new.user_id) >= 500 then
+    raise exception 'saved_views: limit reached' using errcode = '54000';
+  end if;
+  return new;
+end $$;
+create trigger saved_views_limit before insert on public.saved_views
+  for each row execute function public.saved_views_limit();
+revoke all on function public.saved_views_limit() from public, anon, authenticated;
 
 comment on table public.saved_views is 'A user''s own named list filters (query parameters only, never entry values).';
 
@@ -57,6 +80,54 @@ create table public.terms_versions (
   unique (org_id, key, sha256),
   unique (id, org_id)                                        -- target of the entry_files org-consistent foreign key
 );
+
+-- sha256 of a body, computed exactly as lib/terms/versions.ts does: JSON.stringify of the ordered [{id, text}]
+-- list (no whitespace, non-ASCII unescaped) as UTF-8. to_json(text) escapes as JSON.stringify does (", \,
+-- \b \f \n \r \t, other controls below U+0020 as \u00xx); Postgres text holds no NUL or lone surrogate.
+-- tests/db/ui-handoff.test.ts checks both sides agree over every BMP code point and astral characters.
+create or replace function public.terms_body_sha256(p_body jsonb) returns text
+language sql stable strict set search_path = '' as $$
+  select pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+    '[' || pg_catalog.string_agg(
+      '{"id":' || pg_catalog.to_json(t.e ->> 'id')::text || ',"text":' || pg_catalog.to_json(t.e ->> 'text')::text || '}',
+      ',' order by t.o) || ']',
+    'UTF8')), 'hex')
+  from pg_catalog.jsonb_array_elements(p_body) with ordinality as t(e, o)
+$$;
+
+-- A new version must be what lib/terms/versions.ts writes: blocks of exactly {id, text} (strings, id format,
+-- unique ids, non-empty text with LF line endings) and a sha256 that matches the body. Signed records rely on
+-- the stored body being the hashed one, so this is checked here and not only in the app.
+create or replace function public.terms_versions_check() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if pg_catalog.jsonb_typeof(new.body) is distinct from 'array' or pg_catalog.jsonb_array_length(new.body) = 0 then
+    raise exception 'terms_versions: body must be a non-empty list of {id, text} blocks' using errcode = '23514';
+  end if;
+  if exists (
+    select 1 from pg_catalog.jsonb_array_elements(new.body) as t(e)
+    where case when pg_catalog.jsonb_typeof(t.e) = 'object' then not (
+            t.e ?& array['id', 'text']
+            and (select count(*) from pg_catalog.jsonb_object_keys(t.e)) = 2
+            and pg_catalog.jsonb_typeof(t.e -> 'id') = 'string'
+            and pg_catalog.jsonb_typeof(t.e -> 'text') = 'string'
+            and (t.e ->> 'id') ~ '^[a-z][a-z0-9_-]{0,63}$'
+            and (t.e ->> 'text') <> ''
+            and pg_catalog.strpos(t.e ->> 'text', pg_catalog.chr(13)) = 0)
+          else true end
+  ) or (select count(distinct t.e ->> 'id') from pg_catalog.jsonb_array_elements(new.body) as t(e))
+       <> pg_catalog.jsonb_array_length(new.body) then
+    raise exception 'terms_versions: body must be a list of {id, text} blocks with unique ids' using errcode = '23514';
+  end if;
+  if new.sha256 is distinct from public.terms_body_sha256(new.body) then
+    raise exception 'terms_versions: sha256 does not match the body' using errcode = '23514';
+  end if;
+  return new;
+end $$;
+create trigger terms_versions_check before insert on public.terms_versions
+  for each row execute function public.terms_versions_check();
+revoke all on function public.terms_body_sha256(jsonb), public.terms_versions_check() from public, anon, authenticated;
+grant execute on function public.terms_body_sha256(jsonb) to service_role;
 
 create or replace function public.terms_versions_immutable() returns trigger
 language plpgsql set search_path = '' as $$
@@ -82,7 +153,7 @@ comment on table public.terms_versions is 'Legal text blocks shown to a signer, 
 -- Signature metadata on entry_files (additive, nullable)
 -- ---------------------------------------------------------------------------
 alter table public.entry_files
-  add column signed_at timestamptz,                                                -- client time of signing, UTC
+  add column signed_at timestamptz,                                                -- time of signing, UTC (server-set)
   add column signer_role text check (signer_role ~ '^[a-z][a-z0-9_]{0,31}$'),      -- e.g. customer, sales_rep; never a name
   add column sign_method text check (sign_method in ('draw', 'type')),
   add column terms_version_id uuid,
@@ -90,12 +161,14 @@ alter table public.entry_files
     kind = 'signature'
     or (signed_at is null and signer_role is null and sign_method is null and terms_version_id is null)
   ),
+  -- A signature is never dated after the row that stores it (5 minutes of clock skew allowed).
+  add constraint entry_files_signed_at_check check (signed_at is null or signed_at <= created_at + interval '5 minutes'),
   -- References terms_versions(id), and the version must belong to the entry's org (org_id comes from the entry).
   add constraint entry_files_terms_version_fk foreign key (terms_version_id, org_id)
     references public.terms_versions(id, org_id);
 create index entry_files_terms_version_idx on public.entry_files(terms_version_id) where terms_version_id is not null;
 
-comment on column public.entry_files.signed_at is 'Signature rows: client-reported signing time (UTC). Displayed in Africa/Johannesburg.';
+comment on column public.entry_files.signed_at is 'Signature rows: signing time (UTC), set by the server: its receive time, or a client-reported time only after clamping it to the form session and now. Never later than created_at (+5 min). Displayed in Africa/Johannesburg.';
 comment on column public.entry_files.signer_role is 'Signature rows: signer role key (customer, sales_rep, ...). Never a person''s name.';
 comment on column public.entry_files.sign_method is 'Signature rows: draw | type.';
 comment on column public.entry_files.terms_version_id is 'Signature rows: the terms_versions row shown when this signature was captured.';

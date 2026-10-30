@@ -66,7 +66,7 @@ beforeAll(async () => {
   await db.query(`insert into public.xero_action_runs(org_id, action, idempotency_key, mode, status) values ($1,'rfi.create_invoice','rfi.create_invoice:90001','dry_run','planned')`, [ORG_A]);
   // 0015: a saved view owned by ADMIN_A and a synthetic terms version (server-written).
   await db.query(`insert into public.saved_views(org_id, user_id, scope, name, query) values ($1,$2,'form:release-form','Unread','{"view":"unread"}')`, [ORG_A, ADMIN_A]);
-  await db.query(`insert into public.terms_versions(org_id, key, sha256, body) values ($1,'rls-test',repeat('c', 64),'[{"id":"t","text":"Synthetic terms."}]')`, [ORG_A]);
+  await db.query(`insert into public.terms_versions(org_id, key, sha256, body) select $1, 'rls-test', public.terms_body_sha256(b), b from (select '[{"id":"t","text":"Synthetic terms."}]'::jsonb as b) x`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });

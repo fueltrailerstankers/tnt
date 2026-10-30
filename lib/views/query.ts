@@ -8,6 +8,8 @@ import type { Permission } from '@/lib/security/can';
 
 export const VIEW_NAME_MAX = 60;
 export const VIEWS_PER_LIST_MAX = 50;
+/** Across all lists of one org (the database enforces both caps; 0015 saved_views_limit). */
+export const VIEWS_PER_USER_MAX = 500;
 
 /** Lists other than forms. A form's entries grid is `form:<slug>`. */
 export const LIST_SCOPES = ['xero_quotes', 'xero_invoices', 'leads'] as const;
