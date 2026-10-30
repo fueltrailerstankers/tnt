@@ -104,6 +104,20 @@ export interface BackfillResult extends DealSyncResult {
 }
 
 export const BACKFILL_BATCH = 100;
+/** Longest backfill run, and the margin it leaves before the drain's deadline for job_runs and the continuation. */
+export const BACKFILL_MAX_MS = 20_000;
+export const BACKFILL_MARGIN_MS = 3_000;
+export const BACKFILL_MIN_MS = 1_000;
+
+/**
+ * Time for one backfill run: at most BACKFILL_MAX_MS, and no later than the drain's deadline less a margin (the
+ * jobs route runs inside maxDuration; after a Xero sync the drain gets only a few seconds). At least
+ * BACKFILL_MIN_MS so a run always makes progress (it stops after the entry that crosses its deadline).
+ */
+export function backfillBudget(deadline: number | undefined, now: number): number {
+  if (deadline === undefined || !Number.isFinite(deadline)) return BACKFILL_MAX_MS;
+  return Math.max(BACKFILL_MIN_MS, Math.min(BACKFILL_MAX_MS, deadline - now - BACKFILL_MARGIN_MS));
+}
 
 /**
  * stock.deals-backfill: every DEAL entry in number order, in batches, until done or out of time. Resumable from
@@ -127,11 +141,13 @@ export async function backfillDeals(
     const readable = page.filter(isReadable);
     const existing = readable.length ? await store.dealsForEntries(readable.map((e) => e.id)) : [];
     const byEntry = new Map(existing.map((d) => [d.entry_id, d]));
-    for (const e of page) {
+    for (const [i, e] of page.entries()) {
       if (isReadable(e)) await applyDealEntry(store, e, byEntry.get(e.id) ?? null, dealsFrom, ref, counts);
       else counts.failed += 1;
       processed += 1;
       after = e.number;
+      // Out of time mid-page: stop after this entry; the next run continues after it.
+      if (i < page.length - 1 && now() >= deadline) return { ...counts, disabled: false, processed, complete: false, next: after };
     }
     if (page.length < batch) return { ...counts, disabled: false, processed, complete: true, next: after };
     if (now() >= deadline) return { ...counts, disabled: false, processed, complete: false, next: after };

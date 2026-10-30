@@ -8,7 +8,7 @@ import {
   DEAL_FORM_SLUG, DEALS_BACKFILL_QUEUE, DEALS_FROM_KEY, DEAL_SYNC_QUEUE, parseDealsFrom, stockJobsForSave,
   type DealEntry, type DealSyncCounts, type ExistingDeal,
 } from './deal-sync';
-import { backfillDeals, syncDealEntry, type DealSyncStore, type UnreadableEntry } from './deal-sync-run';
+import { backfillBudget, backfillDeals, syncDealEntry, type DealSyncStore, type UnreadableEntry } from './deal-sync-run';
 
 // DEAL -> stock deal jobs (docs/M6.md section 6). The service role is used here only: jobs run from the outbox
 // (/api/jobs/outbox with JOB_SECRET) and every query is scoped to the job's org. DEAL data is decrypted in memory;
@@ -17,7 +17,6 @@ import { backfillDeals, syncDealEntry, type DealSyncStore, type UnreadableEntry 
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEAL_COLS = 'id, entry_id, year, number, location_id, model_part, quote_number, accessories, status, unit_id';
-const BACKFILL_BUDGET_MS = 20_000;
 
 type DealRow = Omit<ExistingDeal, 'hasHistory'>;
 
@@ -124,12 +123,15 @@ export const STOCK_DEAL_HANDLERS: Record<string, Handler> = {
       return { ok: !problems(r), processed: r.inserted + r.updated + r.removed, error: problems(r), result: r };
     });
   },
-  // Every DEAL entry ({ from: last entry number done }), batched and resumable: continues itself when out of time.
-  [DEALS_BACKFILL_QUEUE]: async (db, job) => {
+  // Every DEAL entry ({ from: last entry number done }), batched and resumable: continues itself when out of time,
+  // within the drain's deadline. A continuation stops when a fresh pass ("Rebuild deals") is queued: that pass
+  // re-derives every deal from the first DEAL.
+  [DEALS_BACKFILL_QUEUE]: async (db, job, ctx) => {
     if (!job.org_id) throw new Error('job has no org');
     const from = Number((job.payload as { from?: unknown }).from ?? 0) || 0;
+    if (from > 0 && (await freshBackfillPending(db, job.org_id))) return;
     const r = await recordRun(db, job.org_id, DEALS_BACKFILL_QUEUE, async () => {
-      const res = await backfillDeals(supabaseDealStore(db, job.org_id!), { from, budgetMs: BACKFILL_BUDGET_MS });
+      const res = await backfillDeals(supabaseDealStore(db, job.org_id!), { from, budgetMs: backfillBudget(ctx?.deadline, Date.now()) });
       return { ok: !problems(res), processed: res.processed, error: problems(res), result: res };
     });
     if (!r.complete) await enqueue(db, job.org_id, DEALS_BACKFILL_QUEUE, { from: r.next });
@@ -141,7 +143,21 @@ export async function enqueueStockJobsForSave(db: SupabaseClient, orgId: string,
   for (const queue of stockJobsForSave(formSlug, actionName)) await enqueue(db, orgId, queue, { entryId });
 }
 
-/** "Rebuild deals" (Setup, stock.manage) and a changed start date: re-derive every DEAL's stock deal. */
+/** A pending backfill that starts from the first DEAL ({ from: 0 }, or no from) for the org. */
+async function freshBackfillPending(db: SupabaseClient, orgId: string): Promise<boolean> {
+  const { data, error } = await db.from('outbox_jobs').select('id')
+    .eq('org_id', orgId).eq('queue', DEALS_BACKFILL_QUEUE).eq('status', 'pending')
+    .or('payload->>from.is.null,payload->>from.eq.0').limit(1);
+  if (error) throw new Error('outbox unreadable');
+  return !!data?.length;
+}
+
+/**
+ * "Rebuild deals" (Setup, stock.manage) and a changed start date: re-derive every DEAL's stock deal from the first
+ * DEAL. Always queues a fresh pass unless one is already pending; a pending continuation of an older pass does not
+ * count (it stops itself once this pass is queued).
+ */
 export async function enqueueDealsBackfill(db: SupabaseClient, orgId: string) {
-  await enqueue(db, orgId, DEALS_BACKFILL_QUEUE, { from: 0 }, { uniquePending: true });
+  if (await freshBackfillPending(db, orgId)) return;
+  await enqueue(db, orgId, DEALS_BACKFILL_QUEUE, { from: 0 });
 }

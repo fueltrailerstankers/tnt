@@ -15,7 +15,12 @@ export interface Job {
   attempts: number;
 }
 
-export type Handler = (db: SupabaseClient, job: Job) => Promise<void>;
+/** What a handler may know about its run: the drain's deadline, so long jobs cap their own time budget to it. */
+export interface JobContext {
+  deadline: number;
+}
+
+export type Handler = (db: SupabaseClient, job: Job, ctx?: JobContext) => Promise<void>;
 
 export async function enqueue(db: SupabaseClient, orgId: string | null, queue: string, payload: Record<string, unknown> = {}, opts: { uniquePending?: boolean } = {}) {
   if (opts.uniquePending) {
@@ -51,7 +56,7 @@ export async function drain(db: SupabaseClient, handlers: Record<string, Handler
     const handler = handlers[job.queue];
     try {
       if (!handler) throw new Error(`no handler for ${job.queue}`);
-      await handler(db, job);
+      await handler(db, job, { deadline });
       await db.from('outbox_jobs').update({ status: 'done', last_error: null }).eq('id', job.id);
       ran += 1;
     } catch (e) {

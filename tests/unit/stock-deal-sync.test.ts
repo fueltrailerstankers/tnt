@@ -4,7 +4,7 @@ import {
   dealDate, DEAL_SYNC_QUEUE, inDealScope, parseDealsFrom, planDealSync, stockDealFor, stockJobsForSave,
   type DealEntry, type ExistingDeal,
 } from '@/lib/stock/deal-sync';
-import { backfillDeals, syncDealEntry, type DealSyncStore, type UnreadableEntry } from '@/lib/stock/deal-sync-run';
+import { BACKFILL_MAX_MS, backfillBudget, backfillDeals, syncDealEntry, type DealSyncStore, type UnreadableEntry } from '@/lib/stock/deal-sync-run';
 import { STOCK_LOCATIONS, STOCK_MODELS } from '@/lib/stock/models';
 
 // Synthetic DEAL data only: no customer fields (they never reach stock).
@@ -207,6 +207,17 @@ describe('syncDealEntry (stock.deal-sync)', () => {
   });
 });
 
+describe('backfillBudget', () => {
+  it('is 20 s at most and ends 3 s before the drain deadline, never under 1 s', () => {
+    expect(backfillBudget(undefined, 0)).toBe(BACKFILL_MAX_MS);
+    expect(backfillBudget(100_000, 0)).toBe(20_000);
+    // The drain after a Xero sync has about 8 s left.
+    expect(backfillBudget(8_000, 0)).toBe(5_000);
+    expect(backfillBudget(3_500, 0)).toBe(1_000);
+    expect(backfillBudget(-5_000, 0)).toBe(1_000);
+  });
+});
+
 describe('backfillDeals (stock.deals-backfill)', () => {
   const many = (n: number) => Array.from({ length: n }, (_, i) => entry(i + 1, { DATECREATED: i < 3 ? '2025-06-01' : '2026-02-01' }));
 
@@ -217,13 +228,16 @@ describe('backfillDeals (stock.deals-backfill)', () => {
     expect(store.deals.size).toBe(7);
   });
 
-  it('stops when out of time and resumes from the last entry number done; a re-run writes nothing', async () => {
+  it('stops after the entry that crosses its deadline (mid-page) and resumes after it; a re-run writes nothing', async () => {
     const store = memoryStore({ entries: many(10) });
     let t = 0;
-    const first = await backfillDeals(store, { budgetMs: 1, batch: 4, now: () => (t += 1) });
-    expect(first).toMatchObject({ complete: false, processed: 4, next: 4 });
+    const insert = store.insert.bind(store);
+    store.insert = async (row) => { t += 10; return insert(row); }; // each write takes 10 ms
+    const first = await backfillDeals(store, { budgetMs: 25, batch: 4, now: () => t });
+    // 1-3 skipped (before the start date), 4 at 10 ms, 5 at 20 ms, 6 at 30 ms: past the deadline, in the second page.
+    expect(first).toMatchObject({ complete: false, processed: 6, next: 6, inserted: 3 });
     const second = await backfillDeals(store, { from: first.next, budgetMs: 60_000, batch: 4 });
-    expect(second).toMatchObject({ complete: true, processed: 6, next: 10 });
+    expect(second).toMatchObject({ complete: true, processed: 4, next: 10 });
     expect(store.deals.size).toBe(7);
     const writes = store.writes.length;
     expect(await backfillDeals(store, { budgetMs: 60_000, batch: 4 })).toMatchObject({ inserted: 0, updated: 0, unchanged: 7 });
