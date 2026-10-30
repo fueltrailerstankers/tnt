@@ -25,18 +25,21 @@ type Find = FindOutcome | { kind: 'invalid'; message: string };
 
 const emptyAccessories = () => Array.from({ length: MAX_ACCESSORIES }, () => '');
 
-function prefill(find: Find | null) {
+/** Values a found deal fills in. A model that is not in the list (inactive) is left for the user to choose. */
+function prefill(find: Find | null, known: ReadonlySet<string>) {
   if (find?.kind !== 'found') return null;
   const acc = emptyAccessories();
   find.deal.accessories.forEach((a, i) => { acc[i] = a; });
-  return { model: find.deal.model ?? '', location: find.deal.location ?? '', accessories: acc };
+  const model = find.deal.model && known.has(find.deal.model) ? find.deal.model : '';
+  return { model, location: find.deal.location ?? '', accessories: acc };
 }
 
 /** Factory dispatch form (stock plan 7.4). One column on phones, two from sm up. */
 export function DispatchForm({ models, locations, today, currentYear, initial }: DispatchFormProps) {
   const ids = useId();
   const id = (k: string) => `${ids}-${k}`;
-  const first = prefill(initial?.find ?? null);
+  const known = new Set(models.map((m) => m.part));
+  const first = prefill(initial?.find ?? null, known);
 
   const [mode, setMode] = useState<DispatchMode>(initial ? 'deal' : 'free');
   const [dealYear, setDealYear] = useState(String(initial?.year ?? currentYear));
@@ -56,7 +59,6 @@ export function DispatchForm({ models, locations, today, currentYear, initial }:
   const found = find?.kind === 'found' && String(find.deal.year) === dealYear.trim() && String(find.deal.number) === dealNumber.trim();
   const blocked = mode === 'deal' && !found;
   const modelMissing = mode === 'deal' && found && !model;
-  const known = new Set(models.map((m) => m.part));
 
   const errorFor = (f: DispatchField) => (result?.field === f ? result.message : null);
   const describe = (f: DispatchField, extra?: string) => [extra, errorFor(f) ? id(`${f}-err`) : null].filter(Boolean).join(' ') || undefined;
@@ -66,9 +68,9 @@ export function DispatchForm({ models, locations, today, currentYear, initial }:
     startFind(async () => {
       const r = await findDeal(dealYear, dealNumber);
       setFind(r);
-      const p = prefill(r);
+      const p = prefill(r, known);
       if (p) {
-        if (p.model && known.has(p.model)) setModel(p.model);
+        setModel(p.model);
         if (p.location) setLocation(p.location);
         setAccessories(p.accessories);
       }
