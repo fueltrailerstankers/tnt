@@ -40,12 +40,34 @@ test('Pilot setup: start date, invoice rules (live needs typed confirmation, aud
   const m = main(page);
   await expect(m.getByRole('heading', { name: 'Pilot setup' })).toBeVisible();
 
+  // Item 8: live is refused while no invoice start date (or stock start date) is set.
+  await expect(m.getByTestId('rules-need-date')).toBeVisible();
+  const rules0 = m.getByTestId('rules-form');
+  await rules0.getByText('Live', { exact: true }).click();
+  await rules0.getByLabel('Type live to confirm').fill('live');
+  await rules0.getByRole('button', { name: 'Save invoice rules' }).click();
+  await expect(rules0.getByText('Set the invoice start date (or the stock start date) before switching the invoice rules to live.')).toBeVisible();
+  expect(await setting('stock.invoice_rules')).toBeUndefined();
+  await page.reload();
+
   // Start date.
   await m.getByLabel('Stock start date').fill('2026-01-01');
   await m.getByRole('button', { name: 'Save start date' }).click();
   await expect(m.getByText('Stock start date set to 2026-01-01.')).toBeVisible();
   expect(await setting('stock.deals_from')).toBe('2026-01-01');
   await expect(m.getByTestId('current-start')).toHaveText('2026-01-01');
+  await expect(m.getByTestId('current-invoices-from')).toHaveText('2026-01-01');
+
+  // Item 4: a separate invoice start date; cleared, it follows the stock start date again.
+  await m.getByLabel('Invoice start date').fill('2026-02-01');
+  await m.getByRole('button', { name: 'Save invoice start date' }).click();
+  await expect(m.getByText('Invoice start date set to 2026-02-01.')).toBeVisible();
+  expect(await setting('stock.invoices_from')).toBe('2026-02-01');
+  await expect(m.getByTestId('current-invoices-from')).toHaveText('2026-02-01');
+  await m.getByLabel('Invoice start date').fill('');
+  await m.getByRole('button', { name: 'Save invoice start date' }).click();
+  await expect(m.getByText('The invoice start date now follows the stock start date.')).toBeVisible();
+  expect(await setting('stock.invoices_from')).toBeUndefined();
 
   // Live without the typed word is refused; with it, saved and audited.
   const rules = m.getByTestId('rules-form');
@@ -59,9 +81,11 @@ test('Pilot setup: start date, invoice rules (live needs typed confirmation, aud
   await expect(rules.getByText('Invoice rules are live.', { exact: false })).toBeVisible();
   expect(await setting('stock.invoice_rules')).toBe('live');
   const audits = await sql<{ meta: Record<string, unknown> }>(
-    `select meta from public.audit_log where org_id = $1 and action = 'stock.settings' order by id desc limit 2`, [ORG]);
+    `select meta from public.audit_log where org_id = $1 and action = 'stock.settings' order by id desc limit 4`, [ORG]);
   expect(audits.map((a) => a.meta)).toEqual([
     { key: 'stock.invoice_rules', from: 'preview', to: 'live', confirmed: true },
+    { key: 'stock.invoices_from', from: '2026-02-01', to: null },
+    { key: 'stock.invoices_from', from: null, to: '2026-02-01' },
     { key: 'stock.deals_from', from: null, to: '2026-01-01' },
   ]);
   // Going live queues a sweep of the invoices changed since the start date.
@@ -271,6 +295,37 @@ test('Invoice rules live: the job reserves, sells and records exceptions once; I
   expect(await unit(3)).toEqual({ status: 'sold', invoice_number: INV('M'), xero_invoice_id: later, sold: true });
   expect(await sql(`select 1 from public.audit_log where org_id = $1 and action in ('stock.sell', 'stock.reserve', 'stock.exception') and meta->>'invoice_number' = $2`, [ORG, INV('M')]))
     .toHaveLength(2); // the manual reserve and sell only
+
+  // A unit linked to another invoice: a new live invoice naming it is an exception and changes nothing.
+  const other = randomUUID();
+  await seedInvoice(other, { number: INV('S'), status: 'AUTHORISED', due: 300, total: 300, reference: VIN(3) });
+  // Item 6: two live invoices naming one available unit: neither is applied, both are exceptions.
+  const twinA = randomUUID();
+  const twinB = randomUUID();
+  await seedInvoice(twinA, { number: INV('T'), status: 'AUTHORISED', due: 300, total: 300, reference: VIN(4) });
+  await seedInvoice(twinB, { number: INV('U'), status: 'PAID', due: 0, total: 300, reference: `Unit ${VIN(4)}` });
+  // Item 2: a sales credit note naming a unit becomes a credit_note exception.
+  const cn = randomUUID();
+  await sql(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, credit_note_number, credit_note_type, status, reference, currency_code, total, updated_utc, raw)
+    values ($1, 'tenant-e2e', $2, $3, 'ACCRECCREDIT', 'AUTHORISED', $4, 'ZAR', 100, now(), '{}')`, [ORG, cn, `CN-${run}-1`, `Refund ${VIN(1)}`]);
+  await sql(`insert into public.outbox_jobs(org_id, queue, payload) values ($1, 'stock.invoices', $2)`,
+    [ORG, JSON.stringify({ kind: 'ids', invoice_ids: [other, twinA, twinB], credit_note_ids: [cn] })]);
+  await drain(request);
+  expect(await unit(3)).toEqual({ status: 'sold', invoice_number: INV('M'), xero_invoice_id: later, sold: true });
+  expect(await unit(4)).toMatchObject({ status: 'available', invoice_number: null });
+  expect(await unit(1)).toMatchObject({ status: 'reserved', invoice_number: INV('A') });
+  const newer = await sql<{ invoice_number: string; reason: string; unit_vin: string | null }>(
+    `select e.invoice_number, e.reason, u.vin as unit_vin from public.stock_invoice_exceptions e left join public.stock_units u on u.id = e.unit_id
+     where e.org_id = $1 and e.invoice_number in ($2, $3, $4, $5) order by e.invoice_number`, [ORG, `CN-${run}-1`, INV('S'), INV('T'), INV('U')]);
+  expect(newer).toEqual([
+    { invoice_number: `CN-${run}-1`, reason: 'credit_note', unit_vin: VIN(1) },
+    { invoice_number: INV('S'), reason: 'unit_linked_other_invoice', unit_vin: VIN(3) },
+    { invoice_number: INV('T'), reason: 'vin_on_several_invoices', unit_vin: VIN(4) },
+    { invoice_number: INV('U'), reason: 'vin_on_several_invoices', unit_vin: VIN(4) },
+  ]);
+  await page.goto('/admin/stock/invoices');
+  await expect(main(page).getByTestId('recent-invoices').getByTestId('invoice-row').filter({ hasText: INV('T') })).toContainText('Exception: VIN on more than one invoice');
+  await expect(main(page).getByTestId('exceptions').getByTestId('exception-row').filter({ hasText: `CN-${run}-1` })).toContainText('Credit note');
 });
 
 test('Preview mode changes nothing and shows what each invoice would do', async ({ page, request }) => {
