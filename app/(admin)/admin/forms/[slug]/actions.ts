@@ -53,7 +53,7 @@ export async function lookupPanelStaff(slug: string, entryId: string): Promise<A
  */
 export async function searchQuotesStaff(slug: string, q: string): Promise<QuoteOption[]> {
   const { member, userDb, form } = await adminForm(slug, 'entries.read');
-  if (!can(member, 'xero.read') || !quoteFieldOf(form.spec)) return [];
+  if (!can(member, 'quotes.read') || !quoteFieldOf(form.spec)) return [];
   const filter = quoteSearchFilter(q);
   if (!filter) return [];
   const exactNo = checkableQuoteNo(q);

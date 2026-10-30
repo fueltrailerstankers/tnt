@@ -1,0 +1,140 @@
+import { describe, expect, it } from 'vitest';
+import { areaOf, areaOrFilter, describe as describeRow, filterQuery, hrefFor, parseFilters, toCsv, type AuditRow } from '@/lib/activity/describe';
+import { AREAS, PRESET_ACCESS, type AccessMap } from '@/lib/security/can';
+import {
+  accessChanges, accessFromForm, changeError, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
+  resolveAccess, type MemberState,
+} from '@/lib/users/rules';
+
+const ME = 'u-me';
+const state = (userId: string, role: MemberState['role'], status: MemberState['status'] = 'active', access: AccessMap = PRESET_ACCESS[role]): MemberState =>
+  ({ userId, role, status, access });
+
+describe('access form', () => {
+  it('reads the matrix radios and treats missing or junk values as none', () => {
+    const fd = new Map<string, string>([['access.forms', 'write'], ['access.leads', 'read'], ['access.stock', 'owner']]);
+    const m = accessFromForm((k) => fd.get(k));
+    expect(m.forms).toBe('write');
+    expect(m.leads).toBe('read');
+    expect(m.stock).toBe('none');
+    expect(Object.keys(m)).toEqual([...AREAS]);
+  });
+
+  it('resolveAccess clamps and names the preset', () => {
+    expect(resolveAccess('staff', PRESET_ACCESS.staff)).toEqual({ access: PRESET_ACCESS.staff, preset: 'staff' });
+    expect(resolveAccess('staff', { ...PRESET_ACCESS.staff, users: 'read' }).preset).toBe('custom');
+    expect(resolveAccess('factory', { ...PRESET_ACCESS.factory, forms: 'write' })).toEqual({ access: PRESET_ACCESS.factory, preset: 'factory' });
+    expect(resolveAccess('admin', {}).preset).toBe('admin');
+  });
+
+  it('accessChanges lists [area, from, to] codes only', () => {
+    expect(accessChanges(PRESET_ACCESS.staff, PRESET_ACCESS.reviewer)).toEqual([['forms', 'write', 'read'], ['leads', 'write', 'none'], ['stock', 'write', 'read']]);
+  });
+});
+
+describe('inputs', () => {
+  it('invite: normalises the email and needs a name, a preset and a method', () => {
+    const ok = InviteInput.parse({ email: ' Person@Example.Invalid ', name: ' Pat ', role: 'staff', branch: '', method: 'link' });
+    expect(ok).toEqual({ email: 'person@example.invalid', name: 'Pat', role: 'staff', branch: null, method: 'link' });
+    expect(InviteInput.safeParse({ email: 'nope', name: 'x', role: 'staff', branch: null, method: 'email' }).success).toBe(false);
+    expect(InviteInput.safeParse({ email: 'a@example.invalid', name: '', role: 'staff', branch: null, method: 'email' }).success).toBe(false);
+    expect(InviteInput.safeParse({ email: 'a@example.invalid', name: 'x', role: 'owner', branch: null, method: 'email' }).success).toBe(false);
+  });
+
+  it('edit and password', () => {
+    expect(EditInput.parse({ name: 'Pat', role: 'reviewer', branch: 'JHB' }).branch).toBe('JHB');
+    expect(PasswordInput.safeParse({ password: 'short', confirm: 'short' }).success).toBe(false);
+    expect(PasswordInput.safeParse({ password: 'long-enough-1', confirm: 'long-enough-2' }).success).toBe(false);
+    expect(PasswordInput.safeParse({ password: 'long-enough-1', confirm: 'long-enough-1' }).success).toBe(true);
+  });
+
+  it('confirm links go to our /auth/confirm, then the set-password page', () => {
+    const u = new URL(confirmLink('https://app.example.invalid', 'abc123_-', 'invite'));
+    expect(u.origin + u.pathname).toBe('https://app.example.invalid/auth/confirm');
+    expect(Object.fromEntries(u.searchParams)).toEqual({ token_hash: 'abc123_-', type: 'invite', next: '/admin/account/password' });
+    expect(ConfirmQuery.safeParse({ token_hash: 'abc123_-', type: 'invite' }).success).toBe(true);
+    expect(ConfirmQuery.safeParse({ token_hash: 'a b<script>', type: 'invite' }).success).toBe(false);
+    expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type: 'phone_change' }).success).toBe(false);
+  });
+});
+
+describe('guards', () => {
+  it('nobody changes their own preset, access or status, or removes themselves; names are fine', () => {
+    const me = state(ME, 'admin');
+    expect(changeError(ME, me, { ...me, role: 'staff', access: PRESET_ACCESS.staff }, 3)).toBe('self');
+    expect(changeError(ME, me, { ...me, status: 'disabled' }, 3)).toBe('self');
+    expect(changeError(ME, me, null, 3)).toBe('self');
+    expect(changeError(ME, me, { ...me }, 0)).toBeNull();
+  });
+
+  it('the last active admin cannot be disabled, demoted or removed', () => {
+    const other = state('u-2', 'admin');
+    expect(changeError(ME, other, { ...other, status: 'disabled' }, 0)).toBe('last_admin');
+    expect(changeError(ME, other, { ...other, role: 'staff' }, 0)).toBe('last_admin');
+    expect(changeError(ME, other, null, 0)).toBe('last_admin');
+    expect(changeError(ME, other, null, 1)).toBeNull();
+    // An invited or disabled admin is not "the last active admin".
+    expect(changeError(ME, state('u-3', 'admin', 'invited'), null, 0)).toBeNull();
+    expect(changeError(ME, state('u-4', 'staff'), null, 0)).toBeNull();
+  });
+
+  it('enable returns to invited until the invite was accepted', () => {
+    expect(enabledStatus(null)).toBe('invited');
+    expect(enabledStatus('2026-10-01T00:00:00Z')).toBe('active');
+  });
+});
+
+describe('activity log', () => {
+  const names = new Map([['u-1', 'Pat Admin'], ['u-2', 'Sam Staff']]);
+  const row = (action: string, extra: Partial<AuditRow> = {}): AuditRow => ({ id: 1, created_at: '2026-10-01T10:00:00Z', actor_user: 'u-1', action, entity: null, entity_id: null, meta: {}, ...extra });
+
+  it('maps actions to areas', () => {
+    expect(areaOf('auth.sign_in')).toBe('users');
+    expect(areaOf('user.invite')).toBe('users');
+    expect(areaOf('entry.status')).toBe('forms');
+    expect(areaOf('entries.export')).toBe('forms');
+    expect(areaOf('stock.dispatch')).toBe('stock');
+    expect(areaOf('lead.assign')).toBe('leads');
+    expect(areaOf('rfi.create_invoice')).toBe('integrations');
+    expect(areaOf('settings.org')).toBe('settings');
+    expect(areaOf('audit.export')).toBe('activity');
+    expect(areaOf('something.else')).toBeNull();
+    expect(areaOrFilter('users')).toBe('action.like.user.*,action.like.auth.*,action.like.admin.*');
+    expect(areaOrFilter('home')).toBeNull();
+  });
+
+  it('renders rows in plain words with names, never ids or meta free text', () => {
+    expect(describeRow(row('auth.sign_in'), names).text).toBe('Pat Admin signed in');
+    expect(describeRow(row('auth.sign_in_failed', { actor_user: null, entity: 'user', entity_id: 'u-2' }), names).text).toBe('Failed sign-in for Sam Staff');
+    expect(describeRow(row('auth.sign_in_failed', { actor_user: null, entity: 'auth' }), names).text).toBe('Failed sign-in for an unknown account');
+    expect(describeRow(row('user.invite', { entity: 'user', entity_id: 'u-2', meta: { preset: 'staff' } }), names)).toEqual({ text: 'Pat Admin invited Sam Staff as Staff', href: '/admin/settings/users/u-2' });
+    expect(describeRow(row('user.update', { entity: 'user', entity_id: 'u-2', meta: { preset_from: 'staff', preset_to: 'custom', changes: [['leads', 'write', 'read']] } }), names).text)
+      .toBe('Pat Admin changed Sam Staff: Staff to Custom, Leads write to read');
+    expect(describeRow(row('entry.status', { entity: 'entry', entity_id: 'e1', meta: { from: 'Submitted', to: 'Approved' } }), names))
+      .toEqual({ text: "Pat Admin changed an entry's status from Submitted to Approved", href: '/admin/settings/activity/open/entry/e1' });
+    expect(describeRow(row('stock.dispatch', { entity: 'stock_unit', entity_id: 'x1', meta: { vin: 'TESTVIN0000000001' } }), names))
+      .toEqual({ text: 'Pat Admin dispatched unit TESTVIN0000000001', href: '/admin/stock/units?q=TESTVIN0000000001' });
+    expect(describeRow(row('custom.thing', { actor_user: 'gone', entity: 'widget_box' }), names).text).toBe('A former member did custom thing on widget box');
+    expect(describeRow(row('xero.sync.manual', { actor_user: null }), names).text).toBe('System ran a Xero sync');
+  });
+
+  it('links only well-formed ids to known record pages', () => {
+    expect(hrefFor({ entity: 'lead', entity_id: 'abc-1', meta: null })).toBe('/admin/leads/abc-1');
+    expect(hrefFor({ entity: 'lead', entity_id: '../../x', meta: null })).toBeNull();
+    expect(hrefFor({ entity: 'unknown', entity_id: 'a', meta: null })).toBeNull();
+  });
+
+  it('parses filters leniently and builds links', () => {
+    const f = parseFilters({ user: 'not-a-uuid', area: 'users', action: 'auth.sign_in', from: '2026-10-01', to: 'bad', q: 'x y', page: '3' });
+    expect(f).toEqual({ area: 'users', action: 'auth.sign_in', from: '2026-10-01', page: 3 });
+    expect(filterQuery(f, { page: 4 })).toBe('?area=users&action=auth.sign_in&from=2026-10-01&page=4');
+    expect(filterQuery(parseFilters({}))).toBe('');
+  });
+
+  it('CSV quotes every cell and neutralises formulas', () => {
+    const csv = toCsv([row('custom.=cmd', { entity: 'x', entity_id: '=1+1' })], names, () => '2026-10-01 12:00');
+    expect(csv.split('\r\n')[0]).toBe('"Time","Who","Area","Action","What","Record","Record id"');
+    expect(csv).toContain(`"'=1+1"`);
+    expect(csv).toContain('"Pat Admin"');
+  });
+});

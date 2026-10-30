@@ -12,7 +12,7 @@ const TYPES = ['ACCREC', 'ACCPAY', 'ALL'] as const;
 const TYPE_LABEL: Record<(typeof TYPES)[number], string> = { ACCREC: 'Sales (ACCREC)', ACCPAY: 'Bills (ACCPAY)', ALL: 'All' };
 
 export default async function Invoices({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('invoices.read');
   const sp = await searchParams;
   const q = searchTerm(sp.q);
   const status = oneOf(sp.status, STATUSES);

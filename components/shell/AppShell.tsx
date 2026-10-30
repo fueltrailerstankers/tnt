@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Member } from '@/lib/security/can';
+import { can, type Member } from '@/lib/security/can';
 import { createClient } from '@/lib/supabase/server';
 import { badgeLabel, visibleNav } from '@/lib/ui/nav';
 import { initials, loadShellData } from '@/lib/ui/shell-data';
@@ -34,6 +34,7 @@ export async function AppShell({ member, signOut, children }: { member: Member; 
       items={items}
       user={{ name, initials: initials(data.userName, member.role), role: member.role }}
       xero={data.xero ? { connected: data.xero.connected, lastSync: sastTime(data.xero.lastSync) } : null}
+      search={{ deals: can(member, 'deals.read'), quotes: can(member, 'quotes.read'), invoices: can(member, 'invoices.read'), stock: can(member, 'stock.read') }}
       signOut={signOut}
     >
       {children}

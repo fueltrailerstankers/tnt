@@ -29,7 +29,7 @@ async function taskCount(db: SupabaseClient, orgId: string): Promise<number> {
   }
 }
 
-/** Connection state and last sync only. Token columns are never selected here. Service role, after the xero.read check. */
+/** Connection state and last sync only. Token columns are never selected here. Service role, after the showsXeroStatus check. */
 async function xeroStatus(orgId: string): Promise<ShellData['xero']> {
   try {
     const admin = createAdminClient();
@@ -56,9 +56,14 @@ export async function loadShellData(db: SupabaseClient, member: Member): Promise
   const [tasks, userName, xero] = await Promise.all([
     can(member, 'tasks.read') ? taskCount(db, member.orgId) : Promise.resolve(0),
     displayName(db, member.userId),
-    can(member, 'xero.read') ? xeroStatus(member.orgId) : Promise.resolve(null),
+    showsXeroStatus(member) ? xeroStatus(member.orgId) : Promise.resolve(null),
   ]);
   return { tasks, userName, xero };
+}
+
+/** The sidebar's Xero connection line: for members who read the mirror (quotes, invoices) or Integrations. */
+export function showsXeroStatus(member: Member): boolean {
+  return can(member, 'quotes.read') || can(member, 'invoices.read') || can(member, 'integrations.read');
 }
 
 export function initials(name: string | null, fallback: string): string {

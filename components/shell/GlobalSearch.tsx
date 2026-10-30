@@ -3,19 +3,19 @@
 import { useRouter } from 'next/navigation';
 import type { RefObject } from 'react';
 import { Icon } from '@/components/ui/Icon';
-import { searchTarget } from '@/lib/ui/search';
+import { DEFAULT_SCOPE, searchTarget, type SearchScope } from '@/lib/ui/search';
 
 const LABEL = 'Search by quote no, VIN or invoice no';
 
 /** Quote no / VIN / invoice no search. Routes to the page that lists the key; the `/` shortcut is handled by ShellFrame. */
-export function GlobalSearch({ inputRef, className = '', showHint = true }: { inputRef: RefObject<HTMLInputElement | null>; className?: string; showHint?: boolean }) {
+export function GlobalSearch({ inputRef, className = '', showHint = true, scope = DEFAULT_SCOPE }: { inputRef: RefObject<HTMLInputElement | null>; className?: string; showHint?: boolean; scope?: SearchScope }) {
   const router = useRouter();
   return (
     <form
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        const target = searchTarget(inputRef.current?.value ?? '');
+        const target = searchTarget(inputRef.current?.value ?? '', scope);
         if (target) router.push(target);
       }}
       className={`flex h-[38px] items-center gap-2 rounded-md border border-border bg-surface-2 px-3 text-fg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-focus ${className}`}

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Deal files · Trailers & Tankers' };
 
 export default async function DealFiles({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('deals.read');
   const sp = await searchParams;
   const q = searchTerm(sp.q);
   const page = pageOf(sp.page);
