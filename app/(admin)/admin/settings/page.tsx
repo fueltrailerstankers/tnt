@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation';
+import { forbidden, redirect } from 'next/navigation';
 import { SettingsTabs } from '@/components/users/SettingsTabs';
 import { loadOrg } from '@/lib/forms/org';
-import { assertPerm, can } from '@/lib/security/can';
+import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
 import { createClient } from '@/lib/supabase/server';
 import { settingsTabs } from '@/lib/ui/settings-tabs';
@@ -16,7 +16,7 @@ export default async function Settings({ searchParams }: { searchParams: Promise
     // Settings is one menu with tabs from three areas: open the first tab this member can read.
     const first = settingsTabs(member)[0];
     if (first) redirect(first.href);
-    assertPerm(member, 'settings.read');
+    forbidden();
   }
   const manage = can(member, 'settings.manage');
   const sp = await searchParams;
