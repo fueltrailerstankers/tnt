@@ -30,6 +30,7 @@ create table public.import_runs (
   error text check (error is null or error ~ '^[a-z0-9_]{1,64}$'),  -- a reason code, never a message
   stop_requested boolean not null default false,
   lease_until timestamptz,                              -- a slice is working on this run until then
+  lease_token uuid,                                     -- the claiming slice's token: its saves match on it
   started_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   started_at timestamptz,

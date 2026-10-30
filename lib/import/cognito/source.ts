@@ -73,6 +73,27 @@ export interface CognitoFormInfo {
   entryCount: number | null;
 }
 
+/**
+ * Thrown by a source when the current step must stop now: its time is up ('step_deadline'), or Cognito asks to wait
+ * longer than the step has left ('cognito_rate_limited' for 429, 'cognito_unavailable' for 5xx; retryAfterMs is the
+ * wait it asked for). It is not an entry failure: the importer aborts the step without counting or passing the entry,
+ * and the run continues later from its last checkpoint.
+ */
+export class SourceDeadlineError extends Error {
+  constructor(readonly code: 'step_deadline' | 'cognito_rate_limited' | 'cognito_unavailable', readonly retryAfterMs = 0) {
+    super(code);
+    this.name = 'SourceDeadlineError';
+  }
+}
+
+/** A file larger than the cap (declared Content-Length, or counted while streaming). The download stops there. */
+export class FileTooLargeError extends Error {
+  constructor() {
+    super('file too large');
+    this.name = 'FileTooLargeError';
+  }
+}
+
 /** Decodes inline content without any network access. Shared by every source. */
 export function decodeInline(ref: CognitoFileRef): DownloadedFile | null {
   if (!ref.inline) return null;

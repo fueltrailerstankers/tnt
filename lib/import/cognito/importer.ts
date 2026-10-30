@@ -16,7 +16,10 @@ import { MAX_FILE_BYTES, renderSummary, type EntryData } from '@/lib/spec/values
 import { mapEntry, type MappedEntry, type MappedFile } from './map';
 import { bump, emptyFormReport, type FailReason, type FormReport, type ImportReport } from './report';
 import { refEntity, type EntryKey, type ImportSink } from './sink';
-import { decodeInline, type CognitoEntry, type CognitoFormRef, type CognitoSource, type ListOptions, type PositionedEntry, type SourcePosition } from './source';
+import {
+  decodeInline, FileTooLargeError, SourceDeadlineError, type CognitoEntry, type CognitoFormRef, type CognitoSource, type ListOptions, type PositionedEntry,
+  type SourcePosition,
+} from './source';
 
 /** RFI before Delivery Note: the Delivery Note lookup resolves to RFI entries through external_refs. */
 export const IMPORT_ORDER = [
@@ -74,7 +77,8 @@ async function stage<T>(reason: FailReason, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    if (e instanceof Failure) throw e;
+    // A step deadline is not this entry's failure: it aborts the step (the entry is retried from the last checkpoint).
+    if (e instanceof Failure || e instanceof SourceDeadlineError) throw e;
     throw new Failure(reason);
   }
 }
@@ -89,6 +93,8 @@ async function importOne(ctx: Ctx, m: MappedEntry, data: EntryData, existing: En
   const { sink, source, seal } = ctx.deps;
   const { form, report } = ctx;
   const id = existing?.id ?? newId();
+  // A file Cognito says is too big is never downloaded, and nothing of the entry is written.
+  if ([...m.files, ...m.signatures].some((f) => f.size !== null && f.size > MAX_FILE_BYTES)) throw new Failure('file_too_large');
 
   if (!existing) {
     const sealed = seal(form, id, data);
@@ -104,7 +110,13 @@ async function importOne(ctx: Ctx, m: MappedEntry, data: EntryData, existing: En
   for (const [i, f] of all.entries()) {
     const path = importObjectPath(form.slug, id, m.externalId, f);
     if (have.has(path)) continue;
-    const dl = await stage('download_failed', async () => decodeInline(f.ref) ?? (await source.downloadFile(f.ref)));
+    const dl = await stage('download_failed', async () => {
+      try {
+        return decodeInline(f.ref) ?? (await source.downloadFile(f.ref));
+      } catch (e) {
+        throw e instanceof FileTooLargeError ? new Failure('file_too_large') : e;
+      }
+    });
     if (!dl.bytes.length) throw new Failure('download_failed');
     if (dl.bytes.length > MAX_FILE_BYTES) throw new Failure('file_too_large');
     const sniffed = sniff(dl.bytes.subarray(0, 16));
@@ -201,6 +213,8 @@ async function importForm(env: RunEnv, form: FormRecord, fr: FormReport, control
   const byCognito = new Map(keys.filter((k) => k.cognito_entry_id).map((k) => [k.cognito_entry_id!, k]));
   const byNumber = new Map(keys.map((k) => [k.number, k]));
   const running = new Set<Promise<void>>();
+  /** Set when a write task hit the step deadline: the step stops without a checkpoint past that entry. */
+  const abort: { error: SourceDeadlineError | null } = { error: null };
 
   /** One Cognito entry: counted, and in apply mode written (in parallel, up to `concurrency`). */
   const handle = async (raw: CognitoEntry): Promise<'next' | 'limit'> => {
@@ -273,7 +287,10 @@ async function importForm(env: RunEnv, form: FormRecord, fr: FormReport, control
         fr.imported++;
         done.set(m.externalId, id);
       })
-      .catch((e: unknown) => bump(fr.failed, e instanceof Failure ? e.reason : 'write_failed'))
+      .catch((e: unknown) => {
+        if (e instanceof SourceDeadlineError) abort.error ??= e;
+        else bump(fr.failed, e instanceof Failure ? e.reason : 'write_failed');
+      })
       .finally(() => running.delete(task));
     running.add(task);
     if (running.size >= concurrency) await Promise.race(running);
@@ -289,6 +306,7 @@ async function importForm(env: RunEnv, form: FormRecord, fr: FormReport, control
   let lastCheckpoint = Date.now();
   try {
     for await (const step of positioned(source, ref, { since: opts.since }, position)) {
+      if (abort.error) break;
       if (step.entry && (await handle(step.entry)) === 'limit') {
         outcome = 'limit';
         break;
@@ -298,6 +316,7 @@ async function importForm(env: RunEnv, form: FormRecord, fr: FormReport, control
       const timeUp = control.deadline !== undefined && Date.now() >= control.deadline;
       if (!timeUp && ++steps < every && Date.now() - lastCheckpoint < everyMs) continue;
       await Promise.all(running);
+      if (abort.error) break;
       await control.checkpoint?.(position, [...plan]);
       steps = 0;
       lastCheckpoint = Date.now();
@@ -314,6 +333,7 @@ async function importForm(env: RunEnv, form: FormRecord, fr: FormReport, control
     // Never leave writes running behind a thrown read error.
     await Promise.all(running);
   }
+  if (abort.error) throw abort.error;
 
   if (opts.apply && (outcome === 'done' || outcome === 'limit')) {
     const max = await sink.maxNumber(form.id);

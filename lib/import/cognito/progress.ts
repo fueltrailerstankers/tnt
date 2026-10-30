@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { CognitoApiError } from './api';
 import { emptyFormReport, type FormReport } from './report';
-import type { CognitoFormInfo, SourcePosition } from './source';
+import { SourceDeadlineError, type CognitoFormInfo, type SourcePosition } from './source';
 
 export const IMPORT_QUEUE = 'cognito.import';
 
@@ -44,20 +44,52 @@ const positionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('index'), n: z.number().int().nonnegative() }),
 ]);
 
+/**
+ * Steps started at one cursor position without getting past it. Written when a step starts, so a step that is killed
+ * (time limit) still counts; a checkpoint further on drops it. `last` is the reason code of the last retry-later exit.
+ */
+export interface PositionAttempts {
+  at: string;
+  n: number;
+  last?: string;
+}
+
 export interface RunCursor {
   /** Where the next slice resumes; null = from the start (or the form is finished). */
   position: SourcePosition | null;
   /** Dry runs of a lookup source form: Cognito entry ids planned for import (ids like "4-12", never data). */
   planned: string[];
+  attempt?: PositionAttempts;
 }
 
 const EXTERNAL_ID = /^\d{1,9}-\d{1,9}$/;
+const CODE = /^[a-z0-9_]{1,64}$/;
+
+/** Steps that may start at the same position before the run fails ('stuck_entry', or the last retry reason). */
+export const MAX_POSITION_ATTEMPTS = 5;
+
+export const positionKey = (p: SourcePosition | null): string => JSON.stringify(p);
 
 export function parseCursor(raw: unknown): RunCursor {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const p = positionSchema.safeParse(o.position);
   const planned = Array.isArray(o.planned) ? o.planned.filter((x): x is string => typeof x === 'string' && EXTERNAL_ID.test(x)) : [];
-  return { position: p.success ? p.data : null, planned };
+  const a = o.attempt && typeof o.attempt === 'object' ? (o.attempt as Record<string, unknown>) : null;
+  const attempt = a && typeof a.at === 'string' && a.at.length <= 200 && Number.isInteger(a.n) && (a.n as number) > 0
+    ? { at: a.at, n: a.n as number, ...(typeof a.last === 'string' && CODE.test(a.last) ? { last: a.last } : {}) }
+    : undefined;
+  return { position: p.success ? p.data : null, planned, ...(attempt ? { attempt } : {}) };
+}
+
+/**
+ * A step starting at the cursor's position: the attempt count for that position, and whether the run must fail now
+ * (with which code) because steps keep dying or retrying there.
+ */
+export function nextAttempt(cursor: RunCursor): { attempt: PositionAttempts; giveUp: string | null } {
+  const at = positionKey(cursor.position);
+  const prev = cursor.attempt?.at === at ? cursor.attempt : undefined;
+  const attempt: PositionAttempts = { at, n: (prev?.n ?? 0) + 1, ...(prev?.last ? { last: prev.last } : {}) };
+  return { attempt, giveUp: attempt.n > MAX_POSITION_ATTEMPTS ? (prev?.last ?? 'stuck_entry') : null };
 }
 
 /** Union of planned ids, first-seen order. Only Cognito entry ids are kept. */
@@ -134,6 +166,7 @@ export class ImportJobError extends Error {
 
 export function errorCode(e: unknown): string {
   if (e instanceof ImportJobError) return e.code;
+  if (e instanceof SourceDeadlineError) return e.code;
   if (e instanceof CognitoApiError) {
     if (e.message.includes('invalid JSON')) return 'cognito_bad_response';
     if (e.status === 401 || e.status === 403) return 'cognito_auth';
@@ -152,7 +185,10 @@ const ERROR_TEXT: Record<string, string> = {
   entry_key_missing: 'ENTRY_ENCRYPTION_KEY is not set on the server; DEAL and Delivery Note entries cannot be imported.',
   cognito_auth: 'Cognito did not accept the key (HTTP 401/403). Check the key and that it can read forms and entries.',
   cognito_not_found: 'Cognito answered "not found" for the form list. Check the API address (assumption A14 in docs/M5.md).',
-  cognito_rate_limited: 'Cognito is limiting requests (HTTP 429). Try again in a few minutes.',
+  cognito_rate_limited: 'Cognito is limiting requests (HTTP 429). The import retries by itself in a few minutes; if it stopped, Resume later.',
+  cognito_unavailable: 'Cognito is not answering (HTTP 5xx). The import retries by itself shortly; if it stopped, Resume later.',
+  step_deadline: 'A step ran out of time. The import continues from its last checkpoint.',
+  stuck_entry: 'The import kept stopping at the same entry (e.g. a very slow file download). Check the entry in Cognito, then Resume.',
   cognito_unreachable: 'Could not reach Cognito. Try again shortly.',
   cognito_bad_response: 'Cognito answered with something that is not JSON (docs/M5.md, API assumptions).',
   form_not_found: 'This form is no longer in the platform.',
