@@ -5,6 +5,7 @@ import { ADMIN, signIn, sql } from './helpers';
 // M7 users, access levels and activity log (docs/M7.md section 4). Synthetic people only (example.invalid).
 const run = Date.now().toString(36);
 const READER = { name: `Rea Reader ${run}`, email: `reader-${run}@example.invalid`, password: 'reader-password-e2e' };
+const EXISTING = { name: `Ex Isting ${run}`, email: `existing-${run}@example.invalid`, password: 'existing-own-password-e2e' };
 const ADDED = { name: `Al Added ${run}`, email: `added-${run}@example.invalid`, password: 'added-own-password-e2e' };
 const MANAGER = { name: `Mo Manager ${run}`, email: `manager-${run}@example.invalid`, password: 'manager-password-e2e' };
 const ADMIN_ID = '00000000-0000-0000-0000-00000000a001';
@@ -185,10 +186,14 @@ test.describe.serial('users, access levels and activity log', () => {
     // Not the admin: Disable refused, Admin preset not offered.
     await mp.goto(`/admin/settings/users/${ADMIN_ID}`);
     await mp.getByRole('button', { name: 'Disable' }).click();
-    await expect(mp.getByRole('main').getByRole('alert')).toContainText('Only an admin can invite, change, disable or remove an admin.');
+    await expect(mp.getByRole('main').getByRole('alert')).toContainText('Only an admin can invite, change, disable or remove an admin');
     expect((await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [ADMIN_ID]))[0].status).toBe('active');
     await mp.goto('/admin/settings/users/invite');
     await expect(mp.getByLabel('Preset').locator('option')).toHaveText(['Staff', 'Reviewer', 'Inspector', 'Factory']);
+    // M2: Write on Users, Integrations and Settings is granted by admins only.
+    for (const area of ['Users', 'Integrations', 'Settings']) {
+      await expect(mp.getByRole('main').getByRole('group', { name: area, exact: true }).getByRole('radio', { name: 'Write' }), area).toBeDisabled();
+    }
     await ctx.close();
   });
 
@@ -280,6 +285,59 @@ test.describe.serial('users, access levels and activity log', () => {
     await ap.goto('/admin/forms');
     await expect(ap.getByRole('main').getByRole('heading', { name: 'Forms' })).toBeVisible();
     expect((await auditActions(m.user_id)).map((r) => r.action)).toContain('auth.password');
+    await ctx.close();
+  });
+
+  test('C1: inviting an email that already has an account never returns a link; they accept with their own password', async ({ page, browser, request }) => {
+    // An account that exists already (e.g. a member removed earlier, or a member of another org), with its own password.
+    const made = await request.post(`${STUB}/auth/v1/admin/users`, {
+      data: { email: EXISTING.email, password: EXISTING.password, email_confirm: true },
+      headers: { apikey: 'stub-service-key', Authorization: 'Bearer stub-service-key' },
+    });
+    expect(made.ok()).toBe(true);
+    const existingId = ((await made.json()) as { id: string }).id;
+    await sql(`insert into public.profiles(id, email, full_name) values ($1, $2, $3)`, [existingId, EXISTING.email, EXISTING.name]);
+
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(EXISTING.name);
+    await main.getByLabel('Email').fill(EXISTING.email);
+    await main.getByRole('button', { name: 'Create invite link' }).click();
+    await expect(main.getByRole('status')).toContainText('already has an account, so no email or link is made');
+    await expect(main.getByRole('textbox', { name: 'Invite link' })).toHaveCount(0);
+    const mails = await (await request.get(`${STUB}/__stub/mail?to=${encodeURIComponent(EXISTING.email)}`)).json();
+    expect(mails).toEqual([]);
+    const [m] = await sql<{ status: string; invite_new_account: boolean }>(`select status, invite_new_account from public.memberships where user_id = $1`, [existingId]);
+    expect(m).toEqual({ status: 'invited', invite_new_account: false });
+    // No Copy invite link either, and the server refuses one.
+    await page.goto(`/admin/settings/users/${existingId}`);
+    await expect(main.getByRole('button', { name: 'Copy invite link' })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: 'Resend invite' })).toHaveCount(0);
+    // Magic links are not accepted at /auth/confirm (L4).
+    const probe = await (await browser.newContext()).newPage();
+    await probe.goto('/auth/confirm?token_hash=abcdef123456&type=magiclink');
+    await expect(probe).toHaveURL(/\/login\?error=link$/);
+
+    // The owner signs in with their own password and accepts; a wrong password does not accept.
+    const ctx = await browser.newContext();
+    const xp = await ctx.newPage();
+    await xp.goto('/login');
+    await xp.getByLabel('Email').fill(EXISTING.email);
+    await xp.getByLabel('Password').fill(EXISTING.password);
+    await xp.getByRole('button', { name: 'Sign in' }).click();
+    await expect(xp).toHaveURL(/\/admin\/account\/password$/);
+    await expect(xp.getByRole('heading', { name: 'Accept the invitation' })).toBeVisible();
+    await expect(xp.getByLabel('New password', { exact: true })).toHaveCount(0);
+    await xp.getByLabel('Current password').fill('not-their-password');
+    await xp.getByRole('button', { name: 'Accept invitation' }).click();
+    await expect(xp.getByRole('main').getByRole('alert')).toContainText('current password is not right');
+    expect((await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [existingId]))[0].status).toBe('invited');
+    await xp.getByLabel('Current password').fill(EXISTING.password);
+    await xp.getByRole('button', { name: 'Accept invitation' }).click();
+    await expect(xp).toHaveURL(/\/admin$/);
+    expect((await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [existingId]))[0].status).toBe('active');
+    // Their password did not change.
+    expect(await token(request, EXISTING.email, EXISTING.password)).toBeTruthy();
     await ctx.close();
   });
 
