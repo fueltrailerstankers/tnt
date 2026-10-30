@@ -194,7 +194,8 @@ test('register: URL-synced search, filters, deal search, CSV export of the filte
 });
 
 test('unit record: every field; admin Correct record and Transfer with mapped errors, audited', async ({ page }) => {
-  await signIn(page, `/admin/stock/units?q=${PREFIX}`);
+  await signIn(page, '/admin/stock/units');
+  await page.goto(`/admin/stock/units?q=${PREFIX}`);
   await page.getByTestId('unit-table').getByRole('link', { name: `View ${VIN.a}` }).click();
   const idA = await unitId(VIN.a);
   await expect(page).toHaveURL(new RegExp(`/admin/stock/units/${idA}\\?q=${PREFIX}$`));
