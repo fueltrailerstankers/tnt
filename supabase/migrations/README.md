@@ -46,3 +46,9 @@ It is additive:
 **Reserved numbers (work in progress on other branches; pick the next free number above these):**
 0014 users and access (M7), 0016-0017 stock pages (M6, only if needed), 0018 form builder (M8),
 0020 in-app Cognito import. 0015 is the UI handoff foundation. Next free number: 0021.
+
+`0019_stock_invoice_guard.sql` (M6 stock invoices review, branch `m6-invoices`): `xero_credit_notes` (read-only
+mirror of Xero /CreditNotes; RLS like the other `xero_*` mirror tables, factory excluded), `xero_invoices.
+credit_note_applied` (sum of CreditNotes[].AppliedAmount, backfilled from `raw`), `stock_invoice_exceptions.
+source_updated_utc`, and `stock_apply_invoice` re-created with a 7th argument `p_source_updated timestamptz default
+null` (old 6-argument calls keep working): a resolved exception blocks only the same or an older Xero state.

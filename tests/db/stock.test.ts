@@ -740,6 +740,39 @@ describe('stock_apply_invoice', () => {
     });
   });
 
+  it('0019: a resolved exception blocks only the same or an older Xero state; a later change raises a new one', async () => {
+    const APPLY7 = `select public.stock_apply_invoice($1, $2, $3, $4, $5, $6, $7) as r`;
+    const T1 = '2026-05-01T10:00:00Z';
+    const T2 = '2026-05-02T10:00:00Z';
+    const n = () => count(`select count(*) as n from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]);
+    await as(db, 'service_role', null, async () => {
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T1]))).toMatchObject({ recorded: true });
+      // Open: the same or a later state adds nothing.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T2]))).toMatchObject({ recorded: false });
+      expect(await one(`select source_updated_utc from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]))
+        .toEqual({ source_updated_utc: new Date(T1) });
+      await db.query(`update public.stock_invoice_exceptions set resolved_at = now(), resolution = 'Checked' where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]);
+      // Resolved for T1: T1 again (nightly sweep) is not raised again.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T1]))).toMatchObject({ recorded: false });
+      expect(await n()).toBe(1);
+      // The invoice changed again in Xero (T2) and still breaks the rules: a new open exception.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T2]))).toMatchObject({ recorded: true });
+      expect(await n()).toBe(2);
+      expect(await count(`select count(*) as n from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410' and resolved_at is null`, [ORG_E])).toBe(1);
+    });
+  });
+
+  it('0019: factory staff cannot read the credit notes mirror; staff can', async () => {
+    await db.query(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, credit_note_type, raw) values ($1, 't-e', 'cn-e-1', 'ACCRECCREDIT', '{}') on conflict do nothing`, [ORG_E]);
+    expect(await as(db, 'authenticated', FACTORY_E, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(0);
+    expect(await as(db, 'authenticated', STAFF_E, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(1);
+    expect(await as(db, 'authenticated', ADMIN_A, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(0);
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const { err } = await attempt(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, raw) values ($1, 't', 'cn-x', '{}')`, [ORG_E]);
+      expect(err).not.toBeNull();
+    });
+  });
+
   it('roles and modes: admin only for clients (preview, manual); live and preview for the service role', async () => {
     for (const u of [STAFF_E, FACTORY_E, REVIEWER_E, ADMIN_A]) {
       await as(db, 'authenticated', u, () => code(APPLY, applyArgs('INV-E-500', 'TESTVINDBN0000005', 'reserved', 'manual'), 'FORBIDDEN'));
