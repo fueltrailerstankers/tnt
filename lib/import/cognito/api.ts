@@ -12,7 +12,11 @@
 //   A6  Files: an entry's file object has a `File` URL that can be fetched with the same bearer key, or an `Id`
 //       that GET /files/{id} resolves (bytes, or JSON with a download URL).
 //   A13 Rate limits are unknown: 429 and 5xx are retried with backoff, honouring Retry-After.
-import type { CognitoEntry, CognitoFileRef, CognitoFormRef, CognitoSource, DownloadedFile, ListOptions } from './source';
+//   A14 "List forms": GET /forms returns [{ Id, Name, InternalName, ... }] (used by Test connection in the app).
+//   A15 The form list may carry an entry count (EntryCount or similar); if not, counts come from a dry run.
+import type {
+  CognitoEntry, CognitoFileRef, CognitoFormInfo, CognitoFormRef, CognitoSource, DownloadedFile, ListOptions, PositionedEntry, SourcePosition,
+} from './source';
 import { decodeInline } from './source';
 
 export const COGNITO_API_BASE = 'https://www.cognitoforms.com/api';
@@ -95,33 +99,72 @@ export class HttpCognitoSource implements CognitoSource {
   }
 
   async *listEntries(form: CognitoFormRef, opts: ListOptions): AsyncIterable<CognitoEntry> {
-    void opts; // since is applied by the importer; no server-side filter is assumed
+    for await (const step of this.listPositioned(form, opts)) if (step.entry) yield step.entry;
+  }
+
+  /** Resumable read (see SourcePosition). A position from the other list mode is ignored: the read starts over. */
+  async *listPositioned(form: CognitoFormRef, opts: ListOptions & { from?: SourcePosition | null }): AsyncIterable<PositionedEntry> {
+    // since is applied by the importer; no server-side filter is assumed
+    const from = opts.from ?? null;
     if ((this.o.listMode ?? 'by-number') === 'list') {
-      yield* this.listPaged(form);
+      yield* this.listPaged(form, from?.kind === 'skip' ? from.n : 0);
       return;
     }
     const maxMisses = this.o.maxConsecutiveMisses ?? 200;
-    let misses = 0;
-    for (let n = 1; this.o.maxNumber === undefined || n <= this.o.maxNumber; n++) {
+    let misses = from?.kind === 'number' ? from.misses : 0;
+    if (misses >= maxMisses) return;
+    for (let n = from?.kind === 'number' ? from.next : 1; this.o.maxNumber === undefined || n <= this.o.maxNumber; n++) {
       const res = await this.request(`${this.base}/forms/${form.cognitoFormId}/entries/${n}`, `get entry (form ${form.slug})`, 'application/json', true);
       if (!res) {
-        if (++misses >= maxMisses) return;
+        misses++;
+        // A miss is yielded too, so a long run of deleted numbers can be paused and resumed.
+        yield { entry: null, position: { kind: 'number', next: n + 1, misses } };
+        if (misses >= maxMisses) return;
         continue;
       }
       misses = 0;
       const body = await this.json(res, `get entry (form ${form.slug})`);
-      if (body && typeof body === 'object' && !Array.isArray(body)) yield body as CognitoEntry;
+      const entry = body && typeof body === 'object' && !Array.isArray(body) ? (body as CognitoEntry) : null;
+      yield { entry, position: { kind: 'number', next: n + 1, misses: 0 } };
     }
   }
 
-  private async *listPaged(form: CognitoFormRef): AsyncIterable<CognitoEntry> {
+  private async *listPaged(form: CognitoFormRef, start: number): AsyncIterable<PositionedEntry> {
     const take = this.o.pageSize ?? 100;
-    for (let skip = 0; ; skip += take) {
+    for (let skip = start; ; skip += take) {
       const res = await this.request(`${this.base}/forms/${form.cognitoFormId}/entries?skip=${skip}&take=${take}`, `list entries (form ${form.slug})`);
       const body = await this.json(res!, `list entries (form ${form.slug})`);
       const page = Array.isArray(body) ? body : pickArray(body);
-      for (const e of page) if (e && typeof e === 'object') yield e as CognitoEntry;
+      for (const [i, e] of page.entries()) {
+        yield { entry: e && typeof e === 'object' && !Array.isArray(e) ? (e as CognitoEntry) : null, position: { kind: 'skip', n: skip + i + 1 } };
+      }
       if (page.length < take) return;
+    }
+  }
+
+  /**
+   * A14: GET /forms lists the organisation's forms as [{ Id, Name, InternalName, ... }] (archived forms may be
+   * left out). An entry count is used only when the list carries one (A15); otherwise it is null.
+   */
+  async listForms(): Promise<CognitoFormInfo[]> {
+    const res = await this.request(`${this.base}/forms`, 'list forms');
+    const body = await this.json(res!, 'list forms');
+    const list = Array.isArray(body) ? body : pickArray(body, ['Forms', 'forms', 'value', 'items', 'Items']);
+    return list.filter((f): f is Record<string, unknown> => !!f && typeof f === 'object' && !Array.isArray(f)).map(formInfo);
+  }
+
+  /**
+   * Whether the key may read entries of a form (entry read scope): asks for entry 1. 'ok' when Cognito answers
+   * with the entry or 404 (no such number); 'denied' on 401/403. The body is discarded unread.
+   */
+  async probeEntries(form: CognitoFormRef): Promise<'ok' | 'denied'> {
+    try {
+      const res = await this.request(`${this.base}/forms/${form.cognitoFormId}/entries/1`, `get entry (form ${form.slug})`, 'application/json', true);
+      await res?.body?.cancel();
+      return 'ok';
+    } catch (e) {
+      if (e instanceof CognitoApiError && (e.status === 401 || e.status === 403)) return 'denied';
+      throw e;
     }
   }
 
@@ -145,9 +188,20 @@ export class HttpCognitoSource implements CognitoSource {
   }
 }
 
-function pickArray(body: unknown): unknown[] {
+function pickArray(body: unknown, keys = ['Entries', 'entries', 'value', 'items', 'Items']): unknown[] {
   if (!body || typeof body !== 'object') return [];
   const o = body as Record<string, unknown>;
-  for (const k of ['Entries', 'entries', 'value', 'items', 'Items']) if (Array.isArray(o[k])) return o[k] as unknown[];
+  for (const k of keys) if (Array.isArray(o[k])) return o[k] as unknown[];
   return [];
+}
+
+const COUNT_KEYS = ['EntryCount', 'EntriesCount', 'entryCount', 'NumberOfEntries', 'Entries'];
+
+/** Form list item -> CognitoFormInfo. Only the id, names and a count are kept; nothing else is read. */
+export function formInfo(f: Record<string, unknown>): CognitoFormInfo {
+  const rawId = f.Id ?? f.id;
+  const id = typeof rawId === 'number' && Number.isInteger(rawId) ? rawId : typeof rawId === 'string' && /^\d{1,9}$/.test(rawId) ? Number(rawId) : null;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);
+  const count = COUNT_KEYS.map((k) => f[k]).find((v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0);
+  return { id, name: str(f.Name ?? f.name) ?? str(f.InternalName) ?? (id !== null ? `Form ${id}` : 'Unnamed form'), internalName: str(f.InternalName ?? f.internalName), entryCount: count ?? null };
 }

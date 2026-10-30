@@ -34,11 +34,43 @@ export interface DownloadedFile {
   contentType: string | null;
 }
 
+/**
+ * Where a resumed read continues. JSON-safe (stored in import_runs.cursor), never entry data.
+ * - number: by-number walk (A2): the next Entry.Number to try and the consecutive misses so far.
+ * - skip:   list endpoint (A3): entries already read.
+ * - index:  any other source: entries already read; a resume reads them again and skips them.
+ */
+export type SourcePosition =
+  | { kind: 'number'; next: number; misses: number }
+  | { kind: 'skip'; n: number }
+  | { kind: 'index'; n: number };
+
+/** One step of a resumable read. `entry` is null for a probe that found nothing (a deleted entry number). */
+export interface PositionedEntry {
+  entry: CognitoEntry | null;
+  /** Resume here to continue after this step. */
+  position: SourcePosition;
+}
+
 export interface CognitoSource {
   /** Every entry of a form, oldest first where the source can tell. */
   listEntries(form: CognitoFormRef, opts: ListOptions): AsyncIterable<CognitoEntry>;
+  /**
+   * Optional resumable read: the same entries as listEntries, each with the position after it, starting at `from`.
+   * Sources without it are resumed by re-reading and skipping (see importer.ts `positioned`).
+   */
+  listPositioned?(form: CognitoFormRef, opts: ListOptions & { from?: SourcePosition | null }): AsyncIterable<PositionedEntry>;
   /** Bytes of one file or signature. Throws on failure; the importer turns that into a reason code. */
   downloadFile(ref: CognitoFileRef): Promise<DownloadedFile>;
+}
+
+/** A form as Cognito lists it (A14). Names are form names (schema), not entry data. */
+export interface CognitoFormInfo {
+  id: number | null;
+  name: string;
+  internalName: string | null;
+  /** Entry count when Cognito reports one in the form list; null when it does not (the dry run counts them). */
+  entryCount: number | null;
 }
 
 /** Decodes inline content without any network access. Shared by every source. */

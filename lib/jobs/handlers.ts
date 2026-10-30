@@ -5,6 +5,7 @@ import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sy
 import { processLeadEvent } from '@/lib/leads/intake-job';
 import { rematchOpenLeads } from '@/lib/leads/service';
 import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
+import { runImportJob } from '@/lib/import/cognito/job';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
 
 export const HANDLERS: Record<string, Handler> = {
@@ -42,6 +43,8 @@ export const HANDLERS: Record<string, Handler> = {
     });
     if (!r.complete) await enqueue(db, job.org_id, 'leads.rematch', { from: r.next });
   },
+  // In-app Cognito import: one time-boxed slice of an import run ({ run_id }); re-enqueues itself until done.
+  'cognito.import': runImportJob,
 };
 
 export async function drainOutbox(db: SupabaseClient, budgetMs: number) {
