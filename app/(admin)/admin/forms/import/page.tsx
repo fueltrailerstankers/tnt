@@ -10,7 +10,7 @@ import type { FormReport } from '@/lib/import/cognito/report';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { AutoRefresh, KeyForm, RemoveKey, RunButton, RunForm, TestConnection } from './controls';
+import { AutoRefresh, KeyForm, RemoveKey, RunControl, RunForm, TestConnection } from './controls';
 
 export const dynamic = 'force-dynamic';
 // Start/Resume run the first import step right after responding (next/server `after`).
@@ -161,10 +161,9 @@ export default async function CognitoImportPage() {
                 <div className="mt-2"><Report r={totalReport(batchReports)} apply={batchRuns[0].mode === 'apply'} testId="report-all" /></div>
               </details>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {batchActive ? <RunButton run={batchActive.id} kind="stop" /> : null}
-              {batchResumable ? <RunButton run={batchResumable.id} kind="resume" /> : null}
-            </div>
+            {batchActive || batchResumable ? (
+              <RunControl key={latestBatch!} run={(batchActive ?? batchResumable)!.id} op={batchActive ? 'stop' : 'resume'} />
+            ) : null}
           </div>
         ) : null}
         <RunForm form="all" label="all forms" disabled={!key || forms.some((f) => busy(f.slug))} />
@@ -188,10 +187,7 @@ export default async function CognitoImportPage() {
                 <div className="space-y-2" data-testid={`run-${f.slug}`}>
                   <RunLine run={run} tz={tz} now={now} />
                   {report ? <Report r={report} apply={run.mode === 'apply'} testId={`report-${f.slug}`} /> : <p className="text-small text-fg-muted">Waiting to start.</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {isBusy && !run.batch_id ? <RunButton run={run.id} kind="stop" /> : null}
-                    {resumable && !run.batch_id ? <RunButton run={run.id} kind="resume" /> : null}
-                  </div>
+                  {(isBusy || resumable) && !run.batch_id ? <RunControl key={run.id} run={run.id} op={isBusy ? 'stop' : 'resume'} /> : null}
                 </div>
               ) : (
                 <p className="text-small text-fg-muted">Not run yet.</p>

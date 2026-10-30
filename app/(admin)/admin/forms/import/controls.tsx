@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useId } from 'react';
 import { buttonClass, inputClass, labelClass } from '@/components/ui/styles';
-import { removeKeyAction, resumeRunAction, saveKeyAction, startRunAction, stopRunAction, testConnectionAction } from './actions';
+import { removeKeyAction, runControlAction, saveKeyAction, startRunAction, testConnectionAction } from './actions';
 import type { ActionState, ConnectionView } from './types';
 
 function Message({ state }: { state: ActionState }) {
@@ -113,12 +113,14 @@ export function RunForm({ form, disabled, label }: { form: string; disabled: boo
   );
 }
 
-export function RunButton({ run, kind }: { run: string; kind: 'stop' | 'resume' }) {
-  const [state, action, pending] = useActionState(kind === 'stop' ? stopRunAction : resumeRunAction, {});
+/** Stop or Resume. One instance per run (or set), so its message survives the switch from Resume to Stop. */
+export function RunControl({ run, op }: { run: string; op: 'stop' | 'resume' }) {
+  const [state, action, pending] = useActionState(runControlAction, {});
   return (
     <form action={action} className="space-y-1">
       <input type="hidden" name="run" value={run} />
-      <button type="submit" className={buttonClass(kind === 'stop' ? 'secondary' : 'primary', 36)} disabled={pending}>{kind === 'stop' ? 'Stop' : 'Resume'}</button>
+      <input type="hidden" name="op" value={op} />
+      <button type="submit" className={buttonClass(op === 'stop' ? 'secondary' : 'primary', 36)} disabled={pending}>{op === 'stop' ? 'Stop' : 'Resume'}</button>
       <Message state={state} />
     </form>
   );

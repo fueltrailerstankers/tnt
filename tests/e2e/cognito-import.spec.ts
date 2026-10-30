@@ -73,7 +73,7 @@ test('Forms page links to the import; a wrong key fails Test connection; the rig
   await signIn(page, '/admin/forms');
   await expect(page.getByTestId('form-card-request-for-invoice').getByRole('link', { name: 'Import entries' })).toHaveAttribute('href', '/admin/forms/import#form-request-for-invoice');
   await page.getByRole('link', { name: 'Import from Cognito' }).click();
-  await expect(page).toHaveURL(new RegExp(`${PAGE}$`));
+  await expect(page).toHaveURL(new RegExp(`${PAGE}$`), { timeout: 60_000 }); // first compile in dev
   await expect(page.getByTestId('cognito-key-status')).toContainText('No key saved');
   await expect(page.getByTestId('run-form-request-for-invoice').getByRole('button', { name: 'Dry run' })).toBeDisabled();
 
@@ -167,7 +167,9 @@ test('import writes entries with their Cognito numbers, files and refs, then reb
 
   // The imported entry opens in the admin like any other.
   await page.goto(`/admin/forms/request-for-invoice/entries/${base + 1}`);
-  await expect(page.getByRole('main')).toContainText('QU-E2E-0001');
+  await expect(page.getByRole('main')).toContainText(`Entry #${base + 1}`);
+  await expect(page.getByRole('main')).toContainText('synthetic-deposit.pdf');
+  await expect(page.getByRole('main')).toContainText('Import → Submitted');
 
   // Again: nothing new.
   await page.goto(PAGE);

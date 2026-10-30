@@ -100,29 +100,19 @@ export async function startRunAction(_prev: ActionState, fd: FormData): Promise<
   return { ok: mode === 'apply' ? 'Import started.' : 'Dry run started.' };
 }
 
-const runSchema = z.object({ run: z.string().uuid() });
+const controlSchema = z.object({ run: z.string().uuid(), op: z.enum(['stop', 'resume']) });
 
-export async function stopRunAction(_prev: ActionState, fd: FormData): Promise<ActionState> {
+/** Stop or Resume a run (for "All forms": the whole set). */
+export async function runControlAction(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const member = await requirePerm('import.run');
-  const parsed = runSchema.safeParse({ run: fd.get('run') });
+  const parsed = controlSchema.safeParse({ run: fd.get('run'), op: fd.get('op') });
   if (!parsed.success) return { error: 'Run not found.' };
+  const { run, op } = parsed.data;
   const db = createAdminClient();
-  const r = await stopImport(db, member.orgId, parsed.data.run);
+  const r = op === 'stop' ? await stopImport(db, member.orgId, run) : await resumeImport(db, member, run);
   if (!r.ok) return { error: r.error };
-  await audit(db, member, 'cognito.import.stop', 'import_run', parsed.data.run, { runs: r.runIds.length });
+  await audit(db, member, `cognito.import.${op}`, 'import_run', run, { runs: r.runIds.length });
+  if (op === 'resume') kick();
   revalidatePath(PAGE);
-  return { ok: 'Stopping. A running step pauses within a few seconds.' };
-}
-
-export async function resumeRunAction(_prev: ActionState, fd: FormData): Promise<ActionState> {
-  const member = await requirePerm('import.run');
-  const parsed = runSchema.safeParse({ run: fd.get('run') });
-  if (!parsed.success) return { error: 'Run not found.' };
-  const db = createAdminClient();
-  const r = await resumeImport(db, member, parsed.data.run);
-  if (!r.ok) return { error: r.error };
-  await audit(db, member, 'cognito.import.resume', 'import_run', parsed.data.run, { runs: r.runIds.length });
-  kick();
-  revalidatePath(PAGE);
-  return { ok: 'Resumed.' };
+  return { ok: op === 'stop' ? 'Stopping. A running step pauses within a few seconds.' : 'Resumed.' };
 }
