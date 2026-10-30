@@ -161,7 +161,7 @@ test('every field type: public submit with required + show-when, then grid, expo
   await page.goto(`/admin/forms/${SLUG}?q=0820000001&cols=Phone,Price,Appointment,Score`);
   const row = page.getByTestId(`entry-${e.number}`);
   await expect(row).toContainText('082 000 0001');
-  await expect(row).toContainText('ZAR 1,500.50');
+  await expect(row).toContainText('R 1,500.50');
   await expect(row).toContainText('2026-11-03 10:30');
   await expect(row).toContainText('4/5');
 
@@ -197,7 +197,7 @@ test('every field type: public submit with required + show-when, then grid, expo
   const body = await pdf.body();
   expect(body.subarray(0, 5).toString()).toBe('%PDF-');
   const text = pdfText(body);
-  for (const t of ['About the job', TITLE, 'AB-1', '082 000 0001', 'https://example.invalid/x', 'ZAR 1,500.50', '2026-11-03 10:30', '09:15', 'Synthetic reason', '4/5', 'Orange', 'Ramp, Toolbox', 'Test Person', 'Staff only note', 'REF-001', 'First point']) {
+  for (const t of ['About the job', TITLE, 'AB-1', '082 000 0001', 'https://example.invalid/x', 'R 1,500.50', '2026-11-03 10:30', '09:15', 'Synthetic reason', '4/5', 'Orange', 'Ramp, Toolbox', 'Test Person', 'Staff only note', 'REF-001', 'First point']) {
     expect(text, t).toContain(t);
   }
   expect(text).not.toContain('Red delivery');

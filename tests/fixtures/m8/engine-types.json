@@ -5,8 +5,7 @@
  "internalName": "EngineTypesTest",
  "entryCountAtExport": null,
  "settings": {
-  "entrySummary": "[Title] [Phone]",
-  "markRequired": true
+  "entrySummary": "[Title] [Phone]"
  },
  "fields": [
   {

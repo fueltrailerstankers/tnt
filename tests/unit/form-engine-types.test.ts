@@ -7,10 +7,11 @@ import { columnChoices, exportTable, gridCell } from '@/lib/admin/grid';
 import { htmlBlocks } from '@/lib/spec/content';
 import { parseShowWhen, type ShowContext } from '@/lib/spec/expressions';
 import { pages } from '@/lib/spec/layout';
+import { cellId, present } from '@/lib/spec/presentation';
 import { formatZoned, timeIn, utcToZoned, zonedToUtc } from '@/lib/spec/time';
-import { parseSpec, type FormSpec } from '@/lib/spec/types';
+import { isReservedFormSlug, parseSpec, type FormSpec } from '@/lib/spec/types';
 import {
-  applyLocks, checkPost, defaultData, displayValue, formatMoney, formatValue, lockedFor, normaliseUrl, OTHER_VALUE, postedFileCounts,
+  applyLocks, checkPost, defaultData, displayValue, formatValue, lockedFor, normaliseUrl, OTHER_VALUE, postedFileCounts,
   prepareSave, publicData, publicSpec, readFormData, renderSummary, validateEntry,
 } from '@/lib/spec/values';
 import { hiddenFields, hiddenNames, isHeading, showWhenProblems } from '@/lib/spec/visibility';
@@ -384,8 +385,10 @@ describe('defaults, display and summary', () => {
   });
 
   it('display: currency, phone, datetime in the org timezone, rating, yes/no', () => {
-    expect(formatMoney(1234.5, 'ZAR')).toBe('ZAR 1,234.50');
-    expect(displayValue({ amount: 1500, currency: 'ZAR' })).toBe('ZAR 1,500.00');
+    // Money uses the app's display rule (lib/money/fx formatAmount): ZAR as R, USD as $, other codes in front.
+    expect(displayValue({ amount: 1500, currency: 'ZAR' })).toBe('R 1,500.00');
+    expect(displayValue({ amount: 1234.5, currency: 'USD' })).toBe('$1,234.50');
+    expect(displayValue({ amount: -3, currency: 'EUR' })).toBe('-EUR 3.00');
     expect(displayValue({ phone: '082 000 0001', digits: '0820000001' })).toBe('082 000 0001');
     expect(displayValue(true)).toBe('Yes');
     expect(formatValue(field('Appointment'), '2026-10-29T12:30:00.000Z', { timeZone: TZ })).toBe('2026-10-29 14:30');
@@ -455,7 +458,7 @@ describe('grid, export and email rows', () => {
     expect(names).not.toContain('AboutHeading');
     expect(names).not.toContain('RedHeading');
     expect(gridCell(S, 'Appointment', saved.Appointment, TZ)).toBe('2026-10-29 14:30');
-    expect(gridCell(S, 'Price', saved.Price, TZ)).toBe('ZAR 1,500.00');
+    expect(gridCell(S, 'Price', saved.Price, TZ)).toBe('R 1,500.00');
   });
 
   it('export: currency as amount + code columns, datetime in the org timezone, rating as a number', () => {
@@ -473,7 +476,7 @@ describe('grid, export and email rows', () => {
     expect(labels).not.toContain('About the job');
     expect(labels).not.toContain('Why is it urgent?');
     expect(labels).toContain('Internal note');
-    expect(Object.fromEntries(rows)).toMatchObject({ Appointment: '2026-10-29 14:30', Price: 'ZAR 1,500.00', Score: '5/5' });
+    expect(Object.fromEntries(rows)).toMatchObject({ Appointment: '2026-10-29 14:30', Price: 'R 1,500.00', Score: '5/5' });
     expect(entryDetailRows(S, saved, {}, { external: true }).map(([k]) => k)).not.toContain('Internal note');
     expect(isExternalEmail({ to: ['[Email]'] })).toBe(true);
     expect(isExternalEmail({ to: ['office@example.invalid'] })).toBe(false);
@@ -490,21 +493,25 @@ describe('renderer markup (server render)', () => {
     const html = renderHtml(props({ audience: 'public', timeZone: TZ }));
     expect(html).not.toContain('Internal note');
     expect(html).toMatch(/<input id="f-FixedRef" type="text"[^>]*readOnly=""[^>]*value="REF-001"/);
-    expect(html).toMatch(/Title<span aria-hidden="true" class="text-status-red-fg"> \*<\/span><\/label>/);
+    expect(html).toContain('Title<span class="ml-0.5 text-danger" aria-hidden="true">*</span></label>');
     expect(html).toMatch(/id="f-Title"[^>]*placeholder="Short title"[^>]*aria-describedby="f-Title-help" aria-required="true"/);
-    expect(html).toContain('<fieldset role="radiogroup" aria-required="true"><legend class="mb-1 text-sm font-medium">Urgent?');
-    expect(html).toContain('<p id="f-Title-help" class="mt-1 text-xs text-fg-muted">Two to forty characters.</p>');
+    expect(html).toContain('<fieldset role="radiogroup" aria-required="true"><legend class="mb-1.5 block text-small font-semibold text-fg">Urgent?');
+    expect(html).toContain('<p id="f-Title-help" class="mt-1.5 text-small text-fg-muted">Two to forty characters.</p>');
     for (const t of ['type="tel"', 'type="url"', 'type="time"', 'type="datetime-local"', 'role="switch"', 'inputMode="decimal"']) expect(html).toContain(t);
     expect(html).toContain(`value="${OTHER_VALUE}"`);
     expect(html).toContain('<span class="sr-only">5 stars</span>');
-    expect(html).toContain('<h2 id="f-AboutHeading" class="text-h2">About the job</h2>');
-    expect(html).toContain('<a href="https://example.invalid/terms" target="_blank" rel="noopener noreferrer" class="underline">');
+    // A heading becomes a section card titled by it (lib/spec/presentation).
+    expect(html).toContain('<h2 id="sec-0-h1" class="text-h2 text-fg">About the job</h2>');
+    expect(html).toContain('Synthetic test form: every M8 field type.');
+    expect(html).toContain('<a href="https://example.invalid/terms" target="_blank" rel="noopener noreferrer" class="font-medium text-accent-text underline underline-offset-2">');
     expect(html).not.toContain('alert(1)');
   });
 
   it('show-when: hidden cells carry the hidden attribute from the initial values', () => {
     const html = renderHtml(props());
     expect(html).toMatch(/hidden=""><div><label for="f-UrgentReason"/);
+    // The heading's rule hides its whole card.
+    expect(html).toMatch(/<section aria-labelledby="sec-0-h2" class="[^"]*" hidden="">/);
     expect(renderHtml(props({ initial: { Urgent: true, Colour: 'Red' } }))).not.toMatch(/hidden=""><div><label for="f-UrgentReason"/);
   });
 
@@ -523,10 +530,27 @@ describe('renderer markup (server render)', () => {
     }
   });
 
-  it('pages: the fixture has two pages, headings are cells', () => {
+  it('pages: the fixture has two pages; headings start section cards', () => {
     const p = pages(S);
     expect(p).toHaveLength(2);
     expect(p[0].rows[0].cells[0].field).toMatchObject({ name: 'AboutHeading' });
+    const steps = present(S);
+    expect(steps[0].sections.map((x) => [x.key, x.title, x.heading && 'name' in x.heading ? x.heading.name : null])).toEqual([
+      ['0-h1', 'About the job', 'AboutHeading'], ['0-h2', 'Red delivery', 'RedHeading'],
+    ]);
+    // Every field except the headings is in exactly one card.
+    const placed = steps.flatMap((st) => st.sections.flatMap((x) => x.rows.flatMap((r) => r.cells.map((c) => cellId(c.cell)))));
+    const named = S.fields.filter((f) => f.type !== 'pagebreak' && !isHeading(f)).map((f) => ('name' in f ? f.name : `content@${f.row}`));
+    expect([...placed].sort()).toEqual([...named].sort());
+  });
+
+  it('reserved slugs: a form can never take a fixed /admin/forms/* segment', () => {
+    for (const slug of ['import', 'new', 'design']) {
+      expect(isReservedFormSlug(slug)).toBe(true);
+      expect(() => parseSpec({ ...RAW, slug })).toThrow(/reserved/);
+    }
+    expect(isReservedFormSlug('engine-types-test')).toBe(false);
+    for (const s of SLUGS) expect(isReservedFormSlug(s)).toBe(false);
   });
 });
 

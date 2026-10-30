@@ -1,10 +1,17 @@
 'use client';
 
-// M8 field inputs: choice with "Other" and real radios, yes/no, rating, currency, section heading.
-// Phone friendly: 20px controls inside ≥44px tap rows, native inputs where the phone keyboard helps.
+// M8 field controls, in the UI handoff's style (components/form-engine/styles.ts, pills like the kit choices):
+// choice with "Other", yes/no (pills or a switch), rating (stars), currency (amount + code). Phone friendly:
+// 44px+ tap targets below 640px.
 import { useState } from 'react';
 import { OTHER_VALUE } from '@/lib/spec/values';
-import { a11y, ErrorText, HelpText, inputCls, Label, Legend } from './parts';
+import { a11y, ErrorText, FieldLabel, HelpText, Legend } from './parts';
+import { inputCls, partLabelCls } from './styles';
+
+/** The kit choice pill (radio/checkbox) and its input, shared so every option looks the same. */
+export const pillCls =
+  'inline-flex h-11 cursor-pointer items-center gap-2 rounded-pill border border-border-strong bg-surface px-3.5 text-body font-medium text-fg transition hover:bg-surface-2 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus sm:h-10';
+export const pillInputCls = 'size-4 accent-[var(--accent)]';
 
 interface Common {
   id: string;
@@ -17,50 +24,45 @@ interface Common {
   locked?: boolean;
 }
 
-const optionRow = 'flex min-h-11 items-center gap-2 text-sm';
-const box = 'h-5 w-5 shrink-0';
-
-/** Choice with radio buttons and/or an "Other" option. (Dropdown/checkbox choices without Other keep the kit markup.) */
-export function ChoiceInput(p: Common & { style: 'dropdown' | 'checkboxes' | 'radio'; multi: boolean; options: string[]; other: boolean; value: unknown }) {
+/** Choice with an "Other" option (free text). Choices without "Other" keep the kit markup in FormRenderer. */
+export function ChoiceInput(p: Common & { style: 'dropdown' | 'checkboxes' | 'radio'; multi: boolean; options: string[]; value: unknown }) {
   const values = Array.isArray(p.value) ? (p.value as unknown[]).map(String) : p.value === undefined || p.value === null || p.value === '' ? [] : [String(p.value)];
   const known = values.filter((v) => p.options.includes(v));
-  const extra = p.other ? values.find((v) => !p.options.includes(v)) : undefined;
+  const extra = values.find((v) => !p.options.includes(v));
   const [otherOn, setOtherOn] = useState(extra !== undefined);
   const [otherText, setOtherText] = useState(extra ?? '');
-  const attrs = a11y(p.id, p.err, p.help, p.required);
-  const otherBox = p.other && otherOn ? (
-    <div className="mt-2">
-      <label htmlFor={`${p.id}-other`} className="text-xs text-fg-muted">Other (please specify)</label>
-      <input id={`${p.id}-other`} name={`f.${p.name}.other`} value={otherText} onChange={(e) => setOtherText(e.target.value)} autoComplete="off" readOnly={p.locked || undefined} className={inputCls(p.err)} />
+  const otherBox = otherOn ? (
+    <div className="mt-3">
+      <label htmlFor={`${p.id}-other`} className={partLabelCls}>Other (please specify)</label>
+      <input
+        id={`${p.id}-other`} name={`f.${p.name}.other`} value={otherText} onChange={(e) => setOtherText(e.target.value)}
+        autoComplete="off" readOnly={p.locked || undefined} className={inputCls(p.err)}
+      />
     </div>
   ) : null;
 
-  if (p.multi || p.style === 'checkboxes' || p.style === 'radio') {
-    const type = p.multi || p.style === 'checkboxes' ? 'checkbox' : 'radio';
+  if (p.multi || p.style !== 'dropdown') {
+    const radio = p.style === 'radio' && !p.multi;
+    const type = radio ? 'radio' : 'checkbox';
     // aria-required is valid on a radiogroup, not on a plain group of checkboxes.
-    const groupAttrs = type === 'radio' ? { role: 'radiogroup', ...attrs } : a11y(p.id, p.err, p.help, false);
+    const attrs = radio ? { role: 'radiogroup', ...a11y(p.id, p.err, p.help, p.required) } : a11y(p.id, p.err, p.help, false);
     return (
-      <fieldset {...groupAttrs}>
+      <fieldset {...attrs}>
         <Legend text={p.label} required={p.required} />
-        <div className="flex flex-wrap gap-x-4">
+        <div className="flex flex-wrap gap-2">
           {p.options.map((o) => (
-            <label key={o} className={optionRow}>
+            <label key={o} className={pillCls}>
               <input
-                type={type} name={`f.${p.name}`} value={o} defaultChecked={known.includes(o)} disabled={p.locked} className={box}
-                onChange={type === 'radio' ? () => setOtherOn(false) : undefined}
+                type={type} name={`f.${p.name}`} value={o} defaultChecked={known.includes(o)} disabled={p.locked} className={pillInputCls}
+                onChange={radio ? () => setOtherOn(false) : undefined}
               />
               {o}
             </label>
           ))}
-          {p.other ? (
-            <label className={optionRow}>
-              <input
-                type={type} name={`f.${p.name}`} value={OTHER_VALUE} defaultChecked={extra !== undefined} disabled={p.locked} className={box}
-                onChange={(e) => setOtherOn(e.target.checked)}
-              />
-              Other
-            </label>
-          ) : null}
+          <label className={pillCls}>
+            <input type={type} name={`f.${p.name}`} value={OTHER_VALUE} defaultChecked={extra !== undefined} disabled={p.locked} className={pillInputCls} onChange={(e) => setOtherOn(e.target.checked)} />
+            Other
+          </label>
         </div>
         {otherBox}
         <HelpText text={p.help} id={`${p.id}-help`} />
@@ -70,10 +72,10 @@ export function ChoiceInput(p: Common & { style: 'dropdown' | 'checkboxes' | 'ra
   }
   return (
     <div>
-      <Label htmlFor={p.id} text={p.label} required={p.required} />
+      <FieldLabel htmlFor={p.id} text={p.label} required={p.required} />
       <select
         id={p.id} name={`f.${p.name}`} defaultValue={extra !== undefined ? OTHER_VALUE : (known[0] ?? '')} disabled={p.locked}
-        onChange={(e) => setOtherOn(e.target.value === OTHER_VALUE)} className={inputCls(p.err)} {...attrs}
+        onChange={(e) => setOtherOn(e.target.value === OTHER_VALUE)} className={inputCls(p.err, 'appearance-none pr-10')} {...a11y(p.id, p.err, p.help, p.required)}
       >
         <option value="" />
         {p.options.map((o) => (
@@ -88,16 +90,24 @@ export function ChoiceInput(p: Common & { style: 'dropdown' | 'checkboxes' | 'ra
   );
 }
 
-/** Yes/No: radio pair (default) or a switch. Posts "yes" / "no" ("yes" or nothing for the switch). */
+/** Yes/No: two pills (default) or a switch. Posts "yes" / "no" ("yes" or nothing for the switch). */
 export function YesNoInput(p: Common & { style?: 'radio' | 'toggle'; value: unknown }) {
   const attrs = a11y(p.id, p.err, p.help, p.required);
   if (p.style === 'toggle') {
     return (
       <div>
-        <label htmlFor={p.id} className={`${optionRow} font-medium`}>
-          <input id={p.id} type="checkbox" role="switch" name={`f.${p.name}`} value="yes" defaultChecked={p.value === true} disabled={p.locked} className={box} {...attrs} />
-          {p.label}
-          {p.required ? <span aria-hidden="true" className="text-status-red-fg"> *</span> : null}
+        <label htmlFor={p.id} className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-body font-semibold text-fg">
+          <span className="relative inline-flex h-6 w-11 flex-none items-center rounded-pill border border-border-strong bg-surface-2 transition has-[:checked]:border-accent has-[:checked]:bg-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
+            <input
+              id={p.id} type="checkbox" role="switch" name={`f.${p.name}`} value="yes" defaultChecked={p.value === true} disabled={p.locked}
+              className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" {...attrs}
+            />
+            <span aria-hidden="true" className="ml-0.5 size-5 rounded-pill bg-surface shadow-card transition peer-checked:translate-x-5" />
+          </span>
+          <span>
+            {p.label}
+            {p.required ? <span className="ml-0.5 text-danger" aria-hidden="true">*</span> : null}
+          </span>
         </label>
         <HelpText text={p.help} id={`${p.id}-help`} />
         <ErrorText msg={p.err} id={`${p.id}-err`} />
@@ -107,10 +117,10 @@ export function YesNoInput(p: Common & { style?: 'radio' | 'toggle'; value: unkn
   return (
     <fieldset role="radiogroup" {...attrs}>
       <Legend text={p.label} required={p.required} />
-      <div className="flex gap-6">
+      <div className="flex flex-wrap gap-2">
         {(['yes', 'no'] as const).map((v) => (
-          <label key={v} className={optionRow}>
-            <input type="radio" name={`f.${p.name}`} value={v} defaultChecked={p.value === (v === 'yes')} disabled={p.locked} className={box} />
+          <label key={v} className={pillCls}>
+            <input type="radio" name={`f.${p.name}`} value={v} defaultChecked={p.value === (v === 'yes')} disabled={p.locked} className={pillInputCls} />
             {v === 'yes' ? 'Yes' : 'No'}
           </label>
         ))}
@@ -121,28 +131,25 @@ export function YesNoInput(p: Common & { style?: 'radio' | 'toggle'; value: unkn
   );
 }
 
-/** 1-5 stars as a radio group (keyboard: arrow keys move between stars). */
+/** 1-5 stars as a radio group (arrow keys move between stars). */
 export function RatingInput(p: Common & { value: unknown }) {
   const [value, setValue] = useState(typeof p.value === 'number' ? p.value : 0);
-  const attrs = a11y(p.id, p.err, p.help, p.required);
   return (
-    <fieldset role="radiogroup" {...attrs}>
+    <fieldset role="radiogroup" {...a11y(p.id, p.err, p.help, p.required)}>
       <Legend text={p.label} required={p.required} />
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((n) => (
-          <label key={n} className="relative flex h-11 w-11 cursor-pointer items-center justify-center">
+          <label key={n} className="relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-pill has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus">
             <input
               type="radio" name={`f.${p.name}`} value={n} checked={value === n} disabled={p.locked}
-              onChange={() => setValue(n)} className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              onChange={() => setValue(n)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             />
-            <span aria-hidden="true" className={`text-2xl leading-none peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-focus ${n <= value ? 'text-accent-text' : 'text-fg-subtle'}`}>
-              {n <= value ? '★' : '☆'}
-            </span>
+            <span aria-hidden="true" className={`text-2xl leading-none ${n <= value ? 'text-accent-text' : 'text-fg-subtle'}`}>{n <= value ? '★' : '☆'}</span>
             <span className="sr-only">{n} star{n === 1 ? '' : 's'}</span>
           </label>
         ))}
         {value && !p.required && !p.locked ? (
-          <button type="button" className="ml-2 text-sm underline" onClick={() => setValue(0)}>Clear</button>
+          <button type="button" className="ml-2 text-small font-medium text-fg-muted underline underline-offset-2" onClick={() => setValue(0)}>Clear</button>
         ) : null}
       </div>
       <HelpText text={p.help} id={`${p.id}-help`} />
@@ -151,35 +158,26 @@ export function RatingInput(p: Common & { value: unknown }) {
   );
 }
 
-/** Amount with the currency code shown in front (the code is fixed per field: its own or the org's). */
+/** Amount with its currency code in front (the field's own code, or the org's). */
 export function CurrencyInput(p: Common & { currency: string; placeholder?: string; value: unknown; hideLabel?: boolean }) {
-  const amount = p.value && typeof p.value === 'object' && typeof (p.value as { amount?: unknown }).amount === 'number' ? (p.value as { amount: number }).amount : undefined;
-  const code = p.value && typeof p.value === 'object' && typeof (p.value as { currency?: unknown }).currency === 'string' ? (p.value as { currency: string }).currency : p.currency;
+  const o = p.value && typeof p.value === 'object' ? (p.value as { amount?: unknown; currency?: unknown }) : {};
+  const amount = typeof o.amount === 'number' ? o.amount : undefined;
+  const code = typeof o.currency === 'string' ? o.currency : p.currency;
   const attrs = a11y(p.id, p.err, p.help, p.required);
   const by = [`${p.id}-cur`, attrs['aria-describedby']].filter(Boolean).join(' ');
   return (
     <div>
-      <Label htmlFor={p.id} text={p.label} hidden={p.hideLabel} required={p.required} />
+      <FieldLabel htmlFor={p.id} text={p.label} hidden={p.hideLabel} required={p.required} />
       <div className="flex items-stretch">
-        <span id={`${p.id}-cur`} className="flex items-center rounded-l border border-r-0 border-border-strong bg-surface-2 px-3 text-sm text-fg-muted">{code}</span>
+        <span id={`${p.id}-cur`} className="flex h-12 flex-none items-center rounded-l-sm border border-r-0 border-border-strong bg-surface-2 px-3 font-mono text-small text-fg-muted sm:h-10">{code}</span>
         <input
-          id={p.id} name={`f.${p.name}`} type="text" inputMode="decimal" placeholder={p.placeholder} autoComplete="off"
+          id={p.id} name={`f.${p.name}`} type="text" inputMode="decimal" placeholder={p.placeholder ?? '0.00'} autoComplete="off"
           defaultValue={amount === undefined ? '' : amount.toFixed(2)} readOnly={p.locked || undefined}
-          className={`${inputCls(p.err)} rounded-l-none`} {...attrs} aria-describedby={by}
+          className={inputCls(p.err, 'rounded-l-none text-right font-mono')} {...attrs} aria-describedby={by}
         />
       </div>
       <HelpText text={p.help} id={`${p.id}-help`} />
       <ErrorText msg={p.err} id={`${p.id}-err`} />
-    </div>
-  );
-}
-
-/** Section heading (M8): groups the fields after it. */
-export function SectionHeading({ id, title, description }: { id: string; title: string; description?: string }) {
-  return (
-    <div className="border-b border-border pb-2 pt-2">
-      <h2 id={id} className="text-h2">{title}</h2>
-      {description ? <p className="mt-1 text-sm text-fg-muted">{description}</p> : null}
     </div>
   );
 }

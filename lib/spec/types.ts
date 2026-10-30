@@ -195,8 +195,20 @@ const DocumentSpec = z.object({
 });
 export type DocumentSpec = z.infer<typeof DocumentSpec>;
 
+/**
+ * Slugs a form may never take: fixed route segments next to /admin/forms/<slug> (import is the in-app Cognito
+ * import, new/design are the M8 builder) and a few kept for later. Add any new fixed segment here.
+ */
+export const RESERVED_FORM_SLUGS: ReadonlySet<string> = new Set([
+  'import', 'new', 'design', 'create', 'settings', 'export', 'entries', 'versions', 'archive', 'archived', 'templates', 'builder',
+]);
+
+export function isReservedFormSlug(slug: string): boolean {
+  return RESERVED_FORM_SLUGS.has(slug.trim().toLowerCase());
+}
+
 export const FormSpec = z.object({
-  slug: z.string().regex(/^[a-z0-9-]+$/),
+  slug: z.string().regex(/^[a-z0-9-]+$/).refine((s) => !isReservedFormSlug(s), { message: 'This slug is reserved for a page of the app.' }),
   cognitoFormId: z.number().int(),
   name: z.string(),
   internalName: z.string(),
@@ -208,8 +220,6 @@ export const FormSpec = z.object({
     preventLookup: z.boolean().optional(),
     hasLookups: z.boolean().optional(),
     isLookupSourceFor: z.array(z.string()).optional(),
-    /** M8: show a * (and aria-required) on required fields. Off for the kit forms, which keep Cognito's look. */
-    markRequired: z.boolean().optional(),
   }),
   fields: z.array(FieldSpec),
   workflow: z.object({ roles: z.array(Role), statuses: z.array(Status), actions: z.array(Action) }),

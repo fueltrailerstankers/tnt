@@ -1,25 +1,23 @@
-// Small shared pieces of the form renderer. The markup of the kit field types must stay byte-for-byte the
-// same (tests/unit/kit-forms-unchanged.test.ts), so every M8 addition renders only when its option is set.
-
-export const inputCls = (err?: string) =>
-  `w-full rounded border px-3 py-2 text-base md:text-sm bg-surface disabled:bg-surface-2 ${err ? 'border-danger' : 'border-border-strong'}`;
+// Small shared pieces of the form renderer (labels, help, errors, aria). The kit forms' markup must stay as it
+// was (tests/unit/kit-forms-unchanged.test.ts), so the M8 bits render only when their option is set.
+import { errorCls, labelCls } from './styles';
 
 export function RequiredMark({ show }: { show?: boolean }) {
-  return show ? <span aria-hidden="true" className="text-status-red-fg"> *</span> : null;
+  return show ? <span className="ml-0.5 text-danger" aria-hidden="true">*</span> : null;
 }
 
-export function Label({ htmlFor, text, hidden, required }: { htmlFor: string; text: string; hidden?: boolean; required?: boolean }) {
+export function FieldLabel({ htmlFor, text, hidden, required }: { htmlFor: string; text: string; hidden?: boolean; required?: boolean }) {
   return (
-    <label htmlFor={htmlFor} className={hidden ? 'sr-only' : 'mb-1 block text-sm font-medium'}>
+    <label htmlFor={htmlFor} className={hidden ? 'sr-only' : labelCls}>
       {text}
       <RequiredMark show={required} />
     </label>
   );
 }
 
-export function Legend({ text, required, className = 'mb-1 text-sm font-medium' }: { text: string; required?: boolean; className?: string }) {
+export function Legend({ text, required, hidden }: { text: string; required?: boolean; hidden?: boolean }) {
   return (
-    <legend className={className}>
+    <legend className={hidden ? 'sr-only' : labelCls}>
       {text}
       <RequiredMark show={required} />
     </legend>
@@ -27,16 +25,17 @@ export function Legend({ text, required, className = 'mb-1 text-sm font-medium' 
 }
 
 export function ErrorText({ msg, id }: { msg?: string; id: string }) {
-  return msg ? <p id={id} className="mt-1 text-sm text-status-red-fg">{msg}</p> : null;
+  return msg ? <p id={id} className={errorCls}>{msg}</p> : null;
 }
 
+/** M8 `help`: the note under a field. */
 export function HelpText({ text, id }: { text?: string; id: string }) {
-  return text ? <p id={id} className="mt-1 text-xs text-fg-muted">{text}</p> : null;
+  return text ? <p id={id} className="mt-1.5 text-small text-fg-muted">{text}</p> : null;
 }
 
 /**
- * aria attributes of an input: invalid + described by its help and error text, required when the form marks
- * required fields. Keys appear only when they apply, in the pre-M8 order (aria-invalid, aria-describedby).
+ * aria attributes of an input: invalid and described by its help and error text (keys only when they apply,
+ * in the pre-M8 order), plus aria-required on required inputs (the * is aria-hidden).
  */
 export function a11y(id: string, err: string | undefined, help: string | undefined, required: boolean | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};

@@ -16,6 +16,7 @@
 //
 // This module imports the spec module for types only, so the browser renderer can run the same reading,
 // show-when and validation code without bundling zod.
+import { formatAmount } from '@/lib/money/fx';
 import { errorMessage, parseErrorWhen } from './expressions';
 import { formatZoned, timeIn, zonedToUtc } from './time';
 import type { ChecklistItem, FieldSpec, FormSpec, InputField } from './types';
@@ -469,18 +470,13 @@ export function renderSummary(template: string, data: EntryData, ctx?: { spec: F
     .slice(0, 200);
 }
 
-/** "ZAR 1,234.50". */
-export function formatMoney(amount: number, currency: string): string {
-  return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 /** Plain-text rendering of a stored value, for summaries, grids, exports, emails and PDFs. */
 export function displayValue(v: unknown): string {
   if (v === undefined || v === null) return '';
   if (Array.isArray(v)) return v.map(displayValue).filter(Boolean).join(', ');
   if (typeof v === 'object') {
     const o = v as Record<string, unknown>;
-    if (typeof o.amount === 'number' && typeof o.currency === 'string') return formatMoney(o.amount, o.currency);
+    if (typeof o.amount === 'number' && typeof o.currency === 'string') return formatAmount(o.amount, o.currency);
     if (typeof o.phone === 'string' && typeof o.digits === 'string') return o.phone;
     if ('First' in o || 'Last' in o) return [o.First, o.Last].filter(Boolean).join(' ');
     return Object.values(o).map(displayValue).filter(Boolean).join(', ');
