@@ -57,6 +57,8 @@ const AMOUNT_RE = /^-?\d+(\.\d{1,2})?$/;
 /** Posted by a choice field's "Other" option; the typed text comes in f.<Field>.other. */
 export const OTHER_VALUE = '__other__';
 const MAX_URL = 2000;
+/** Largest currency amount accepted (absolute). */
+export const MAX_AMOUNT = 1e12;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PNG_DATA_URL_RE = /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/;
@@ -138,7 +140,7 @@ export function readFormData(spec: FormSpec, fd: Getter, opts: ReadOptions = {})
         const v = str(fd.get(key));
         if (!v) break;
         const digits = digitsOf(v);
-        if (!PHONE_RE.test(v) || digits.length < 9 || digits.length > 15) errors[f.name] = 'Enter a valid phone number (at least 9 digits).';
+        if (v.length > 40 || !PHONE_RE.test(v) || digits.length < 9 || digits.length > 15) errors[f.name] = 'Enter a valid phone number (at least 9 digits).';
         else data[f.name] = { phone: v, digits };
         break;
       }
@@ -153,8 +155,10 @@ export function readFormData(spec: FormSpec, fd: Getter, opts: ReadOptions = {})
       case 'currency': {
         const v = str(fd.get(key)).replace(/[\s,]/g, '');
         if (!v) break;
-        if (!AMOUNT_RE.test(v) || !Number.isFinite(Number(v))) errors[f.name] = 'Enter an amount, for example 1500.00.';
-        else data[f.name] = { amount: Number(v), currency: currencyOf(f, opts) };
+        const n = Number(v);
+        if (!AMOUNT_RE.test(v) || !Number.isFinite(n) || Math.abs(n) > MAX_AMOUNT) errors[f.name] = 'Enter an amount, for example 1500.00.';
+        else if (n < 0 && !(f.min !== undefined && f.min < 0)) errors[f.name] = 'Enter an amount of 0 or more.';
+        else data[f.name] = { amount: n, currency: currencyOf(f, opts) };
         break;
       }
       case 'time': {
@@ -167,7 +171,8 @@ export function readFormData(spec: FormSpec, fd: Getter, opts: ReadOptions = {})
         const v = str(fd.get(key));
         if (!v) break;
         const iso = zonedToUtc(v, opts.timeZone ?? 'UTC');
-        if (!iso) errors[f.name] = 'Enter a valid date and time.';
+        const year = Number(v.slice(0, 4));
+        if (!iso || year < 1900 || year > 2100) errors[f.name] = 'Enter a valid date and time.';
         else data[f.name] = iso;
         break;
       }
@@ -395,18 +400,27 @@ export interface PreparedSave {
 }
 
 /**
- * Applies the M8 rules to what was read from a post. Locked fields (lockedFor) keep `previous`: the saved
- * entry's data, or the defaults for a new entry. Fields hidden by showWhen are dropped and not validated.
+ * Applies the M8 rules to what was read from a post.
+ * - Locked fields (lockedFor: readOnly/internalOnly for the public role) keep `previous` (the saved entry's data,
+ *   or the defaults for a new entry), whatever was posted, also when a show-when rule hides them.
+ * - Fields hidden by showWhen are not validated and what was posted for them is ignored. An existing entry keeps
+ *   the value it had stored (`stored`); a new entry stores nothing for them. So hiding a field (in the builder or
+ *   by answering differently) never erases saved data.
  * The same function runs in the browser before submitting, so both sides agree.
  */
-export function prepareSave(spec: FormSpec, read: Pick<ReadResult, 'data' | 'errors'>, ctx: { audience: Audience; previous: EntryData }): PreparedSave {
+export function prepareSave(
+  spec: FormSpec, read: Pick<ReadResult, 'data' | 'errors'>, ctx: { audience: Audience; previous: EntryData; stored?: EntryData | null },
+): PreparedSave {
   const locked = lockedFor(spec, ctx.audience);
   const data = applyLocks(spec, read.data, ctx);
   const hidden = hiddenNames(spec, data);
+  const stored = ctx.stored ?? null;
   for (const name of hidden) {
+    if (locked.has(name)) continue; // applyLocks already holds the previous value
     const f = fieldNamed(spec, name);
-    if (f && isChecklistSection(f)) delete data.checklist;
-    else delete data[name];
+    const key = f && isChecklistSection(f) ? 'checklist' : name;
+    if (stored && stored[key] !== undefined) data[key] = stored[key];
+    else delete data[key];
   }
   const skip = new Set([...locked, ...hidden]);
   const errors = Object.fromEntries(Object.entries(read.errors).filter(([k]) => !skip.has(k)));
@@ -512,7 +526,10 @@ export function defaultData(spec: FormSpec, opts: DefaultOptions = {}): EntryDat
     // M8 defaults
     if (f.type === 'date' && f.default && f.default !== 'today') d[f.name] = f.default;
     if ((f.type === 'text' || f.type === 'textarea') && f.default) d[f.name] = f.type === 'text' && f.pattern === 'uppercase' ? f.default.toUpperCase() : f.default;
-    if (f.type === 'url' && f.default) d[f.name] = normaliseUrl(f.default) ?? f.default;
+    if (f.type === 'url' && f.default) {
+      const u = normaliseUrl(f.default);
+      if (u) d[f.name] = u; // an invalid default is ignored, never stored as typed
+    }
     if (f.type === 'phone' && f.default) d[f.name] = { phone: f.default, digits: digitsOf(f.default) };
     if ((f.type === 'number' || f.type === 'rating') && f.default !== undefined) d[f.name] = f.default;
     if (f.type === 'currency' && f.default !== undefined) d[f.name] = { amount: f.default, currency: currencyOf(f, opts) };

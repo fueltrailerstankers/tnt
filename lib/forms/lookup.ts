@@ -28,6 +28,7 @@ export async function lookupOptions(db: SupabaseClient, orgId: string, sourceSlu
 
 /** Public: exact Quote no match only, newest entry wins. */
 export async function lookupExact(db: SupabaseClient, orgId: string, sourceSlug: string, displayField: string, value: string): Promise<LookupOption | null> {
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(displayField)) return null; // a field name only, never a filter
   const src = await loadForm(db, orgId, sourceSlug);
   const v = value.trim();
   if (!src || !v || v.length > 64) return null;

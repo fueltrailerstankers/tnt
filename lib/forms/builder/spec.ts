@@ -1,5 +1,7 @@
 // Spec assembly and the publish rules of the builder. Pure.
 import { ZodError } from 'zod';
+import { parseShowWhen } from '@/lib/spec/expressions';
+import { normaliseUrl } from '@/lib/spec/values';
 import { FormSpec, inputFields, parseSpec, type FieldSpec } from '@/lib/spec/types';
 import { isChecklistSection } from '@/lib/spec/visibility';
 import { FIELD_NAME_RE } from './names';
@@ -79,11 +81,15 @@ export function changeProblems(prev: FormSpec, next: FormSpec, ctx: ChangeContex
     if (!ctx.withData.has(f.name)) continue;
     const n = nextBy.get(f.name);
     if (!n) {
-      out.push(`"${f.label.trim() || f.name}" (${f.name}) has data: it cannot be deleted or renamed. Hide it with a show-when rule or make it internal only.`);
+      out.push(`"${f.label.trim() || f.name}" (${f.name}) has data: it cannot be deleted or renamed. Make it internal only or read only instead.`);
       continue;
     }
     if (!compatibleType(f.type, n.type)) out.push(`"${f.label.trim() || f.name}" has data: its type cannot change from ${f.type} to ${n.type}.`);
     else if (f.type === 'choice' && n.type === 'choice' && f.multi && !n.multi) out.push(`"${f.label.trim() || f.name}" has data: it cannot change from several choices to one.`);
+    else if ((f.type === 'name' || f.type === 'address') && (n.type === 'name' || n.type === 'address')) {
+      const gone = f.parts.filter((x) => !n.parts.includes(x));
+      if (gone.length) out.push(`"${f.label.trim() || f.name}" has data: its parts cannot be removed (${gone.join(', ')}).`);
+    }
   }
   if (ctx.hasEntries && !!next.settings.encryptEntries !== ctx.encrypted) {
     out.push(ctx.encrypted ? 'Encryption cannot be turned off once the form has entries.' : 'Encryption can only be turned on before the first entry.');
@@ -91,8 +97,14 @@ export function changeProblems(prev: FormSpec, next: FormSpec, ctx: ChangeContex
   return out;
 }
 
+/** Fields of other forms a lookup may show: source slug -> field names. */
+export type LookupSources = Map<string, Set<string>>;
+
+/** Forms that are always encrypted (the kit's DEAL and Delivery Note; also enforced in the database, 0022). */
+export const ALWAYS_ENCRYPTED = new Set(['deal', 'delivery-note']);
+
 /** Builder rules on top of parseSpec: field names, a public/internal workflow, the form's own slug. */
-export function specProblems(next: unknown, slug: string): { spec?: FormSpec; problems: string[] } {
+export function specProblems(next: unknown, slug: string, sources?: LookupSources): { spec?: FormSpec; problems: string[] } {
   let spec: FormSpec;
   try {
     spec = parseSpec(next);
@@ -109,8 +121,22 @@ export function specProblems(next: unknown, slug: string): { spec?: FormSpec; pr
   for (const f of spec.fields) {
     if (f.type === 'choice' && new Set(f.options).size !== f.options.length) problems.push(`"${f.label}": options must be unique.`);
     if (f.type === 'choice' && f.options.some((o) => !o.trim() || o === '__other__')) problems.push(`"${f.label}": options cannot be empty.`);
-    if (f.type === 'lookup' && (!f.lookup.sourceForm || !f.lookup.displayField)) problems.push(`"${f.label}": choose the form and field to look up.`);
+    if (f.type === 'url' && f.default && !normaliseUrl(f.default)) problems.push(`"${f.label}": the default must be an https:// link.`);
+    if (f.type === 'lookup') {
+      if (!f.lookup.sourceForm || !f.lookup.displayField) problems.push(`"${f.label}": choose the form and field to look up.`);
+      else if (!FIELD_NAME_RE.test(f.lookup.displayField) || (sources && !sources.get(f.lookup.sourceForm)?.has(f.lookup.displayField))) {
+        problems.push(`"${f.label}": the field to show is not a field of the chosen form.`);
+      }
+    }
   }
+  // A field the public sees may not depend on an internal-only field (its rule would expose it).
+  const internal = new Set(inputFields(spec).filter((f) => 'internalOnly' in f && f.internalOnly).map((f) => f.name));
+  for (const f of spec.fields) {
+    if (!('showWhen' in f) || !f.showWhen || ('internalOnly' in f && f.internalOnly)) continue;
+    const refs = parseShowWhen(f.showWhen).fields.filter((n) => internal.has(n));
+    if (refs.length) problems.push(`"${'label' in f ? f.label : f.type}": a show-when rule of a public field cannot use the internal-only field ${refs[0]}.`);
+  }
+  if (ALWAYS_ENCRYPTED.has(spec.slug) && !spec.settings.encryptEntries) problems.push('This form is always encrypted.');
   const tokens = [...spec.settings.entrySummary.matchAll(/\[([A-Za-z_][A-Za-z0-9_]*)\]/g)].map((m) => m[1]);
   for (const t of tokens) if (!names.includes(t)) problems.push(`The entry summary uses an unknown field [${t}].`);
   problems.push(...workflowProblems(spec.workflow));

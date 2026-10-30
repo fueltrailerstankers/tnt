@@ -62,6 +62,8 @@ export async function createFormAction(_: CreateState, fd: FormData): Promise<Cr
     if ('errors' in r) return fail(r.errors);
     spec = r.spec;
   }
+  // The Encrypt option applies to every way of creating a form (blank, duplicate, import).
+  spec = { ...spec, settings: { ...spec.settings, encryptEntries: p.encrypt || undefined } };
   const created = await createForm(db, member, spec, { isActive: p.publicLink, how: p.how, sourceFormId });
   if (!created.ok) return fail(created.problems);
   redirect(`/admin/forms/${created.slug}/design?created=1`);

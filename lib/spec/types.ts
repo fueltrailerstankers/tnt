@@ -5,7 +5,9 @@ import { z } from 'zod';
 import { showWhenProblems } from './visibility';
 
 const grid = { row: z.number().int().positive(), col: z.number().int().min(1).max(24).optional(), span: z.number().int().min(1).max(24).optional() };
-const named = { name: z.string().min(1), label: z.string(), note: z.string().optional(), hideLabel: z.boolean().optional() };
+/** Field names are entries.data keys: never a key that changes object prototypes. */
+const fieldName = z.string().min(1).refine((n) => !['__proto__', 'constructor', 'prototype'].includes(n), { message: 'This field name is not allowed.' });
+const named = { name: fieldName, label: z.string(), note: z.string().optional(), hideLabel: z.boolean().optional() };
 
 const customError = z.object({ when: z.string(), cognitoExpr: z.string().optional(), message: z.string() });
 

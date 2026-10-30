@@ -33,7 +33,9 @@ describe('names and slugs', () => {
     expect(slugFromName('***', [])).toBe('form');
     expect(slugProblem('design', [])).toMatch(/reserved/);
     expect(slugProblem('Bad Slug', [])).toMatch(/lower-case/);
-    expect(slugProblem('deal', ['deal'])).toMatch(/already/);
+    expect(slugProblem('deal', ['deal'])).toMatch(/standard form/);
+    expect(slugProblem('site-visit', ['site-visit'])).toMatch(/already/);
+    expect(slugFromName('Deal', [])).toBe('deal-form');
     expect(slugProblem('site-visit', [])).toBeNull();
   });
 });

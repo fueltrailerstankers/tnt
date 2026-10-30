@@ -8,6 +8,7 @@ import { loadForm } from '@/lib/forms/forms';
 import { customerPanel, lookupExact } from '@/lib/forms/lookup';
 import { checkableQuoteNo, quoteFieldOf } from '@/lib/forms/quote-fields';
 import { issueUploads } from '@/lib/forms/storage';
+import { publicLookupOf, publicUploadAllowed } from '@/lib/forms/public-policy';
 import { validateUploadRequest } from '@/lib/forms/uploads';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
 import { TURNSTILE_FIELD, verifyTurnstile } from '@/lib/security/turnstile';
@@ -51,6 +52,7 @@ export async function requestUploadPublic(slug: string, field: string, files: Ar
   if (await limited('upload', 30)) return { error: 'Too many uploads. Wait a minute and try again.' };
   const ctx = await publicForm(slug);
   if (!ctx) return { error: 'This form is not available.' };
+  if (!publicUploadAllowed(ctx.form.spec, field)) return { error: 'Unknown file field.' };
   const v = validateUploadRequest(ctx.form.spec, field, files);
   if (!v.ok) return { error: v.error };
   return { tickets: await issueUploads(ctx.db, field, v.files) };
@@ -59,8 +61,8 @@ export async function requestUploadPublic(slug: string, field: string, files: Ar
 export async function findLookupPublic(slug: string, value: string): Promise<{ option: LookupOption; panel: Array<[string, string]> } | null> {
   if (await limited('lookup', 10)) return null;
   const ctx = await publicForm(slug);
-  const field = ctx?.form.spec.fields.find((f) => f.type === 'lookup');
-  if (!ctx || !field || field.type !== 'lookup' || typeof value !== 'string') return null;
+  const field = ctx ? publicLookupOf(ctx.form.spec) : null; // allow-listed public lookups only (M8)
+  if (!ctx || !field || typeof value !== 'string') return null;
   const hit = await lookupExact(ctx.db, ctx.form.orgId, field.lookup.sourceForm, field.lookup.displayField, value);
   if (!hit) return null;
   return { option: hit, panel: await customerPanel(ctx.db, ctx.form.orgId, field.lookup.sourceForm, hit.id, true) };

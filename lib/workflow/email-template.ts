@@ -1,7 +1,7 @@
 // Email building from spec.workflow.actions[].emails. Pure: no sending, no I/O.
 // Literal inbox addresses in the spec are configuration, so they come from notification_recipients
 // (event key "<form-slug>.<Action>"); field tokens such as [InspectorEmail] resolve from the entry.
-import { displayValue, formatValue, type EntryData } from '@/lib/spec/values';
+import { displayValue, formatValue, publicData, type EntryData } from '@/lib/spec/values';
 import { fieldByName, inputFields, type EmailSpec, type FormSpec } from '@/lib/spec/types';
 import { hiddenNames, isHeading } from '@/lib/spec/visibility';
 
@@ -111,8 +111,13 @@ export function isExternalEmail(email: EmailSpec): boolean {
   return email.to.some((t) => /^\[[A-Za-z_][A-Za-z0-9_]*\]$/.test(t));
 }
 
-export function buildEmail(email: EmailSpec, action: string, ctx: EmailContext): BuiltEmail {
-  const to = resolveRecipients(email, ctx.data, ctx.configuredRecipients);
+export function buildEmail(email: EmailSpec, action: string, ctxIn: EmailContext): BuiltEmail {
+  const to = resolveRecipients(email, ctxIn.data, ctxIn.configuredRecipients);
+  // M8: an email to an address from the entry never carries internalOnly values, not even through [Field] tokens.
+  const ctx = isExternalEmail(email) ? { ...ctxIn, data: publicData(ctxIn.spec, ctxIn.data) } : ctxIn;
+  const internal = isExternalEmail(email) ? new Set(inputFields(ctxIn.spec).filter((f) => 'internalOnly' in f && f.internalOnly).map((f) => f.name)) : null;
+  const strip = (t: string) => (internal ? t.replace(/\[([A-Za-z_][A-Za-z0-9_]*)\]/g, (w, k: string) => (internal.has(k) ? '' : w)) : t);
+  email = { ...email, subject: email.subject === undefined ? undefined : strip(email.subject), body: email.body === undefined ? undefined : strip(email.body) };
   const subject = email.subject
     ? fillTokens(email.subject, ctx, false)
     : `${ctx.spec.name.trim()} - Entry #${ctx.entryNumber} (${action})`;

@@ -103,7 +103,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   // M8: the public role cannot change readOnly/internalOnly fields (they keep the saved or default value), and
   // fields hidden by showWhen are neither validated nor saved; their files are left as they are.
   const previous = entry?.data ?? defaultData(spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency });
-  const prep = prepareSave(spec, read, { audience: actor.kind === 'public' || actor.kind === 'link' ? 'public' : 'staff', previous });
+  const prep = prepareSave(spec, read, { audience: actor.kind === 'public' || actor.kind === 'link' ? 'public' : 'staff', previous, stored: entry?.data ?? null });
   const existing: EntryFile[] = entry ? await loadFiles(db, entry.id) : [];
   const plan = planFiles(form, read.files, read.signatures, existing, prep.skip);
   if (plan.errors) Object.assign(prep.errors, plan.errors);

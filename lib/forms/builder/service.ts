@@ -6,12 +6,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FormRecord } from '@/lib/forms/forms';
 import type { Member } from '@/lib/security/can';
 import type { FormSpec } from '@/lib/spec/types';
-import { changeProblems, fieldsWithData, specProblems } from './spec';
+import { loadForms } from '@/lib/forms/forms';
+import { inputFields } from '@/lib/spec/types';
+import { changeProblems, fieldsWithData, specProblems, type LookupSources } from './spec';
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; problems: string[] };
 
 async function audit(db: SupabaseClient, m: Member, action: string, formId: string, meta: Record<string, unknown> = {}) {
   await db.from('audit_log').insert({ org_id: m.orgId, actor_user: m.userId, action, entity: 'form', entity_id: formId, meta });
+}
+
+/** Lookup sources of the org: each form's field names (lookups must name a real field). */
+export async function lookupSources(db: SupabaseClient, orgId: string): Promise<LookupSources> {
+  return new Map((await loadForms(db, orgId)).map((f) => [f.slug, new Set(inputFields(f.spec).map((x) => x.name))]));
 }
 
 /** Slugs already used in the org (archived forms included: a slug is never reused). */
@@ -50,7 +57,7 @@ function columnsOf(spec: FormSpec) {
 export async function createForm(
   db: SupabaseClient, m: Member, spec: FormSpec, o: { isActive: boolean; how: 'blank' | 'duplicate' | 'import'; sourceFormId?: string },
 ): Promise<Result<{ id: string; slug: string }>> {
-  const { problems } = specProblems(spec, spec.slug);
+  const { problems } = specProblems(spec, spec.slug, await lookupSources(db, m.orgId));
   if (problems.length) return { ok: false, problems };
   const { data: last } = await db.from('forms').select('sort_order').eq('org_id', m.orgId).order('sort_order', { ascending: false }).limit(1).maybeSingle();
   const now = new Date().toISOString();
@@ -96,7 +103,7 @@ export async function dataContext(userDb: SupabaseClient, form: FormRecord) {
 export async function publish(
   db: SupabaseClient, userDb: SupabaseClient, m: Member, form: FormRecord, draft: unknown, note: string | null,
 ): Promise<Result<{ version: number }>> {
-  const { spec, problems } = specProblems(draft, form.slug);
+  const { spec, problems } = specProblems(draft, form.slug, await lookupSources(db, m.orgId));
   if (!spec || problems.length) return { ok: false, problems };
   const ctx = await dataContext(userDb, form);
   const guards = changeProblems(form.spec, spec, ctx);
