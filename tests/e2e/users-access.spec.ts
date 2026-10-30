@@ -5,6 +5,7 @@ import { ADMIN, signIn, sql } from './helpers';
 // M7 users, access levels and activity log (docs/M7.md section 4). Synthetic people only (example.invalid).
 const run = Date.now().toString(36);
 const READER = { name: `Rea Reader ${run}`, email: `reader-${run}@example.invalid`, password: 'reader-password-e2e' };
+const ADDED = { name: `Al Added ${run}`, email: `added-${run}@example.invalid`, password: 'added-own-password-e2e' };
 const MANAGER = { name: `Mo Manager ${run}`, email: `manager-${run}@example.invalid`, password: 'manager-password-e2e' };
 const ADMIN_ID = '00000000-0000-0000-0000-00000000a001';
 const ORG = '00000000-0000-0000-0000-000000000001';
@@ -229,6 +230,59 @@ test.describe.serial('users, access levels and activity log', () => {
     await ctx.close();
   });
 
+  test('Add user: temporary password shown once, changed on first sign-in before anything else', async ({ page, browser }) => {
+    await signIn(page, '/admin/settings/users');
+    const main = page.getByRole('main');
+    await main.getByRole('link', { name: 'Add user' }).click();
+    await expect(page).toHaveURL(/\/admin\/settings\/users\/add$/);
+    await main.getByLabel('Name').fill(ADDED.name);
+    await main.getByLabel('Email').fill(ADDED.email);
+    // A typed temporary password must be at least 12 characters.
+    await main.getByLabel('Generate one for me (shown once)').uncheck();
+    await main.getByRole('textbox', { name: 'Temporary password' }).fill('short-pass1');
+    await main.getByRole('textbox', { name: 'Temporary password' }).evaluate((el) => el.removeAttribute('minlength'));
+    await main.getByRole('button', { name: 'Add user' }).click();
+    await expect(main.getByRole('alert')).toContainText('at least 12 characters');
+    // Generated instead.
+    await main.getByLabel('Generate one for me (shown once)').check();
+    await setLevel(page, 'Leads', 'None');
+    await main.getByRole('button', { name: 'Add user' }).click();
+    const box = main.getByRole('textbox', { name: 'Temporary password' });
+    await expect(box).toBeVisible();
+    const temp = await box.inputValue();
+    expect(temp).toHaveLength(16);
+
+    const [m] = await sql<{ user_id: string; status: string; must_change_password: boolean; access: Record<string, string> }>(
+      `select m.user_id, m.status, m.must_change_password, m.access from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [ADDED.email]);
+    expect(m).toMatchObject({ status: 'active', must_change_password: true });
+    expect(m.access.leads).toBe('none');
+    const rows = await auditActions(m.user_id);
+    expect(rows.map((r) => r.action)).toEqual(['user.add']);
+    for (const secret of [ADDED.email, ADDED.name, temp]) expect(rows[0].meta).not.toContain(secret);
+
+    // First sign-in: every admin page sends them to choose a password (no current password asked).
+    const ctx = await browser.newContext();
+    const ap = await ctx.newPage();
+    await ap.goto('/login?next=%2Fadmin%2Fforms');
+    await ap.getByLabel('Email').fill(ADDED.email);
+    await ap.getByLabel('Password').fill(temp);
+    await ap.getByRole('button', { name: 'Sign in' }).click();
+    await expect(ap).toHaveURL(/\/admin\/account\/password$/);
+    await expect(ap.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
+    await expect(ap.getByLabel('Current password')).toHaveCount(0);
+    await ap.goto('/admin/leads');
+    await expect(ap).toHaveURL(/\/admin\/account\/password$/);
+    await ap.getByLabel('New password', { exact: true }).fill(ADDED.password);
+    await ap.getByLabel('Repeat new password').fill(ADDED.password);
+    await ap.getByRole('button', { name: 'Set password and continue' }).click();
+    await expect(ap).toHaveURL(/\/admin$/);
+    expect((await sql<{ must_change_password: boolean }>(`select must_change_password from public.memberships where user_id = $1`, [m.user_id]))[0].must_change_password).toBe(false);
+    await ap.goto('/admin/forms');
+    await expect(ap.getByRole('main').getByRole('heading', { name: 'Forms' })).toBeVisible();
+    expect((await auditActions(m.user_id)).map((r) => r.action)).toContain('auth.password');
+    await ctx.close();
+  });
+
   test('every user and access change, sign-in and export is in the activity log with the actor', async ({ page }) => {
     // A failed sign-in for the reader's account: recorded without the email.
     await page.goto('/login');
@@ -247,7 +301,7 @@ test.describe.serial('users, access levels and activity log', () => {
     for (const text of [
       `Test Admin invited ${READER.name}`, `Test Admin created an invite link for ${READER.name}`, `${READER.name} accepted the invite and set a password`,
       `${READER.name} signed in`, `Test Admin disabled ${READER.name}`, `Test Admin enabled ${READER.name}`, `Failed sign-in for ${READER.name}`,
-      `Test Admin invited ${MANAGER.name}`,
+      `Test Admin invited ${MANAGER.name}`, `Test Admin added ${ADDED.name} as Custom with a temporary password`,
     ]) await expect(list.getByText(text).first(), text).toBeVisible();
     await list.getByRole('link', { name: `Test Admin disabled ${READER.name}` }).first().click();
     await expect(page).toHaveURL(new RegExp(`/admin/settings/users/${readerId}$`));

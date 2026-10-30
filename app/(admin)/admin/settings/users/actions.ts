@@ -18,6 +18,7 @@ import { audit, loadMember, otherActiveAdmins } from '@/lib/users/service';
 
 const Uuid = z.guid();
 const str = (fd: FormData, k: string) => { const v = fd.get(k); return typeof v === 'string' ? v : undefined; };
+const echo = (fd: FormData) => ({ name: (str(fd, 'name') ?? '').slice(0, 120), email: (str(fd, 'email') ?? '').slice(0, 254) });
 const userUrl = (id: string, q = '') => `/admin/settings/users/${id}${q}`;
 
 /** The org's location ids (the optional branch scope must be one of them). */
@@ -36,16 +37,16 @@ async function targetOf(orgId: string, userId: unknown) {
 export async function inviteUser(_prev: InviteState, fd: FormData): Promise<InviteState> {
   const member = await requirePerm('users.manage');
   const parsed = InviteInput.safeParse({ email: str(fd, 'email'), name: str(fd, 'name'), role: str(fd, 'role'), branch: str(fd, 'branch') ?? null, method: str(fd, 'method') });
-  if (!parsed.success || !(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input' };
+  if (!parsed.success || !(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input', values: echo(fd) };
   const { email, name, role, branch, method } = parsed.data;
-  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only' };
+  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only', values: echo(fd) };
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
   const admin = createAdminClient();
 
   const isMember = async (userId: string) =>
     Boolean((await admin.from('memberships').select('user_id').eq('org_id', member.orgId).eq('user_id', userId).maybeSingle()).data);
   const { data: known } = await admin.from('profiles').select('id').eq('email', email).maybeSingle();
-  if (known && (await isMember(known.id as string))) return { status: 'error', error: 'exists' };
+  if (known && (await isMember(known.id as string))) return { status: 'error', error: 'exists', values: echo(fd) };
 
   let userId: string;
   let link: string | undefined;
@@ -56,20 +57,20 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
       userId = r.userId;
       sent = 'email';
     } else {
-      if (r.error === 'auth') return { status: 'error', error: 'auth' };
+      if (r.error === 'auth') return { status: 'error', error: 'auth', values: echo(fd) };
       // No email delivery, or the account already exists: hand the admin a link to pass on instead.
       const l = await createLink(admin, email, name);
-      if ('error' in l) return { status: 'error', error: r.error === 'email' ? 'email' : 'auth' };
+      if ('error' in l) return { status: 'error', error: r.error === 'email' ? 'email' : 'auth', values: echo(fd) };
       ({ userId, link } = l);
       sent = r.error === 'email' ? 'email_failed' : 'existing';
     }
   } else {
     const l = await createLink(admin, email, name);
-    if ('error' in l) return { status: 'error', error: l.error };
+    if ('error' in l) return { status: 'error', error: l.error, values: echo(fd) };
     ({ userId, link } = l);
     sent = 'link';
   }
-  if (await isMember(userId)) return { status: 'error', error: 'exists' };
+  if (await isMember(userId)) return { status: 'error', error: 'exists', values: echo(fd) };
 
   // A new account gets a profile; an existing one keeps its own (the per-org name is the membership's display_name).
   await admin.from('profiles').upsert({ id: userId, email, full_name: name }, { onConflict: 'id', ignoreDuplicates: true });
@@ -77,7 +78,7 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
     org_id: member.orgId, user_id: userId, role, access, status: 'invited', invited_by: member.userId,
     invited_at: new Date().toISOString(), display_name: name, branch,
   });
-  if (error) return { status: 'error', error: 'auth' };
+  if (error) return { status: 'error', error: 'auth', values: echo(fd) };
   await audit(member.orgId, member.userId, 'user.invite', userId, { preset, access, method: sent });
   if (link) await audit(member.orgId, member.userId, 'user.invite_link', userId);
   revalidatePath('/admin/settings/users');
@@ -95,21 +96,21 @@ export async function addUser(_prev: AddState, fd: FormData): Promise<AddState> 
     email: str(fd, 'email'), name: str(fd, 'name'), role: str(fd, 'role'), branch: str(fd, 'branch') ?? null,
     password: str(fd, 'password') || undefined, generate: fd.get('generate') === 'on',
   });
-  if (!parsed.success) return { status: 'error', error: parsed.error.issues.some((i) => i.path[0] === 'password') ? 'password' : 'input' };
-  if (!(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input' };
+  if (!parsed.success) return { status: 'error', error: parsed.error.issues.some((i) => i.path[0] === 'password') ? 'password' : 'input', values: echo(fd) };
+  if (!(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input', values: echo(fd) };
   const { email, name, role, branch, generate } = parsed.data;
-  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only' };
+  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only', values: echo(fd) };
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
   const password = generate ? generatePassword() : parsed.data.password!;
   const admin = createAdminClient();
   const made = await createAccount(admin, email, password, name);
-  if ('error' in made) return { status: 'error', error: made.error === 'exists' ? 'account_exists' : 'auth' };
+  if ('error' in made) return { status: 'error', error: made.error === 'exists' ? 'account_exists' : 'auth', values: echo(fd) };
   await admin.from('profiles').upsert({ id: made.userId, email, full_name: name }, { onConflict: 'id', ignoreDuplicates: true });
   const { error } = await admin.from('memberships').insert({
     org_id: member.orgId, user_id: made.userId, role, access, status: 'active', must_change_password: true,
     invited_by: member.userId, invited_at: new Date().toISOString(), display_name: name, branch,
   });
-  if (error) return { status: 'error', error: 'auth' };
+  if (error) return { status: 'error', error: 'auth', values: echo(fd) };
   await audit(member.orgId, member.userId, 'user.add', made.userId, { preset, access, generated: generate });
   revalidatePath('/admin/settings/users');
   return { status: 'done', userId: made.userId, password: generate ? password : undefined };

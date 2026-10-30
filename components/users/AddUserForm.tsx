@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { addUser } from '@/app/(admin)/admin/settings/users/actions';
 import { Input, Label, Select } from '@/components/ui/Field';
 import { buttonClass, cardClass } from '@/components/ui/styles';
@@ -14,6 +14,8 @@ import { CopyText } from './CopyText';
 export function AddUserForm({ branches, allowAdmin }: { branches: Array<{ id: string; name: string }>; allowAdmin: boolean }) {
   const [state, action, pending] = useActionState(addUser, { status: 'idle' } as AddState);
   const [generate, setGenerate] = useState(true);
+  // React resets the form after each action (the checkbox goes back to its default): keep the state in step.
+  useEffect(() => { setGenerate(true); }, [state]);
 
   if (state.status === 'done' && state.userId) {
     return (
@@ -39,17 +41,17 @@ export function AddUserForm({ branches, allowAdmin }: { branches: Array<{ id: st
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="name" required>Name</Label>
-          <Input id="name" name="name" required maxLength={120} autoComplete="off" />
+          <Input id="name" name="name" key={`n-${state.values?.name}`} defaultValue={state.values?.name} required maxLength={120} autoComplete="off" />
         </div>
         <div>
           <Label htmlFor="email" required>Email</Label>
-          <Input id="email" name="email" type="email" required maxLength={254} autoComplete="off" />
+          <Input id="email" name="email" key={`e-${state.values?.email}`} defaultValue={state.values?.email} type="email" required maxLength={254} autoComplete="off" />
         </div>
       </div>
       <fieldset className="space-y-2">
         <legend className="mb-1.5 text-small font-semibold">Temporary password</legend>
         <label className="flex items-center gap-2">
-          <input type="checkbox" name="generate" checked={generate} onChange={(e) => setGenerate(e.target.checked)} className="size-5" />
+          <input type="checkbox" name="generate" defaultChecked onChange={(e) => setGenerate(e.target.checked)} className="size-5" />
           Generate one for me (shown once)
         </label>
         {!generate ? (

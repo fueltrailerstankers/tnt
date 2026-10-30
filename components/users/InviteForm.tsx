@@ -40,11 +40,11 @@ export function InviteForm({ branches, allowAdmin }: { branches: Array<{ id: str
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="name" required>Name</Label>
-          <Input id="name" name="name" required maxLength={120} autoComplete="off" />
+          <Input id="name" name="name" key={`n-${state.values?.name}`} defaultValue={state.values?.name} required maxLength={120} autoComplete="off" />
         </div>
         <div>
           <Label htmlFor="email" required>Email</Label>
-          <Input id="email" name="email" type="email" required maxLength={254} autoComplete="off" />
+          <Input id="email" name="email" key={`e-${state.values?.email}`} defaultValue={state.values?.email} type="email" required maxLength={254} autoComplete="off" />
         </div>
       </div>
       <AccessMatrix initialRole="staff" initialAccess={PRESET_ACCESS.staff} allowAdmin={allowAdmin} />

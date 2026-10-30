@@ -59,7 +59,7 @@ export function generatePassword(length = 16): string {
 }
 
 /** What the Add user form shows afterwards. A generated password is shown once and never stored or logged. */
-export interface AddState { status: 'idle' | 'error' | 'done'; error?: string; userId?: string; password?: string }
+export interface AddState { status: 'idle' | 'error' | 'done'; error?: string; userId?: string; password?: string; values?: { name: string; email: string } }
 
 /** New password (set after an invite, or changed from My account). */
 export const PasswordInput = z.object({
@@ -155,6 +155,8 @@ export interface InviteState {
   link?: string;
   /** email: the invite email went out; email_failed / existing: a link was made instead. */
   sent?: 'email' | 'email_failed' | 'existing' | 'link';
+  /** Name and email echoed back after an error (React resets the form after an action). */
+  values?: { name: string; email: string };
 }
 
 export type LinkResult = { link: string } | { error: string };
