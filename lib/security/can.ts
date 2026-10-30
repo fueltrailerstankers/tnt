@@ -162,7 +162,8 @@ export const RULES: Record<Permission, Rule> = {
   'import.run': { admin: true },
   'stock.read': r('stock'),
   'stock.dispatch': w('stock'),
-  'stock.export': r('stock'),
+  // Stock read, but never factory accounts (M6: dispatch staff do not export the register).
+  'stock.export': { all: [['stock', 'read']], roles: ['admin', 'staff', 'reviewer', 'inspector'] },
   'stock.manage': { admin: true },
   // Invoice review (stock Invoices tab, exceptions queue) shows Xero references: stock and invoices (0021 RLS agrees).
   'stock.invoices': { all: [['stock', 'read'], ['invoices', 'read']] },

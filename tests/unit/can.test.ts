@@ -81,9 +81,9 @@ describe('can: presets', () => {
     expect(PERMISSIONS.filter((p) => can(member('inspector'), p))).toEqual([]);
   });
 
-  it('stock permissions follow docs/M7.md (stock.export is stock read; manage is admin-only)', () => {
+  it('stock permissions follow docs/M7.md (stock.export is stock read except factory; manage is admin-only)', () => {
     expect(holders('stock.read')).toEqual(['admin', 'staff', 'reviewer', 'factory']);
-    expect(holders('stock.export')).toEqual(['admin', 'staff', 'reviewer', 'factory']);
+    expect(holders('stock.export')).toEqual(['admin', 'staff', 'reviewer']); // never factory (M6)
     expect(holders('stock.dispatch')).toEqual(['admin', 'staff', 'factory']);
     expect(holders('stock.manage')).toEqual(['admin']);
     // Invoice review: stock read and invoices read, so never factory (0021 RLS agrees).
@@ -99,7 +99,7 @@ describe('can: presets', () => {
   });
 
   it('factory: home and stock only, never entries, forms, tasks, Xero or leads', () => {
-    expect(PERMISSIONS.filter((p) => can(member('factory'), p))).toEqual(['admin.access', 'home.read', 'stock.read', 'stock.dispatch', 'stock.export']);
+    expect(PERMISSIONS.filter((p) => can(member('factory'), p))).toEqual(['admin.access', 'home.read', 'stock.read', 'stock.dispatch']);
   });
 
   it('factory ceiling holds even when the stored map says otherwise', () => {
