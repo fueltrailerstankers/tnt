@@ -55,3 +55,11 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
+
+## Repo notes (M6 stock pages C: invoices job, Invoice review, Activity, Pilot setup)
+- Job `stock.invoices` (`lib/stock/invoice-job.ts`): queued with invoice ids from `upsertList` (merged into the org's pending ids job; the handler re-reads its payload after the claim) and as a nightly sweep from `scheduledSync` full mode. Only invoices changed on/after `stock.deals_from` are checked; `stock.invoice_rules` off/preview(default)/live; live calls `stock_apply_invoice` (service role), preview only counts. Job and Invoice review share `evaluateInvoice` (`lib/stock/invoice-review.ts`), so the page shows previews live without storing them.
+- Stock settings are read with `stockSettingsFrom`/`loadStockSettings` (`lib/stock/settings.ts` has no imports so client forms can use it) and written only by `/admin/stock/setup` actions (stock.manage, service role, audit `stock.settings`). Live needs the typed word `live`.
+- Opening stock CSV: pure `lib/stock/opening.ts` (parse, validate, plan, report); reports echo VINs and model codes only, never other cell values. Apply re-checks on the server and only inserts new VINs (idempotent); it never updates registered units or touches deals.
+- Activity wording lives in `lib/stock/activity.ts` (`activityLine`); add a case there when a new `stock.*` audit action appears. Member names for stock pages: `lib/stock/members.ts` (service role, org members only, after requirePerm).
+- Stock client forms submit with `startTransition(() => dispatch(fd))` from `onSubmit` instead of `<form action>`, so React's automatic form reset does not wipe typed values on an error.
+- `components/stock/StockHeader.tsx` is byte-identical to the stock-overview branch's copy.
