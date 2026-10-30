@@ -6,8 +6,20 @@
 //   cl.<itemNo>.<fail|pass|comments>   inspection checklist rows
 //   file.<Field>            JSON: FileRef[] (staged uploads plus kept existing files)
 //   sig.<Field>             PNG data URL of a new signature, or "keep:<fileId>"
+// M8 types:
+//   f.<Field>               phone, url, currency (amount), time (HH:MM), datetime (YYYY-MM-DDTHH:MM in the
+//                           org timezone), yesno ("yes" | "no"; a toggle posts "yes" when on), rating (1-5)
+//   f.<Field>.other         choice "Other" free text (the choice itself posts OTHER_VALUE)
+//
+// Stored values (entries.data): phone { phone, digits }, url string, currency { amount, currency },
+// time "HH:MM", datetime UTC ISO, yesno boolean, rating integer; choice "Other" stores the typed text.
+//
+// This module imports the spec module for types only, so the browser renderer can run the same reading,
+// show-when and validation code without bundling zod.
 import { errorMessage, parseErrorWhen } from './expressions';
-import { inputFields, type ChecklistItem, type FormSpec, type InputField } from './types';
+import { formatZoned, timeIn, zonedToUtc } from './time';
+import type { ChecklistItem, FieldSpec, FormSpec, InputField } from './types';
+import { hiddenNames, isChecklistSection, isHeading } from './visibility';
 
 export type EntryData = Record<string, unknown>;
 
@@ -38,12 +50,34 @@ export const MAX_SIGNATURE_BYTES = 512 * 1024;
 const DEFAULT_MAX_FILES = 10;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+const PHONE_RE = /^\+?[0-9()\-.\s]+$/;
+const AMOUNT_RE = /^-?\d+(\.\d{1,2})?$/;
+/** Posted by a choice field's "Other" option; the typed text comes in f.<Field>.other. */
+export const OTHER_VALUE = '__other__';
+const MAX_URL = 2000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PNG_DATA_URL_RE = /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/;
 const MAX_TEXT = 10_000;
 
 type Getter = { get(name: string): FormDataEntryValue | null; getAll(name: string): FormDataEntryValue[] };
+
+// Local copy of types.ts inputFields so this module stays free of zod at runtime (see the header).
+function inputFields(spec: FormSpec): InputField[] {
+  return spec.fields.filter((f): f is InputField => f.type !== 'content' && f.type !== 'pagebreak');
+}
+
+function fieldNamed(spec: FormSpec, name: string): InputField | undefined {
+  return inputFields(spec).find((f) => f.name === name);
+}
+
+export interface ReadOptions {
+  /** Org timezone: datetime fields are entered in it and stored as UTC. Default UTC. */
+  timeZone?: string;
+  /** Org currency code for currency fields that do not name one. Default USD. */
+  currency?: string;
+}
 
 function str(v: FormDataEntryValue | null): string {
   return typeof v === 'string' ? v.trim().slice(0, MAX_TEXT) : '';
@@ -55,8 +89,30 @@ function validDate(s: string): boolean {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
+export function digitsOf(s: string): string {
+  return s.replace(/\D/g, '');
+}
+
+/** https only. A bare host ("example.com/x") gets https:// in front. Null when not acceptable. */
+export function normaliseUrl(raw: string): string | null {
+  const v = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  if (v.length > MAX_URL || /\s/.test(v)) return null;
+  let u: URL;
+  try {
+    u = new URL(v);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' || !u.hostname.includes('.') || u.username || u.password) return null;
+  return u.toString();
+}
+
+function currencyOf(f: { currency?: string }, opts: ReadOptions): string {
+  return f.currency ?? opts.currency ?? 'USD';
+}
+
 /** Parses posted form data into normalised entry data and file/signature intents. Records type errors. */
-export function readFormData(spec: FormSpec, fd: Getter): ReadResult {
+export function readFormData(spec: FormSpec, fd: Getter, opts: ReadOptions = {}): ReadResult {
   const data: EntryData = {};
   const files: Record<string, FileRef[]> = {};
   const signatures: Record<string, SignatureInput> = {};
@@ -65,10 +121,66 @@ export function readFormData(spec: FormSpec, fd: Getter): ReadResult {
   for (const f of inputFields(spec)) {
     const key = `f.${f.name}`;
     switch (f.type) {
-      case 'text':
+      case 'text': {
+        let v = str(fd.get(key));
+        if (f.pattern === 'uppercase') v = v.toUpperCase();
+        if (v && f.pattern === 'alphanumeric' && !/^[A-Za-z0-9 ]+$/.test(v)) errors[f.name] = 'Use letters and numbers only.';
+        if (v) data[f.name] = v;
+        break;
+      }
       case 'textarea': {
         const v = str(fd.get(key));
         if (v) data[f.name] = v;
+        break;
+      }
+      case 'phone': {
+        const v = str(fd.get(key));
+        if (!v) break;
+        const digits = digitsOf(v);
+        if (!PHONE_RE.test(v) || digits.length < 9 || digits.length > 15) errors[f.name] = 'Enter a valid phone number (at least 9 digits).';
+        else data[f.name] = { phone: v, digits };
+        break;
+      }
+      case 'url': {
+        const v = str(fd.get(key));
+        if (!v) break;
+        const u = normaliseUrl(v);
+        if (!u) errors[f.name] = 'Enter a valid https:// link.';
+        else data[f.name] = u;
+        break;
+      }
+      case 'currency': {
+        const v = str(fd.get(key)).replace(/[\s,]/g, '');
+        if (!v) break;
+        if (!AMOUNT_RE.test(v) || !Number.isFinite(Number(v))) errors[f.name] = 'Enter an amount, for example 1500.00.';
+        else data[f.name] = { amount: Number(v), currency: currencyOf(f, opts) };
+        break;
+      }
+      case 'time': {
+        const v = str(fd.get(key));
+        if (v && !TIME_RE.test(v)) errors[f.name] = 'Enter a valid time (HH:MM).';
+        else if (v) data[f.name] = v.slice(0, 5);
+        break;
+      }
+      case 'datetime': {
+        const v = str(fd.get(key));
+        if (!v) break;
+        const iso = zonedToUtc(v, opts.timeZone ?? 'UTC');
+        if (!iso) errors[f.name] = 'Enter a valid date and time.';
+        else data[f.name] = iso;
+        break;
+      }
+      case 'yesno': {
+        const v = str(fd.get(key));
+        if (f.style === 'toggle') data[f.name] = v === 'yes';
+        else if (v === 'yes' || v === 'no') data[f.name] = v === 'yes';
+        else if (v) errors[f.name] = 'Choose Yes or No.';
+        break;
+      }
+      case 'rating': {
+        const v = str(fd.get(key));
+        if (v && !/^[1-5]$/.test(v)) errors[f.name] = 'Choose a rating from 1 to 5.';
+        else if (v) data[f.name] = Number(v);
         break;
       }
       case 'email': {
@@ -92,7 +204,19 @@ export function readFormData(spec: FormSpec, fd: Getter): ReadResult {
         break;
       }
       case 'choice': {
-        const raw = f.multi ? fd.getAll(key).map(str).filter(Boolean) : [str(fd.get(key))].filter(Boolean);
+        let raw = f.multi ? fd.getAll(key).map(str).filter(Boolean) : [str(fd.get(key))].filter(Boolean);
+        if (f.other && raw.includes(OTHER_VALUE)) {
+          const other = str(fd.get(`${key}.other`)).slice(0, 500);
+          if (!other) {
+            errors[f.name] = 'Enter a value for Other.';
+            break;
+          }
+          raw = [...raw.filter((v) => v !== OTHER_VALUE && v !== other), other];
+          const bad = raw.slice(0, -1).find((v) => !f.options.includes(v));
+          if (bad) errors[f.name] = 'Choose one of the listed options.';
+          else data[f.name] = f.multi ? raw : other;
+          break;
+        }
         const bad = raw.find((v) => !f.options.includes(v));
         if (bad) errors[f.name] = 'Choose one of the listed options.';
         else if (raw.length) data[f.name] = f.multi ? raw : raw[0];
@@ -115,7 +239,8 @@ export function readFormData(spec: FormSpec, fd: Getter): ReadResult {
         break;
       }
       case 'section': {
-        if (spec.checklist) data.checklist = readChecklist(spec.checklist, fd);
+        // Headings (M8) hold no value; the kit checklist section reads its rows.
+        if (spec.checklist && isChecklistSection(f)) data.checklist = readChecklist(spec.checklist, fd);
         break;
       }
       case 'file': {
@@ -179,21 +304,35 @@ export function isEmptyValue(v: unknown): boolean {
   return false;
 }
 
+export interface ValidateOptions {
+  /** Fields not to validate: hidden by showWhen, or locked for the actor (prepareSave's `skip`). */
+  skip?: Iterable<string>;
+}
+
 /**
- * Required fields, file limits and the spec's customError rules. Returns field -> message.
- * fileCounts: number of files/signatures each file-like field will hold after the save.
+ * Required fields, lengths and ranges (M8), file limits and the spec's customError rules. Returns
+ * field -> message. fileCounts: number of files/signatures each file-like field will hold after the save.
  */
-export function validateEntry(spec: FormSpec, data: EntryData, fileCounts: Record<string, number>): Record<string, string> {
+export function validateEntry(spec: FormSpec, data: EntryData, fileCounts: Record<string, number>, opts: ValidateOptions = {}): Record<string, string> {
   const errors: Record<string, string> = {};
+  const skip = new Set(opts.skip ?? []);
   const ctx = {
     isEmpty: (name: string) => isEmptyValue(data[name]) && (fileCounts[name] ?? 0) === 0,
     fileCount: (name: string) => fileCounts[name] ?? 0,
   };
   for (const f of inputFields(spec)) {
+    if (skip.has(f.name) || isHeading(f)) continue;
     if (isRequired(f)) {
       const v = data[f.name];
-      const missing = f.type === 'name' ? f.parts.some((p) => isEmptyValue((v as Record<string, unknown> | undefined)?.[p])) : isEmptyValue(v);
+      const missing =
+        f.type === 'name' ? f.parts.some((p) => isEmptyValue((v as Record<string, unknown> | undefined)?.[p]))
+        : f.type === 'yesno' && f.style === 'toggle' ? v !== true
+        : ctx.isEmpty(f.name);
       if (missing) errors[f.name] = 'This field is required.';
+    }
+    if (!errors[f.name]) {
+      const range = rangeError(f, data[f.name]);
+      if (range) errors[f.name] = range;
     }
     if (f.type === 'file') {
       const n = fileCounts[f.name] ?? 0;
@@ -211,12 +350,104 @@ function isRequired(f: InputField): boolean {
   return 'required' in f && f.required === true;
 }
 
+/** min/max length (text, textarea) and min/max value (number, currency, date, time). */
+function rangeError(f: InputField, v: unknown): string | null {
+  if (v === undefined || v === null || v === '') return null;
+  if ((f.type === 'text' || f.type === 'textarea') && typeof v === 'string') {
+    if (f.minLength !== undefined && v.length < f.minLength) return `Enter at least ${f.minLength} characters.`;
+    if (f.maxLength !== undefined && v.length > f.maxLength) return `Enter at most ${f.maxLength} characters.`;
+  }
+  if (f.type === 'number' || f.type === 'currency') {
+    const n = f.type === 'currency' ? (v as { amount?: unknown }).amount : v;
+    if (typeof n === 'number') {
+      if (f.min !== undefined && n < f.min) return `Enter ${f.min} or more.`;
+      if (f.max !== undefined && n > f.max) return `Enter ${f.max} or less.`;
+    }
+  }
+  if ((f.type === 'date' || f.type === 'time') && typeof v === 'string') {
+    const what = f.type === 'date' ? 'a date' : 'a time';
+    if (f.min !== undefined && v < f.min) return `Enter ${what} on or after ${f.min}.`;
+    if (f.max !== undefined && v > f.max) return `Enter ${what} on or before ${f.max}.`;
+  }
+  return null;
+}
+
+// --- who may change what, and show-when (M8) -------------------------------------------------------
+
+export type Audience = 'public' | 'staff';
+
+/** Fields the public role may not change: readOnly (shown) and internalOnly (not shown). */
+export function lockedFor(spec: FormSpec, audience: Audience): Set<string> {
+  const out = new Set<string>();
+  if (audience !== 'public') return out;
+  for (const f of inputFields(spec)) if ('readOnly' in f && (f.readOnly || f.internalOnly)) out.add(f.name);
+  return out;
+}
+
+export interface PreparedSave {
+  /** What to store: locked fields keep `previous`, hidden fields are dropped. */
+  data: EntryData;
+  /** Fields not validated, and whose files are left as they are: hidden or locked. */
+  skip: Set<string>;
+  /** The read errors that still apply (none for skipped fields). */
+  errors: Record<string, string>;
+}
+
+/**
+ * Applies the M8 rules to what was read from a post. Locked fields (lockedFor) keep `previous`: the saved
+ * entry's data, or the defaults for a new entry. Fields hidden by showWhen are dropped and not validated.
+ * The same function runs in the browser before submitting, so both sides agree.
+ */
+export function prepareSave(spec: FormSpec, read: Pick<ReadResult, 'data' | 'errors'>, ctx: { audience: Audience; previous: EntryData }): PreparedSave {
+  const data: EntryData = { ...read.data };
+  const locked = lockedFor(spec, ctx.audience);
+  for (const name of locked) {
+    if (ctx.previous[name] !== undefined) data[name] = ctx.previous[name];
+    else delete data[name];
+  }
+  const hidden = hiddenNames(spec, data);
+  for (const name of hidden) {
+    const f = fieldNamed(spec, name);
+    if (f && isChecklistSection(f)) delete data.checklist;
+    else delete data[name];
+  }
+  const skip = new Set([...locked, ...hidden]);
+  const errors = Object.fromEntries(Object.entries(read.errors).filter(([k]) => !skip.has(k)));
+  return { data, skip, errors };
+}
+
+/** Drops internalOnly fields from a spec, for the public form (their labels never reach the browser). */
+export function publicSpec(spec: FormSpec): FormSpec {
+  const internal = (f: FieldSpec) => 'internalOnly' in f && f.internalOnly === true;
+  if (!spec.fields.some(internal)) return spec;
+  return { ...spec, fields: spec.fields.filter((f) => !internal(f)) };
+}
+
+/** Drops internalOnly values from entry data shown to the public role (role links). */
+export function publicData(spec: FormSpec, data: EntryData): EntryData {
+  const out = { ...data };
+  for (const f of inputFields(spec)) if ('internalOnly' in f && f.internalOnly) delete out[f.name];
+  return out;
+}
+
+// --- display ----------------------------------------------------------------------------------------
+
+export interface DisplayOptions {
+  /** Org timezone for datetime values. Default UTC. */
+  timeZone?: string;
+}
+
 /** Renders the entry summary template, e.g. "[QUOTENO]" or "[Name]" (name renders "First Last"). */
-export function renderSummary(template: string, data: EntryData): string {
+export function renderSummary(template: string, data: EntryData, ctx?: { spec: FormSpec } & DisplayOptions): string {
   return template
-    .replace(/\[([A-Za-z_][A-Za-z0-9_]*)\]/g, (_, k: string) => displayValue(data[k]))
+    .replace(/\[([A-Za-z_][A-Za-z0-9_]*)\]/g, (_, k: string) => (ctx ? formatValue(fieldNamed(ctx.spec, k), data[k], ctx) : displayValue(data[k])))
     .trim()
     .slice(0, 200);
+}
+
+/** "ZAR 1,234.50". */
+export function formatMoney(amount: number, currency: string): string {
+  return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Plain-text rendering of a stored value, for summaries, grids, exports, emails and PDFs. */
@@ -225,6 +456,8 @@ export function displayValue(v: unknown): string {
   if (Array.isArray(v)) return v.map(displayValue).filter(Boolean).join(', ');
   if (typeof v === 'object') {
     const o = v as Record<string, unknown>;
+    if (typeof o.amount === 'number' && typeof o.currency === 'string') return formatMoney(o.amount, o.currency);
+    if (typeof o.phone === 'string' && typeof o.digits === 'string') return o.phone;
     if ('First' in o || 'Last' in o) return [o.First, o.Last].filter(Boolean).join(' ');
     return Object.values(o).map(displayValue).filter(Boolean).join(', ');
   }
@@ -232,12 +465,45 @@ export function displayValue(v: unknown): string {
   return String(v);
 }
 
-/** Initial values for a new entry: choice, email and date defaults from the spec. `today` is YYYY-MM-DD in the org timezone. */
-export function defaultData(spec: FormSpec, opts: { today?: string } = {}): EntryData {
+/** displayValue with the field's type: datetime in the org timezone, rating "4/5". */
+export function formatValue(f: FieldSpec | undefined, v: unknown, opts: DisplayOptions = {}): string {
+  if (v === undefined || v === null || v === '') return '';
+  if (f?.type === 'datetime' && typeof v === 'string') return formatZoned(v, opts.timeZone ?? 'UTC');
+  if (f?.type === 'rating' && typeof v === 'number') return `${v}/5`;
+  return displayValue(v);
+}
+
+export interface DefaultOptions {
+  /** YYYY-MM-DD in the org timezone, for date default 'today'. */
+  today?: string;
+  /** The current instant, for time/datetime default 'now' (needs timeZone for time). */
+  now?: Date;
+  timeZone?: string;
+  /** Org currency code for currency fields that do not name one. */
+  currency?: string;
+}
+
+/** Initial values for a new entry: every type's default from the spec. `today` is YYYY-MM-DD in the org timezone. */
+export function defaultData(spec: FormSpec, opts: DefaultOptions = {}): EntryData {
   const d: EntryData = {};
   for (const f of inputFields(spec)) {
     if ((f.type === 'choice' || f.type === 'email') && f.default) d[f.name] = f.type === 'choice' && f.multi ? [f.default] : f.default;
     if (f.type === 'date' && f.default === 'today' && opts.today) d[f.name] = opts.today;
+    // M8 defaults
+    if (f.type === 'date' && f.default && f.default !== 'today') d[f.name] = f.default;
+    if ((f.type === 'text' || f.type === 'textarea') && f.default) d[f.name] = f.type === 'text' && f.pattern === 'uppercase' ? f.default.toUpperCase() : f.default;
+    if (f.type === 'url' && f.default) d[f.name] = normaliseUrl(f.default) ?? f.default;
+    if (f.type === 'phone' && f.default) d[f.name] = { phone: f.default, digits: digitsOf(f.default) };
+    if ((f.type === 'number' || f.type === 'rating') && f.default !== undefined) d[f.name] = f.default;
+    if (f.type === 'currency' && f.default !== undefined) d[f.name] = { amount: f.default, currency: currencyOf(f, opts) };
+    if (f.type === 'yesno' && f.default !== undefined) d[f.name] = f.default;
+    if (f.type === 'time' && f.default) {
+      if (f.default !== 'now') d[f.name] = f.default;
+      else if (opts.now) d[f.name] = timeIn(opts.timeZone ?? 'UTC', opts.now);
+    }
+    if (f.type === 'datetime' && f.default === 'now' && opts.now) {
+      d[f.name] = new Date(Math.floor(opts.now.getTime() / 60_000) * 60_000).toISOString();
+    }
   }
   return d;
 }
