@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { INSPECTION_SLUG, STORE_ROOM_SLUG, STORE_ROOM_TASK_STATUS, type TaskRow } from '@/lib/tasks/build';
 import { loadTasks } from '@/lib/tasks/load';
 import { memberNames } from '@/lib/tasks/names';
+import { homeShowsForms } from '@/lib/ui/nav';
 import { statusColor } from '@/lib/workflow/rules';
 import { formUi, newEntryHref, PHONE_NEW_ENTRY, sortForHome } from './forms';
 import { recentRows, type RecentEntryRow } from './recent';
@@ -124,7 +125,8 @@ async function xeroBlock(db: SupabaseClient, orgId: string, now: Date): Promise<
  */
 export async function loadHome(member: Member, now: Date): Promise<HomeData> {
   const db = await createClient();
-  const show = { entries: can(member, 'entries.read'), tasks: can(member, 'tasks.read'), xero: can(member, 'xero.read') };
+  // Factory staff have admin access but no entries: no forms, entries or counts, whose links would all be forbidden.
+  const show = { entries: homeShowsForms(member), tasks: can(member, 'tasks.read'), xero: can(member, 'xero.read') };
 
   const formsP = show.entries ? soft(loadForms(db, member.orgId)) : Promise.resolve(null);
   const [name, forms, overview, tasks, xero] = await Promise.all([
@@ -144,7 +146,7 @@ export async function loadHome(member: Member, now: Date): Promise<HomeData> {
 
   const unreadBySlug = new Map((overview ?? []).map((o) => [o.slug, Number(o.unread) || 0]));
   const homeForms: HomeForm[] | null = forms
-    ? sortForHome(forms.map((f) => ({ ...f, name: f.spec.name }))).map((f) => {
+    ? sortForHome(forms).map((f) => {
       const ui = formUi(f.slug, f.spec.name);
       return { slug: f.slug, label: ui.label, icon: ui.icon, href: `/admin/forms/${f.slug}`, unread: unreadBySlug.get(f.slug) ?? 0, newHref: newEntryHref(f, member) };
     })

@@ -124,6 +124,8 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
   await signIn(page);
   await expect(page.getByTestId('unread-release-form')).toHaveText(/\d+/);
   await page.getByTestId('form-row-release-form').getByRole('link', { name: 'Release Form', exact: true }).click();
+  // Home has its own "Unread entries" tile: wait for the grid before looking for its Unread view.
+  await expect(page).toHaveURL(/\/admin\/forms\/release-form$/);
   await page.getByRole('link', { name: 'Unread' }).click();
   await expect(page).toHaveURL(/view=unread/);
   await expect(page.getByRole('link', { name: 'Unread' })).toHaveAttribute('aria-current', 'page');

@@ -26,7 +26,7 @@ const LIMIT = 200;
 type EntryRow = {
   id: string; number: number; status: string; data: EntryData | null; updated_at: string; submitted_at: string | null; created_by: string | null;
 };
-type EventRow = { entry_id: string; action: string; to_status: string | null; actor_user: string | null; created_at: string };
+type EventRow = { entry_id: string; action: string; from_status: string | null; to_status: string | null; actor_user: string | null; created_at: string };
 
 function chunks<T>(xs: T[], n: number): T[][] {
   const out: T[][] = [];
@@ -38,7 +38,7 @@ function chunks<T>(xs: T[], n: number): T[][] {
 async function eventsFor(db: SupabaseClient, ids: string[]): Promise<Map<string, EventRow[]>> {
   const by = new Map<string, EventRow[]>();
   for (const part of chunks(ids, 100)) {
-    const { data, error } = await db.from('entry_events').select('entry_id, action, to_status, actor_user, created_at')
+    const { data, error } = await db.from('entry_events').select('entry_id, action, from_status, to_status, actor_user, created_at')
       .in('entry_id', part).order('created_at', { ascending: false }).limit(2000);
     if (error) throw new Error('entry_events');
     for (const e of (data ?? []) as EventRow[]) by.set(e.entry_id, [...(by.get(e.entry_id) ?? []), e]);
@@ -47,12 +47,15 @@ async function eventsFor(db: SupabaseClient, ids: string[]): Promise<Map<string,
 }
 
 /**
- * When the entry reached its current status: the latest timeline event into it; without one (imported entries),
- * the submit time for the first status after submit, else the last update.
+ * When the entry reached its current status: the latest timeline event that moved it there (edits that keep the
+ * status do not count); without one (imported entries), the submit time for the first status after submit, else the
+ * last update.
  */
 function waitingSince(e: EntryRow, events: EventRow[] | undefined): string {
   const firstAfterSubmit = e.status === 'Submitted' || e.status === STORE_ROOM_TASK_STATUS;
-  return events?.find((x) => x.to_status === e.status)?.created_at ?? (firstAfterSubmit ? e.submitted_at : null) ?? e.updated_at;
+  return events?.find((x) => x.to_status === e.status && x.from_status !== e.status)?.created_at
+    ?? (firstAfterSubmit ? e.submitted_at : null)
+    ?? e.updated_at;
 }
 
 /**
