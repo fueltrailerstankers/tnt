@@ -66,8 +66,8 @@ export default async function EntryPage({
       {sp.saved ? <p role="status" className="rounded bg-status-green-bg p-3 text-sm text-status-green-fg">Saved. Status: {sp.saved}</p> : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-        <div className="rounded-md border bg-surface shadow-card p-4">
-          {actions.length === 0 ? <p className="mb-3 rounded bg-surface-2 p-2 text-sm">No action is available for this entry at its current status.</p> : null}
+        <div className="min-w-0 space-y-4">
+          {actions.length === 0 ? <p className="rounded-md bg-surface-2 px-4 py-3 text-body text-fg-muted">No action is available for this entry at its current status.</p> : null}
           <StaffForm
             form={form} number={entry.number} initial={entry.data} files={files} signatures={signatures}
             actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt}

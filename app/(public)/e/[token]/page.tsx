@@ -15,9 +15,9 @@ export const metadata = { title: 'Entry · Trailers & Tankers', referrer: 'no-re
 
 function Invalid() {
   return (
-    <div className="rounded border bg-surface p-6" role="status">
-      <h1 className="text-xl font-semibold">Link not valid</h1>
-      <p className="mt-2">This link has expired or is no longer valid. Ask the office to send a new one.</p>
+    <div className="mx-auto max-w-lg rounded-lg border border-border bg-surface p-6 text-center shadow-card sm:p-8" role="status">
+      <h1 className="text-h1">Link not valid</h1>
+      <p className="mt-2 text-body text-fg-muted">This link has expired or is no longer valid. Ask the office to send a new one.</p>
     </div>
   );
 }
@@ -48,7 +48,7 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   return (
     <>
       <h1 className="text-h1">{form.spec.name}</h1>
-      <p className="mb-4 text-sm text-fg-muted">
+      <p className="mb-6 mt-1.5 text-small text-fg-muted">
         Entry #{entry.number} · {entry.status}
         {actions.length === 0 ? ' · No action is available for you at this stage.' : ''}
       </p>
