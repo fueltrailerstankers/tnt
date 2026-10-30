@@ -3,14 +3,18 @@
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'destructive-outline' | 'accent-outline' | 'link';
 export type ButtonSize = 30 | 32 | 36 | 38 | 44 | 48 | 52;
 
-/** Disabled (design): neutral surface, subtle text and a border, no opacity. Destructive fades instead. */
+const BASE = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill no-underline transition';
+
+/** Design disabled look for the newer variants: neutral surface, subtle text, no fade. */
 const QUIET_DISABLED = 'disabled:border-border disabled:bg-surface-2 disabled:text-fg-subtle';
 
+// The first four variants keep the exact classes they had before the component library (existing pages render the
+// same; tests/unit/button-styles.test.ts pins them). The others follow the design handoff.
 const VARIANT: Record<ButtonVariant, { look: string; disabled: string }> = {
-  primary: { look: 'bg-accent text-accent-fg border border-transparent font-semibold hover:brightness-95', disabled: QUIET_DISABLED },
-  secondary: { look: 'bg-surface text-fg border border-border-strong font-medium hover:bg-surface-2', disabled: QUIET_DISABLED },
-  ghost: { look: 'bg-transparent text-fg border border-transparent font-medium hover:bg-surface-2', disabled: 'disabled:bg-transparent disabled:text-fg-subtle' },
-  destructive: { look: 'bg-danger text-white border border-transparent font-semibold hover:brightness-95', disabled: 'disabled:opacity-45 disabled:hover:brightness-100' },
+  primary: { look: 'bg-accent text-accent-fg border border-transparent font-semibold hover:brightness-95', disabled: 'disabled:opacity-50' },
+  secondary: { look: 'bg-surface text-fg border border-border-strong font-semibold hover:bg-surface-2', disabled: 'disabled:opacity-50' },
+  ghost: { look: 'bg-transparent text-fg border border-transparent font-semibold hover:bg-surface-2', disabled: 'disabled:opacity-50' },
+  destructive: { look: 'bg-danger text-white border border-transparent font-semibold hover:brightness-95', disabled: 'disabled:opacity-50' },
   'destructive-outline': { look: 'bg-surface text-status-red-fg border border-danger font-semibold hover:bg-status-red-bg', disabled: QUIET_DISABLED },
   'accent-outline': { look: 'bg-surface text-accent-text border border-accent font-semibold hover:bg-accent-soft', disabled: QUIET_DISABLED },
   link: { look: 'bg-transparent text-accent-text border-0 p-1 text-small font-semibold hover:underline', disabled: 'disabled:text-fg-subtle disabled:no-underline' },
@@ -27,14 +31,14 @@ const SIZE: Record<ButtonSize, string> = {
 };
 
 /**
- * Pill button classes, also for <Link>/<a>. `loading` keeps the variant's colours at 80% opacity (the button is
- * disabled while it spins) instead of the grey disabled look. The `link` variant ignores `size`.
+ * Pill button classes, also for <Link>/<a>. `loading` keeps the variant's colours at 80% opacity (Button disables
+ * itself while it spins) instead of the disabled look. The `link` variant ignores `size`.
  */
 export function buttonClass(variant: ButtonVariant = 'primary', size: ButtonSize = 36, extra = '', state: { loading?: boolean } = {}): string {
   const v = VARIANT[variant];
   const busy = state.loading ? 'opacity-80 cursor-progress' : `disabled:cursor-not-allowed ${v.disabled}`;
   const box = variant === 'link' ? '' : SIZE[size];
-  return `inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill no-underline transition ${v.look} ${box} ${busy} ${extra}`.replace(/\s+/g, ' ').trim();
+  return `${BASE} ${v.look} ${box} ${busy} ${extra}`.replace(/\s+/g, ' ').trim();
 }
 
 /** Inputs are 10px radius; 16px text on phones so iOS does not zoom. */

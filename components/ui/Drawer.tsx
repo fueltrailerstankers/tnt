@@ -59,7 +59,7 @@ export function Drawer({ open, onClose, title, eyebrow, meta, monoTitle = false,
             </h2>
             {meta ? <div className="flex flex-wrap items-center gap-2 text-small text-fg-muted">{meta}</div> : null}
           </div>
-          <IconButton ref={closeButton} label={closeLabel} icon="close" variant="ghost" size={36} onClick={onClose} />
+          <IconButton ref={closeButton} label={closeLabel} icon="close" variant="ghost" size={36} onClick={onClose} data-dialog-close="" />
         </header>
         <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-5 py-[18px]">{children}</div>
         {footer ? <footer className="flex flex-none flex-wrap items-center justify-end gap-2 border-t border-border bg-surface px-5 py-3.5">{footer}</footer> : null}

@@ -2,6 +2,7 @@
 
 import { useId, useRef, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { IconButton } from './IconButton';
 import { useDialog } from './useDialog';
 import { usePortalTarget } from './usePortalTarget';
 
@@ -18,18 +19,25 @@ export interface ModalProps {
   footer?: ReactNode;
   /** sm 440 (QR), md 480 (Go live), lg 520 (Add lead). */
   size?: ModalSize;
-  /** While true, Escape and the scrim do not close the modal. */
+  /** While true, Escape, the scrim and the close button do nothing. */
   pending?: boolean;
-  /** Focused on open; defaults to the first focusable element. */
+  /** Focused on open; defaults to the first input or button after the close button. */
   initialFocus?: RefObject<HTMLElement | null>;
   /** alertdialog for confirmations that interrupt. */
   role?: 'dialog' | 'alertdialog';
+  /** Accessible name of the header close button. */
+  closeLabel?: string;
 }
 
 const WIDTH: Record<ModalSize, string> = { sm: 'max-w-[440px]', md: 'max-w-[480px]', lg: 'max-w-[520px]' };
 
-/** Centred dialog on phones, top-aligned on desktop. Focus trap, Escape, scrim click and focus restore via useDialog. */
-export function Modal({ open, onClose, title, description, children, footer, size = 'md', pending = false, initialFocus, role = 'dialog' }: ModalProps) {
+/**
+ * Centred on phones, top-aligned on desktop. role=dialog (or alertdialog) with aria-modal, labelled by its title and
+ * described by `description`. Focus trap, Escape, scrim click, labelled close button and focus restore via useDialog.
+ */
+export function Modal({
+  open, onClose, title, description, children, footer, size = 'md', pending = false, initialFocus, role = 'dialog', closeLabel = 'Close',
+}: ModalProps) {
   const target = usePortalTarget();
   const box = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -52,7 +60,19 @@ export function Modal({ open, onClose, title, description, children, footer, siz
           tabIndex={-1}
           className={`pointer-events-auto flex w-full flex-col gap-3.5 rounded-lg bg-surface p-[22px] text-fg shadow-overlay outline-none ${WIDTH[size]}`}
         >
-          <h2 id={titleId} className="m-0 text-[17px] font-semibold leading-6">{title}</h2>
+          <div className="flex items-start gap-3">
+            <h2 id={titleId} className="m-0 min-w-0 flex-1 break-words text-[17px] font-semibold leading-6">{title}</h2>
+            <IconButton
+              label={closeLabel}
+              icon="close"
+              variant="ghost"
+              size={32}
+              className="-mr-2 -mt-1"
+              disabled={pending}
+              onClick={onClose}
+              data-dialog-close=""
+            />
+          </div>
           {description ? <div id={descId} className="text-body text-fg-muted">{description}</div> : null}
           {children}
           {footer ? <div className="flex flex-wrap justify-end gap-2">{footer}</div> : null}

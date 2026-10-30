@@ -55,3 +55,40 @@ export const QUOTE_LINES = [
   { description: 'TT-45K Fuel tanker 45 000 L', amount: 412000 },
   { description: 'Bottom-loading kit', amount: 74750 },
 ];
+
+/** Statuses shown as filter chips in the gallery table. */
+export const DEMO_STATUSES = ['Submitted', 'Reviewed', 'Approved', 'Changes requested', 'Incomplete'] as const;
+
+export const GALLERY_PAGE_SIZE = 4;
+
+export const GALLERY_PATH = '/admin/dev/components';
+
+export interface GalleryQuery {
+  status: string;
+  page: number;
+  row: number | null;
+}
+
+const first = (v: string | string[] | undefined): string => (Array.isArray(v) ? v[0] ?? '' : v ?? '');
+
+/** Reads the gallery's URL state. Unknown values fall back to defaults. */
+export function parseGalleryQuery(sp: Record<string, string | string[] | undefined>): GalleryQuery {
+  const status = first(sp.status);
+  const page = Number.parseInt(first(sp.page), 10);
+  const row = Number.parseInt(first(sp.row), 10);
+  return {
+    status: (DEMO_STATUSES as readonly string[]).includes(status) ? status : 'all',
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    row: DEMO_ROWS.some((r) => r.number === row) ? row : null,
+  };
+}
+
+/** Gallery URL with the given state; defaults are left out so links stay short. */
+export function galleryHref(q: Partial<GalleryQuery>, hash = ''): string {
+  const p = new URLSearchParams();
+  if (q.status && q.status !== 'all') p.set('status', q.status);
+  if (q.page && q.page > 1) p.set('page', String(q.page));
+  if (q.row) p.set('row', String(q.row));
+  const s = p.toString();
+  return `${GALLERY_PATH}${s ? `?${s}` : ''}${hash}`;
+}

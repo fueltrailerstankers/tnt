@@ -1,25 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { livePhrase, normaliseTyped, typedMatches } from '@/lib/ui/confirm';
+import { livePhrase, typedMatches } from '@/lib/ui/confirm';
 import { initials } from '@/lib/ui/initials';
 import { maskEmail, maskId, maskValue } from '@/lib/ui/mask';
 import { clampPage, pageCount, pageRange } from '@/lib/ui/pagination';
 import { changedFieldNames, timelineItem, timelineText, type EntryEventRow } from '@/lib/ui/timeline';
 
 describe('typed confirmation', () => {
-  it('matches exactly, case-sensitive, ignoring surrounding whitespace', () => {
+  it('matches only the exact phrase', () => {
     const phrase = livePhrase('createInvoiceFromQuote');
     expect(phrase).toBe('LIVE createInvoiceFromQuote');
     expect(typedMatches('LIVE createInvoiceFromQuote', phrase)).toBe(true);
-    expect(typedMatches('  LIVE createInvoiceFromQuote \n', phrase)).toBe(true);
-    expect(typedMatches('LIVE createInvoiceFrom', phrase)).toBe(false);
-    expect(typedMatches('live createInvoiceFromQuote', phrase)).toBe(false);
-    expect(typedMatches('LIVE  createInvoiceFromQuote', phrase)).toBe(false);
-    expect(typedMatches(null, phrase)).toBe(false);
   });
-  it('never matches an empty phrase', () => {
+  it('rejects anything that is not exact: case, spacing, partial or padded text', () => {
+    const phrase = livePhrase('createInvoiceFromQuote');
+    for (const typed of [
+      'LIVE createInvoiceFrom',
+      'live createInvoiceFromQuote',
+      'LIVE createinvoicefromquote',
+      'LIVE  createInvoiceFromQuote',
+      ' LIVE createInvoiceFromQuote',
+      'LIVE createInvoiceFromQuote ',
+      'LIVE createInvoiceFromQuote\n',
+      'LIVE createInvoiceFromQuotes',
+      'createInvoiceFromQuote',
+      '',
+    ]) {
+      expect(typedMatches(typed, phrase), typed).toBe(false);
+    }
+    expect(typedMatches(null, phrase)).toBe(false);
+    expect(typedMatches(undefined, phrase)).toBe(false);
+  });
+  it('never matches a blank phrase', () => {
     expect(typedMatches('', '')).toBe(false);
-    expect(typedMatches(' ', '  ')).toBe(false);
-    expect(normaliseTyped(undefined)).toBe('');
+    expect(typedMatches('  ', '  ')).toBe(false);
   });
 });
 
@@ -35,8 +48,12 @@ describe('masks', () => {
   });
   it('masks emails keeping first/last local character and the domain', () => {
     expect(maskEmail('inspector.a@example.com')).toBe('i•••••••••a@example.com');
-    expect(maskEmail('ab@example.com')).toBe('a•••@example.com');
-    expect(maskEmail('abc@example.com')).toBe('a•••c@example.com');
+    expect(maskEmail('abc@example.com')).toBe('a•••••••••c@example.com');
+    expect(maskEmail('ab@example.com')).toBe('a••••••••••@example.com');
+    expect(maskEmail('a@example.com')).toBe('•••••••••••@example.com');
+    // The masked local part has the same length whatever the real one is.
+    const lengths = ['a', 'ab', 'abc', 'inspector.a', 'a.very.long.local.part'].map((l) => maskEmail(`${l}@example.com`).length);
+    expect(new Set(lengths).size).toBe(1);
     expect(maskEmail('not-an-email')).toBe('••••••');
     expect(maskEmail('@example.com')).toBe('••••••');
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { toggleColumn } from '@/lib/ui/views';
 import { Icon } from './Icon';
 import { buttonClass } from './styles';
@@ -26,7 +26,10 @@ export interface ColumnPickerProps {
   buttonLabel?: string;
 }
 
-/** "Columns" disclosure (details/summary) with a checkbox per column. Escape or an outside click closes it. */
+/**
+ * "Columns" disclosure (details/summary, so it works without JS and the button exposes its expanded state) with a
+ * checkbox per column. Escape or an outside click closes it; Escape returns focus to the button.
+ */
 export function ColumnPicker({ columns, onChange, name = 'cols', lockedReason, buttonLabel = 'Columns' }: ColumnPickerProps) {
   const details = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
@@ -34,25 +37,28 @@ export function ColumnPicker({ columns, onChange, name = 'cols', lockedReason, b
   const headingId = useId();
   const locked = !!lockedReason;
 
+  // An outside click closes the popover (focus stays where the click put it).
   useEffect(() => {
     if (!open) return;
-    const close = (refocus: boolean) => {
-      if (details.current) details.current.open = false;
-      if (refocus) summary.current?.focus();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); close(true); }
-    };
     const onDown = (e: MouseEvent) => {
-      if (details.current && !details.current.contains(e.target as Node)) close(false);
+      if (details.current && !details.current.contains(e.target as Node)) details.current.open = false;
     };
-    document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onDown);
-    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown); };
+    return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
+  // Escape closes the popover and returns focus to the button. It is handled here and stopped, so a Drawer or Modal
+  // around the picker stays open.
+  const onKeyDown = (e: KeyboardEvent<HTMLDetailsElement>) => {
+    if (e.key !== 'Escape' || !details.current?.open) return;
+    e.preventDefault();
+    e.stopPropagation();
+    details.current.open = false;
+    summary.current?.focus();
+  };
+
   return (
-    <details ref={details} className="relative" onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details ref={details} className="relative" onToggle={(e) => setOpen(e.currentTarget.open)} onKeyDown={onKeyDown}>
       <summary ref={summary} className={buttonClass('secondary', 32, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden')}>
         <Icon name={locked ? 'lock' : 'columns'} size={15} strokeWidth={2} />
         {buttonLabel}

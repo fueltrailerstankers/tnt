@@ -1,14 +1,12 @@
-// Typed confirmations (TypedConfirmModal). Pure, so the client and the server action apply the same rule:
-// surrounding whitespace is ignored, everything else must match exactly (case-sensitive).
+// Typed confirmations (TypedConfirmModal). Pure, so the client and the server action apply the same rule: the typed
+// text must equal the phrase exactly. Case, inner spacing and surrounding whitespace all count, so "LIVE x " does
+// not match "LIVE x". The phrase itself must contain something other than whitespace.
 
-export function normaliseTyped(value: string | null | undefined): string {
-  return (value ?? '').trim();
-}
-
-/** True only for an exact match of a non-empty phrase. */
+/** True only when `typed` is exactly `phrase` and the phrase is not blank. */
 export function typedMatches(typed: string | null | undefined, phrase: string): boolean {
-  const p = phrase.trim();
-  return p.length > 0 && normaliseTyped(typed) === p;
+  if (typeof typed !== 'string' || typeof phrase !== 'string') return false;
+  if (phrase.trim().length === 0) return false;
+  return typed === phrase;
 }
 
 /** The design's phrase for switching a Xero write action to Live: "LIVE createInvoiceFromQuote". */

@@ -15,7 +15,10 @@ export interface ZarAmountProps {
   align?: 'start' | 'end';
 }
 
-/** Xero-sourced money: mono amount + currency badge, optionally "≈ USD $…" muted underneath. "—" for no amount. */
+/**
+ * Xero-sourced money: mono amount + currency badge (ZAR, or the row's own code), and a muted "≈ USD $…" line only
+ * when the amount is ZAR and a real rate is passed (approxUsd in lib/money/fx). "—" for no amount.
+ */
 export function ZarAmount({ amount, currency = 'ZAR', fxRate, size = 'md', align = 'start' }: ZarAmountProps) {
   const has = toAmount(amount) !== null;
   const code = currencyCode(currency);
@@ -28,7 +31,8 @@ export function ZarAmount({ amount, currency = 'ZAR', fxRate, size = 'md', align
       </span>
       {usd !== null ? (
         <span className="whitespace-nowrap text-small text-fg-muted">
-          ≈ USD <span className="font-mono tabular-nums">{formatUsd(usd)}</span>
+          <span aria-hidden="true">≈</span>
+          <span className="sr-only">approximately</span> USD <span className="font-mono tabular-nums">{formatUsd(usd)}</span>
         </span>
       ) : null}
     </span>

@@ -6,6 +6,8 @@ export const SAST_ZONE = 'Africa/Johannesburg';
 export type TimeInput = string | number | Date | null | undefined;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 
 const FORMAT = new Intl.DateTimeFormat('en-GB', {
   timeZone: SAST_ZONE,
@@ -55,9 +57,17 @@ export function shortDateTime(v: TimeInput): string {
 }
 
 /** "29 Oct 2026". */
-export function longDate(v: TimeInput): string {
+export function shortDate(v: TimeInput): string {
   const p = parts(v);
   return p ? `${dayMonth(p)} ${p.year}` : '';
+}
+
+/** "Thursday 29 October 2026" (page headers, signed-on lines). The weekday is the SAST calendar day's. */
+export function longDate(v: TimeInput): string {
+  const p = parts(v);
+  if (!p) return '';
+  const weekday = WEEKDAYS[new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay()];
+  return `${weekday} ${p.day} ${MONTHS_LONG[p.month - 1]} ${p.year}`;
 }
 
 /** "29 Oct 2026, 14:31 SAST" (signature stamps, audit lines). */

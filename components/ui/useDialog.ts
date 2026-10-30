@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useRef, type RefObject } from 'react';
+import { dialogKeyAction, initialFocusTarget, trapFocusTarget } from '@/lib/ui/focus-trap';
 
 // Shared modal behaviour for Drawer, Modal and TypedConfirmModal: initial focus, Tab trap, Escape, body scroll lock
-// and focus back to the trigger on close. Only the top-most open dialog reacts to keys, so a Modal opened from a
-// Drawer closes on its own.
+// and focus back to the trigger on close. Only the top-most open dialog reacts to keys (lib/ui/focus-trap.ts).
 
 const FOCUSABLE = [
   'a[href]',
@@ -15,6 +15,9 @@ const FOCUSABLE = [
   'summary',
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
+
+/** Put `data-dialog-close=""` on a dialog header close button so initial focus skips it for the first input or action. */
+export const DIALOG_CLOSE_ATTR = 'data-dialog-close';
 
 /** Visible, enabled, tabbable descendants in DOM order. */
 export function focusableIn(root: HTMLElement): HTMLElement[] {
@@ -41,7 +44,7 @@ export interface DialogOptions {
   onClose: () => void;
   /** The dialog element (give it tabIndex={-1}). Tab stays inside it. */
   ref: RefObject<HTMLElement | null>;
-  /** Focused on open. Defaults to the first focusable element, then the dialog itself. */
+  /** Focused on open. Defaults to the first focusable element that is not the close button, then the dialog itself. */
   initialFocus?: RefObject<HTMLElement | null>;
   /** False while something is pending: Escape does nothing. */
   dismissible?: boolean;
@@ -61,37 +64,29 @@ export function useDialog({ open, onClose, ref, initialFocus, dismissible = true
     lockScroll();
 
     const root = ref.current;
-    const first = initialFocus?.current ?? (root ? focusableIn(root)[0] : null) ?? root;
-    first?.focus();
+    if (root) {
+      initialFocusTarget(initialFocus?.current, focusableIn(root), (el) => el.hasAttribute(DIALOG_CLOSE_ATTR), root).focus();
+    }
 
     const onKey = (e: KeyboardEvent) => {
-      if (stack[stack.length - 1] !== id) return;
       const box = ref.current;
-      if (e.key === 'Escape') {
-        if (!latest.current.dismissible) return;
+      const action = dialogKeyAction({
+        key: e.key,
+        isTop: stack[stack.length - 1] === id,
+        dismissible: latest.current.dismissible,
+        defaultPrevented: e.defaultPrevented,
+      });
+      if (action === 'close') {
         e.preventDefault();
         latest.current.onClose();
         return;
       }
-      if (e.key !== 'Tab' || !box) return;
-      const items = focusableIn(box);
-      if (!items.length) {
+      if (action !== 'trap' || !box) return;
+      const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const target = trapFocusTarget(focusableIn(box), active, box, e.shiftKey, !!active && box.contains(active));
+      if (target) {
         e.preventDefault();
-        box.focus();
-        return;
-      }
-      const head = items[0];
-      const tail = items[items.length - 1];
-      const active = document.activeElement;
-      if (!box.contains(active)) {
-        e.preventDefault();
-        (e.shiftKey ? tail : head).focus();
-      } else if (e.shiftKey && (active === head || active === box)) {
-        e.preventDefault();
-        tail.focus();
-      } else if (!e.shiftKey && active === tail) {
-        e.preventDefault();
-        head.focus();
+        target.focus();
       }
     };
     document.addEventListener('keydown', onKey);

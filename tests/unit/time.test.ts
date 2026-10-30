@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clock, dayTime, longDate, longDateTime, sastClock, shortDateTime } from '@/lib/ui/time';
+import { clock, dayTime, longDate, longDateTime, sastClock, shortDate, shortDateTime } from '@/lib/ui/time';
 
 // SAST is UTC+2 all year. 07:14Z is 09:14 SAST.
 const NOW = '2026-10-29T10:00:00Z';
@@ -56,17 +56,30 @@ describe('dayTime', () => {
 });
 
 describe('date formats', () => {
-  it('formats table, long date and long date-time', () => {
+  it('formats table, short date and long date-time', () => {
     expect(shortDateTime('2026-10-29T07:14:00Z')).toBe('29 Oct, 09:14');
-    expect(longDate('2026-10-29T12:31:00Z')).toBe('29 Oct 2026');
+    expect(shortDate('2026-10-29T12:31:00Z')).toBe('29 Oct 2026');
     expect(longDateTime('2026-10-29T12:31:00Z')).toBe('29 Oct 2026, 14:31 SAST');
   });
+  it('formats the long date with weekday and full month', () => {
+    expect(longDate('2026-10-29T07:14:00Z')).toBe('Thursday 29 October 2026');
+    expect(longDate('2026-09-06T10:00:00Z')).toBe('Sunday 6 September 2026');
+    expect(longDate(new Date('2026-02-28T12:00:00Z'))).toBe('Saturday 28 February 2026');
+  });
+  it('uses the SAST day for the weekday, not the UTC one', () => {
+    // 22:30Z on Wednesday 28 Oct is 00:30 on Thursday 29 Oct in SAST.
+    expect(longDate('2026-10-28T22:30:00Z')).toBe('Thursday 29 October 2026');
+    expect(longDate('2026-10-28T21:59:00Z')).toBe('Wednesday 28 October 2026');
+  });
   it('rolls the date over at SAST midnight', () => {
-    expect(longDate('2026-12-31T22:00:00Z')).toBe('1 Jan 2027');
+    expect(shortDate('2026-12-31T22:00:00Z')).toBe('1 Jan 2027');
+    expect(longDate('2026-12-31T22:00:00Z')).toBe('Friday 1 January 2027');
   });
   it('is empty for missing input', () => {
     expect(shortDateTime(null)).toBe('');
+    expect(shortDate('')).toBe('');
     expect(longDate(undefined)).toBe('');
+    expect(longDate('not a date')).toBe('');
     expect(longDateTime('x')).toBe('');
   });
 });
