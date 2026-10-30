@@ -55,3 +55,12 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
+
+## Repo notes (M7 users and access)
+- Access = per-area levels (`AREAS`: home ... activity; none/read/write) stored on `memberships.access`; presets are the roles. `can()` resolves permissions through `RULES` in `lib/security/can.ts`; `has_access(org, area, level)` is the SQL side (0014). Keep both in step: `tests/db/access.test.ts` compares the presets and clamping.
+- Only `status = 'active'` members get anything (can(), is_org_member, has_org_role, has_access). Invited members are sent to `/admin/account/password` (outside the admin layout, in the `(account)` route group).
+- New read paths: gate pages with the area permission (`deals.read`, `quotes.read`, `invoices.read`, `integrations.read`, `settings.read`, `users.read`, `audit.read`); `xero.read` is deprecated. A new org-keyed table needs a `has_access` read policy for its area.
+- `requirePerm()` answers 403 via `forbidden()` (`experimental.authInterrupts`, `app/forbidden.tsx`).
+- User changes go through `app/(admin)/admin/settings/users/actions.ts` (users.manage, guards in `lib/users/rules.ts`: self, admin_only, last_admin; trigger `memberships_last_admin` in SQL). Audit rows carry ids/codes only; invite links and tokens are never stored or logged.
+- Activity rendering and area mapping: `lib/activity/describe.ts`. Add a phrase there for new audit actions.
+- mini-supabase: Auth admin endpoints (invite, generate_link, users/:id ban, verify, user update) and `GET /__stub/mail?to=` for invite emails "sent".
