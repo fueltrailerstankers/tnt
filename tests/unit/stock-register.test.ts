@@ -186,6 +186,13 @@ describe('stock tabs and nav', () => {
     expect(stockTabs(member('reviewer')).map((t) => t.key)).toEqual(['overview', 'units', 'deals', 'invoices', 'activity']);
     expect(stockTabs(null)).toEqual([]);
   });
+  it('marks a given current tab and leaves out tabs that are not built', () => {
+    expect(stockTabs(member('admin'), 'deals').filter((t) => t.current).map((t) => t.key)).toEqual(['deals']);
+    expect(stockTabs(member('admin')).some((t) => t.current)).toBe(false);
+    const defs = STOCK_TABS.map((t) => (t.key === 'setup' ? { ...t, built: false } : t));
+    expect(stockTabs(member('admin'), null, defs).map((t) => t.key)).not.toContain('setup');
+    expect(STOCK_TABS.every((t) => t.built)).toBe(true);
+  });
   it('marks the current tab by longest prefix; /admin/stock itself is Overview only', () => {
     const tabs = stockTabs(member('admin'));
     expect(currentStockTab('/admin/stock', tabs)).toBe('overview');
