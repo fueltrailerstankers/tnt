@@ -42,3 +42,7 @@ It is additive:
   on signature rows only; the terms version must belong to the entry's org; `signed_at` is server-set and never later
   than the row's `created_at` (+5 minutes). Clients still cannot write `entry_files` (0005). Existing rows are
   unchanged.
+
+**Reserved numbers (work in progress on other branches; pick the next free number above these):**
+0014 users and access (M7), 0016-0017 stock pages (M6, only if needed), 0018 form builder (M8),
+0020 in-app Cognito import. 0015 is the UI handoff foundation. Next free number: 0021.
