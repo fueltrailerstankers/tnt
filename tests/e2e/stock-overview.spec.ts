@@ -398,7 +398,7 @@ test.describe('phone (390)', () => {
     expect(await noPageScroll(page)).toBe(true);
 
     // Admin bottom bar stays at 5 items (Stock is in the menu).
-    await expect(page.getByRole('navigation', { name: 'Quick links' }).getByRole('link')).toHaveText(['Home', 'Tasks', 'Forms', 'Deals', 'Leads']);
+    await expect(page.getByRole('navigation', { name: 'Quick links' }).getByRole('link')).toHaveText([/^Home/, /^Tasks/, /^Forms/, /^Deals/, /^Leads/]); // badges may follow the label
   });
 
   test('factory staff get Home and Stock in the bottom bar', async ({ page }) => {
