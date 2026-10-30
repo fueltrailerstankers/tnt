@@ -1,6 +1,7 @@
 // M8 Part A: a synthetic form with every field type, required fields and show-when rules (inserted via SQL),
 // submitted on the public link; required and show-when are enforced in the browser and on the server; the
 // entry shows every value in the grid, the export and the entry PDF. Synthetic data only.
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { inflateSync } from 'node:zlib';
@@ -179,6 +180,16 @@ test('every field type: public submit with required + show-when, then grid, expo
   await expect(page.getByText('Saved. Status: Submitted')).toBeVisible();
   const [after] = await sql<{ data: Record<string, unknown> }>(`select data from entries where id = $1`, [e.id]);
   expect(after.data).toMatchObject({ InternalNote: 'Staff only note', Appointment: '2026-11-03T08:30:00.000Z', Price: { amount: 1500.5, currency: 'ZAR' } });
+
+  // H1/M3 (security review): the public link and a role link never carry internalOnly labels, values, files or names.
+  const pub = await (await page.request.get(`/f/${SLUG}`)).text();
+  for (const t of ['InternalNote', 'Internal note']) expect(pub, t).not.toContain(t);
+  await sql(`insert into entry_files(entry_id, field_key, kind, storage_path, file_name) values ($1, 'InternalNote', 'file', $2, 'staff-secret.pdf')`, [e.id, `${SLUG}/${e.id}/InternalNote/staff-secret.pdf`]);
+  const token = `m8linktoken${RUN}`.padEnd(24, 'x');
+  await sql(`insert into entry_links(token, entry_id, role_name) values ($1, $2, 'Public')`, [createHash('sha256').update(token).digest('hex'), e.id]);
+  const link = await (await page.request.get(`/e/${token}`)).text();
+  expect(link).toContain(TITLE);
+  for (const t of ['Staff only note', 'staff-secret', 'InternalNote', 'Internal note']) expect(link, t).not.toContain(t);
 
   const csv = await (await page.request.get(`/admin/forms/${SLUG}/export?format=csv&q=${encodeURIComponent(TITLE)}`)).text();
   const [header, line] = csv.replace(/^﻿/, '').trim().split('\r\n');
