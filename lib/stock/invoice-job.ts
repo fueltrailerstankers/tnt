@@ -4,10 +4,10 @@ import { enqueue, recordRun, type Job } from '@/lib/jobs/outbox';
 import type { UnitFacts } from './invoice';
 import { rpcOutcome } from './invoice';
 import {
-  applyRpcResult, cleanInvoiceIds, countOutcome, emptyCounts, evaluateInvoice, itemCodesByInvoice, mergeInvoiceIds,
+  applyRpcResult, cleanInvoiceIds, invoicesFromInstant, countOutcome, emptyCounts, evaluateInvoice, itemCodesByInvoice, mergeInvoiceIds,
   MIRROR_INVOICE_COLUMNS, STOCK_INVOICES_QUEUE, type LineCodeRow, type MirrorInvoiceRow, type OutcomeCounts,
 } from './invoice-review';
-import { INVOICE_RULES_KEY, invoicesFromInstant, STOCK_START_KEY, stockSettingsFrom, type InvoiceRuleMode, type StockSettings } from './settings';
+import { INVOICE_RULES_KEY, STOCK_START_KEY, stockSettingsFrom, type InvoiceRuleMode, type StockSettings } from './settings';
 
 // Job 'stock.invoices' (docs/M6.md section 6): Xero mirror invoices -> unit reserved / sold, per app_settings
 // 'stock.invoice_rules' (off | preview | live, default preview).

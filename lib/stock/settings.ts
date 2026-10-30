@@ -2,7 +2,7 @@
 // The keys are written only by the Pilot setup server actions (stock.manage, then the service role); RLS (0011
 // settings_no_client_stock_*) rejects client writes. Values are JSON strings: "2026-03-01", "preview".
 
-import { zonedDayStart } from '@/lib/admin/grid';
+// No imports: the setup page's client forms use this module.
 
 export const STOCK_START_KEY = 'stock.deals_from';
 export const INVOICE_RULES_KEY = 'stock.invoice_rules';
@@ -61,14 +61,6 @@ export interface StockSettings {
 export function stockSettingsFrom(rows: ReadonlyArray<{ key: string; value: unknown }> | null | undefined): StockSettings {
   const get = (k: string) => rows?.find((r) => r.key === k)?.value;
   return { start: parseStockStart(get(STOCK_START_KEY)), rules: parseInvoiceRules(get(INVOICE_RULES_KEY)) };
-}
-
-/**
- * The first instant (UTC ISO) the invoice rules look at: the start of the stock start date in the org timezone.
- * Invoices last changed in Xero before it are history and never checked (no exceptions for old unit sales).
- */
-export function invoicesFromInstant(start: string, timeZone: string): string {
-  return zonedDayStart(start, timeZone);
 }
 
 /** Why a rules change is refused, or null when it may be saved. Live needs the typed confirmation "live". */

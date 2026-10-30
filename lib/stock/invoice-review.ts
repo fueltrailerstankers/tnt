@@ -2,6 +2,7 @@
 // The job (lib/stock/invoice-job.ts) and the Invoice review page evaluate invoices with the same function, so the
 // page shows exactly what the job does (preview) or did (applied). stock_apply_invoice re-checks in the database.
 
+import { zonedDayStart } from '@/lib/admin/grid';
 import type { Tone } from '@/lib/ui/status';
 import { EXCEPTION_REASON_LABEL, unitStatusLabel } from './errors';
 import { invoiceOutcome, matchUnit, normalizeInvoiceNumber, type InvoiceOutcome, type UnitFacts } from './invoice';
@@ -29,6 +30,14 @@ export interface MirrorInvoiceRow {
 export interface LineCodeRow {
   invoice_id: string;
   item_code: string | null;
+}
+
+/**
+ * The first instant (UTC ISO) the invoice rules look at: the start of the stock start date in the org timezone.
+ * Invoices last changed in Xero before it are history and never checked (no exceptions for old unit sales).
+ */
+export function invoicesFromInstant(start: string, timeZone: string): string {
+  return zonedDayStart(start, timeZone);
 }
 
 const num = (v: number | string | null | undefined): number | null => {

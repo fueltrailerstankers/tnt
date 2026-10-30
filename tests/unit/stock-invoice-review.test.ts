@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { UnitFacts } from '@/lib/stock/invoice';
 import {
-  applyRpcResult, cleanInvoiceIds, countOutcome, emptyCounts, evaluateInvoice, itemCodesByInvoice, manualResultMessage, MAX_IDS_PER_JOB,
+  applyRpcResult, cleanInvoiceIds, countOutcome, invoicesFromInstant, emptyCounts, evaluateInvoice, itemCodesByInvoice, manualResultMessage, MAX_IDS_PER_JOB,
   mergeInvoiceIds, outcomeView, xeroStatusLabel, type MirrorInvoiceRow,
 } from '@/lib/stock/invoice-review';
 import { STOCK_MODELS } from '@/lib/stock/models';
 import {
-  checkRulesSwitch, DEFAULT_INVOICE_RULES, invoicesFromInstant, isIsoDate, parseInvoiceRules, parseStockStart, stockSettingsFrom,
+  checkRulesSwitch, DEFAULT_INVOICE_RULES, isIsoDate, parseInvoiceRules, parseStockStart, stockSettingsFrom,
 } from '@/lib/stock/settings';
 
 // Synthetic invoices and VINs only.
