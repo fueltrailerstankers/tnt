@@ -39,14 +39,14 @@ test.beforeAll(async () => {
 });
 
 async function fillValid(page: Page) {
-  await page.getByLabel('Title', { exact: true }).fill(TITLE);
+  await page.getByLabel('Title').fill(TITLE);
   await page.getByLabel('Code').fill('ab-1');
-  await page.getByLabel('Ref').fill('AB 12');
+  await page.getByLabel('Ref', { exact: true }).fill('AB 12');
   await page.getByLabel('Notes').fill('Synthetic notes');
   await page.getByLabel('Email').fill('test@example.invalid');
   await page.getByLabel('Phone').fill('082 000 0001');
   await page.getByLabel('Website').fill('example.invalid/x');
-  await page.getByLabel('Price', { exact: true }).fill('1 500.50');
+  await page.getByLabel('Price').fill('1 500.50');
   await page.getByLabel('Quantity').fill('3');
   await page.getByLabel('Due date').fill('2026-11-02');
   await page.getByLabel('Start time').fill('09:15');
@@ -82,7 +82,7 @@ test('every field type: public submit with required + show-when, then grid, expo
   await expect(page.getByLabel('Fixed ref')).toHaveAttribute('readonly', '');
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText('Please correct the highlighted fields.')).toBeVisible();
-  await expect(page.getByLabel('Title', { exact: true })).toBeVisible(); // jumped back to page 1
+  await expect(page.getByLabel('Title')).toBeVisible(); // jumped back to page 1
   await expect(page.getByText('This field is required.')).toHaveCount(7);
   expect(posts).toHaveLength(0);
 
@@ -112,7 +112,7 @@ test('every field type: public submit with required + show-when, then grid, expo
     const req = route.request();
     if (req.method() !== 'POST') return route.continue();
     const body = (req.postDataBuffer() ?? Buffer.alloc(0)).toString('latin1');
-    const tampered = body.replace(/(name="\d+_f\.Title"\r\n\r\n)[^\r]*/, '$1');
+    const tampered = body.replace(/(name="_?\d+_f\.Title"\r\n\r\n)[^\r]*/, '$1');
     expect(tampered).not.toBe(body);
     await route.continue({ postData: Buffer.from(tampered, 'latin1') });
   });
@@ -157,7 +157,8 @@ test('every field type: public submit with required + show-when, then grid, expo
   expect(e.data).not.toHaveProperty('InternalNote'); // internalOnly: the public cannot set it
 
   // --- staff: grid (with phone digits search), entry page, export, PDF --------------------------------
-  await signIn(page, `/admin/forms/${SLUG}?q=0820000001&cols=Phone,Price,Appointment,Score`);
+  await signIn(page, `/admin/forms/${SLUG}`);
+  await page.goto(`/admin/forms/${SLUG}?q=0820000001&cols=Phone,Price,Appointment,Score`);
   const row = page.getByTestId(`entry-${e.number}`);
   await expect(row).toContainText('082 000 0001');
   await expect(row).toContainText('ZAR 1,500.50');
@@ -167,7 +168,7 @@ test('every field type: public submit with required + show-when, then grid, expo
   await page.goto(`/admin/forms/${SLUG}/entries/${e.number}`);
   const main = page.getByRole('main');
   await expect(main.getByLabel('Appointment')).toHaveValue('2026-11-03T10:30');
-  await expect(main.getByLabel('Price', { exact: true })).toHaveValue('1500.50');
+  await expect(main.getByLabel('Price')).toHaveValue('1500.50');
   await expect(main.locator('#f-Colour-other')).toHaveValue('Orange');
   await main.getByRole('button', { name: 'Next' }).click();
   await main.getByLabel('Internal note').fill('Staff only note');
