@@ -305,3 +305,27 @@ test('factory member: stock tabs by permission, no export, no admin forms', asyn
   await expect(main.getByText('Correct record')).toHaveCount(0);
   await expect(main.getByText('Transfer branch')).toHaveCount(0);
 });
+
+test.describe('phone (390)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  const noPageScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+
+  test('overview, register cards and the unit record fit a phone without page-wide scrolling', async ({ page }) => {
+    await signIn(page, '/admin/stock');
+    await expect(page.getByTestId('kpi-reserved-value')).toBeVisible();
+    // The matrix scrolls inside its card; branch columns use their short codes.
+    await expect(page.getByTestId('stock-matrix').getByRole('columnheader').filter({ hasText: 'JHB' })).toBeVisible();
+    expect(await noPageScroll(page)).toBe(true);
+
+    await page.goto(`/admin/stock/units?q=${PREFIX}`);
+    await expect(page.getByTestId('unit-table')).toBeHidden();
+    await expect(page.getByTestId('unit-cards').getByRole('listitem')).toHaveCount(5);
+    expect(await noPageScroll(page)).toBe(true);
+
+    await page.getByTestId('unit-cards').getByRole('link', { name: `View ${VIN.b}` }).click();
+    await expect(page.getByTestId('unit-record')).toContainText(VIN.b);
+    await expect(page.getByRole('main').locator('summary', { hasText: 'Correct record' })).toBeVisible();
+    expect(await noPageScroll(page)).toBe(true);
+  });
+});
