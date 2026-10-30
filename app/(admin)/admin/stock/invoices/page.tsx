@@ -7,8 +7,8 @@ import { formatDateTime } from '@/lib/admin/grid';
 import { loadOrg } from '@/lib/forms/org';
 import { EXCEPTION_REASON_LABEL } from '@/lib/stock/errors';
 import type { ExceptionReason } from '@/lib/stock/invoice';
-import { loadItemCodes, loadModelParts, loadStockSettings, loadUnitFacts } from '@/lib/stock/invoice-job';
-import { evaluateInvoice, invoicesFromInstant, MIRROR_INVOICE_COLUMNS, outcomeView, xeroStatusLabel, type MirrorInvoiceRow } from '@/lib/stock/invoice-review';
+import { loadItemCodes, loadModelParts, loadStockSettings, loadUnitFacts, recordedExceptions } from '@/lib/stock/invoice-job';
+import { evaluateInvoice, exceptionKey, invoicesFromInstant, MIRROR_INVOICE_COLUMNS, outcomeView, xeroStatusLabel, type MirrorInvoiceRow } from '@/lib/stock/invoice-review';
 import { memberNames } from '@/lib/stock/members';
 import { RULE_MODE_LABEL } from '@/lib/stock/settings';
 import { can } from '@/lib/security/can';
@@ -67,13 +67,15 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
     const rows = (inv ?? []) as Row[];
     scanned = rows.length;
     if (rows.length) {
-      const [codes, units, parts] = await Promise.all([
-        loadItemCodes(db, member.orgId, rows.map((r) => r.invoice_id)), loadUnitFacts(db, member.orgId), loadModelParts(db, member.orgId),
+      const ids = rows.map((r) => r.invoice_id);
+      const [codes, units, parts, recorded] = await Promise.all([
+        loadItemCodes(db, member.orgId, ids), loadUnitFacts(db, member.orgId), loadModelParts(db, member.orgId), recordedExceptions(db, member.orgId, ids),
       ]);
       recent = rows.map((row) => {
         const o = evaluateInvoice(row, codes.get(row.invoice_id) ?? [], units, parts);
         if (o.kind === 'ignore') return null;
-        return { row, view: outcomeView(o, settings.rules), vin: o.vin, unitId: o.unitId };
+        const state = o.kind === 'exception' ? recorded.get(exceptionKey(row.invoice_id, o.reason)) ?? null : null;
+        return { row, view: outcomeView(o, settings.rules, state), vin: o.vin, unitId: o.unitId };
       }).filter((x) => x !== null).slice(0, SHOWN);
     }
   }

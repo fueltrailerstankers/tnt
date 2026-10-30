@@ -233,6 +233,7 @@ test('Invoice rules live: the job reserves, sells and records exceptions once; I
     `select meta, actor_user from public.audit_log where org_id = $1 and action = 'stock.exception_resolve' and meta->>'invoice_number' = $2`, [ORG, INV('C')]);
   expect(resolved.meta).toMatchObject({ reason: 'voided', invoice_number: INV('C') });
   expect(JSON.stringify(resolved.meta)).not.toContain('Synthetic resolution');
+  await expect(rowOf(INV('C'))).toContainText('Resolved: Invoice voided');
   await m.getByRole('link', { name: 'Show resolved' }).click();
   await expect(m.getByTestId('exceptions').getByTestId('exception-row').filter({ hasText: INV('C') })).toContainText('Synthetic resolution');
 

@@ -102,13 +102,19 @@ export interface OutcomeView {
   tone: Tone;
 }
 
+/** Whether an exception for this invoice and reason is in the queue (open), was resolved, or was never recorded. */
+export type RecordedState = 'open' | 'resolved' | null;
+
+export const exceptionKey = (xeroInvoiceId: string, reason: string) => `${xeroInvoiceId}|${reason}`;
+
 /**
  * The outcome chip on Invoice review.
  * - noop: the unit already reflects the invoice ("Applied: Reserved" / "Applied: Sold"), in any mode.
  * - apply: what the rules will do (live: on the next job run), would do (preview) or would do if on (off).
- * - exception: in live the queue below holds it; in preview it is what live would record.
+ * - exception: in the queue ("Exception: ...") or resolved ("Resolved: ..."); otherwise what live will record
+ *   (live, before the job ran), would record (preview) or would record if on (off).
  */
-export function outcomeView(o: InvoiceOutcome, mode: InvoiceRuleMode): OutcomeView {
+export function outcomeView(o: InvoiceOutcome, mode: InvoiceRuleMode, recorded: RecordedState = null): OutcomeView {
   if (o.kind === 'ignore') return { label: 'Not a stock invoice', tone: 'gray' };
   if (o.kind === 'noop') return { label: `Applied: ${unitStatusLabel(o.status)}`, tone: 'green' };
   if (o.kind === 'apply') {
@@ -118,7 +124,9 @@ export function outcomeView(o: InvoiceOutcome, mode: InvoiceRuleMode): OutcomeVi
     return { label: `Rules off: would ${verb}`, tone: 'gray' };
   }
   const reason = EXCEPTION_REASON_LABEL[o.reason];
-  if (mode === 'live') return { label: `Exception: ${reason}`, tone: 'red' };
+  if (recorded === 'open') return { label: `Exception: ${reason}`, tone: 'red' };
+  if (recorded === 'resolved') return { label: `Resolved: ${reason}`, tone: 'gray' };
+  if (mode === 'live') return { label: `Queued: exception, ${reason}`, tone: 'yellow' };
   if (mode === 'preview') return { label: `Preview: exception, ${reason}`, tone: 'yellow' };
   return { label: `Rules off: exception, ${reason}`, tone: 'gray' };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UnitFacts } from '@/lib/stock/invoice';
 import {
-  applyRpcResult, cleanInvoiceIds, countOutcome, invoicesFromInstant, emptyCounts, evaluateInvoice, itemCodesByInvoice, manualResultMessage, MAX_IDS_PER_JOB,
+  applyRpcResult, cleanInvoiceIds, countOutcome, exceptionKey, invoicesFromInstant, emptyCounts, evaluateInvoice, itemCodesByInvoice, manualResultMessage, MAX_IDS_PER_JOB,
   mergeInvoiceIds, outcomeView, xeroStatusLabel, type MirrorInvoiceRow,
 } from '@/lib/stock/invoice-review';
 import { STOCK_MODELS } from '@/lib/stock/models';
@@ -107,8 +107,13 @@ describe('outcomeView', () => {
     expect(outcomeView(apply, 'live')).toEqual({ label: 'Queued: mark sold', tone: 'yellow' });
     expect(outcomeView(apply, 'preview')).toEqual({ label: 'Preview: would mark sold', tone: 'teal' });
     expect(outcomeView(apply, 'off')).toEqual({ label: 'Rules off: would mark sold', tone: 'gray' });
-    expect(outcomeView(exc, 'live')).toEqual({ label: 'Exception: Invoice voided', tone: 'red' });
+    expect(outcomeView(exc, 'live')).toEqual({ label: 'Queued: exception, Invoice voided', tone: 'yellow' });
     expect(outcomeView(exc, 'preview').label).toBe('Preview: exception, Invoice voided');
+    expect(outcomeView(exc, 'off').label).toBe('Rules off: exception, Invoice voided');
+    // Recorded exceptions show their queue state in any mode.
+    expect(outcomeView(exc, 'preview', 'open')).toEqual({ label: 'Exception: Invoice voided', tone: 'red' });
+    expect(outcomeView(exc, 'live', 'resolved')).toEqual({ label: 'Resolved: Invoice voided', tone: 'gray' });
+    expect(outcomeView({ kind: 'ignore', reason: 'draft' }, 'live')).toEqual({ label: 'Not a stock invoice', tone: 'gray' });
     expect(outcomeView({ kind: 'noop', status: 'reserved', unitId: 'u', vin: 'V' }, 'preview')).toEqual({ label: 'Applied: Reserved', tone: 'green' });
   });
 
@@ -121,6 +126,10 @@ describe('outcomeView', () => {
 });
 
 describe('job payloads', () => {
+  it('exception keys pair the Xero invoice id with the reason', () => {
+    expect(exceptionKey(ID(1), 'voided')).toBe(`${ID(1)}|voided`);
+  });
+
   it('keeps uuids only, once', () => {
     expect(cleanInvoiceIds([ID(1), ID(1), 'x', 3, null, ID(2)])).toEqual([ID(1), ID(2)]);
   });

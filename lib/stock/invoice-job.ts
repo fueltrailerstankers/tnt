@@ -4,7 +4,7 @@ import { enqueue, recordRun, type Job } from '@/lib/jobs/outbox';
 import type { UnitFacts } from './invoice';
 import { rpcOutcome } from './invoice';
 import {
-  applyRpcResult, cleanInvoiceIds, invoicesFromInstant, countOutcome, emptyCounts, evaluateInvoice, itemCodesByInvoice, mergeInvoiceIds,
+  applyRpcResult, cleanInvoiceIds, exceptionKey, invoicesFromInstant, countOutcome, emptyCounts, evaluateInvoice, itemCodesByInvoice, mergeInvoiceIds,
   MIRROR_INVOICE_COLUMNS, STOCK_INVOICES_QUEUE, type LineCodeRow, type MirrorInvoiceRow, type OutcomeCounts,
 } from './invoice-review';
 import { INVOICE_RULES_KEY, STOCK_START_KEY, stockSettingsFrom, type InvoiceRuleMode, type StockSettings } from './settings';
@@ -79,13 +79,15 @@ export async function loadItemCodes(db: SupabaseClient, orgId: string, invoiceId
   return itemCodesByInvoice(invoiceIds, lines);
 }
 
-/** Exceptions already recorded for these invoices ("<xero invoice id>|<reason>"), resolved ones included. */
-async function recordedExceptions(db: SupabaseClient, orgId: string, invoiceIds: readonly string[]): Promise<Set<string>> {
-  const out = new Set<string>();
+/** Exceptions recorded for these invoices, keyed exceptionKey(xero invoice id, reason): open or resolved. */
+export async function recordedExceptions(db: SupabaseClient, orgId: string, invoiceIds: readonly string[]): Promise<Map<string, 'open' | 'resolved'>> {
+  const out = new Map<string, 'open' | 'resolved'>();
   for (let i = 0; i < invoiceIds.length; i += IN_CHUNK) {
-    const rows = await must(db.from('stock_invoice_exceptions').select('xero_invoice_id, reason')
+    const rows = await must(db.from('stock_invoice_exceptions').select('xero_invoice_id, reason, resolved_at')
       .eq('org_id', orgId).in('xero_invoice_id', invoiceIds.slice(i, i + IN_CHUNK)), 'stock exceptions');
-    for (const r of rows as Array<{ xero_invoice_id: string; reason: string }>) out.add(`${r.xero_invoice_id}|${r.reason}`);
+    for (const r of rows as Array<{ xero_invoice_id: string; reason: string; resolved_at: string | null }>) {
+      out.set(exceptionKey(r.xero_invoice_id, r.reason), r.resolved_at ? 'resolved' : 'open');
+    }
   }
   return out;
 }
@@ -142,7 +144,7 @@ async function runBatch(
 ): Promise<number> {
   const ids = rows.map((r) => r.invoice_id);
   const codes = await loadItemCodes(db, orgId, ids);
-  const recorded = mode === 'live' ? await recordedExceptions(db, orgId, ids) : new Set<string>();
+  const recorded = mode === 'live' ? await recordedExceptions(db, orgId, ids) : new Map<string, 'open' | 'resolved'>();
   let done = 0;
   for (const row of rows) {
     if (Date.now() > deadline) return done;
@@ -153,7 +155,7 @@ async function runBatch(
     if (mode !== 'live') continue;
     const p = rpcOutcome(outcome);
     if (!p) continue;
-    if (outcome.kind === 'exception' && recorded.has(`${row.invoice_id}|${outcome.reason}`)) continue;
+    if (outcome.kind === 'exception' && recorded.has(exceptionKey(row.invoice_id, outcome.reason))) continue;
     const { data, error } = await db.rpc('stock_apply_invoice', {
       p_org: orgId, p_invoice_number: row.invoice_number, p_xero_invoice_id: row.invoice_id,
       p_reference: row.reference, p_outcome: p, p_mode: 'live',
