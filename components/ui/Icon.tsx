@@ -19,6 +19,9 @@ export const ICONS = {
   moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   plus: 'M12 5v14M5 12h14',
+  stock: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9',
+  factory: 'M3 21V10l6 3V10l6 3V6h6v15zM3 21h18M7 17h2M12 17h2M17 17h2',
+  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
 } as const;
 
 export type IconName = keyof typeof ICONS;

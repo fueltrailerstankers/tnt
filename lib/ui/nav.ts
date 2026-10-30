@@ -24,6 +24,7 @@ export const NAV: readonly NavDef[] = [
   { key: 'deals', label: 'Deals', href: '/admin/deal-files', icon: 'deals', perm: 'xero.read', built: true, tab: true },
   { key: 'quotes', label: 'Quotes', href: '/admin/xero/quotes', icon: 'quotes', perm: 'xero.read', built: true },
   { key: 'invoices', label: 'Invoices', href: '/admin/xero/invoices', icon: 'invoices', perm: 'xero.read', built: true },
+  { key: 'stock', label: 'Stock', href: '/admin/stock', icon: 'stock', perm: 'stock.read', built: true },
   { key: 'documents', label: 'Documents', href: '/admin/documents', icon: 'documents', perm: 'entries.read', built: false },
   { key: 'leads', label: 'Leads', href: '/admin/leads', icon: 'leads', perm: 'leads.read', built: true, tab: true, badge: 'leads' },
   { key: 'integrations', label: 'Integrations', href: '/admin/integrations/xero', icon: 'integrations', perm: 'xero.read', built: true },
