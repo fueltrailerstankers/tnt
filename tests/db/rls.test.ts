@@ -17,6 +17,7 @@ const ORG_READABLE = [
   'lead_sources', 'routing_rules', 'leads', 'lead_events',
   'xero_action_runs', // M3: org admins only
   'stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals', // M6
+  'saved_views', 'terms_versions', // 0015: own saved views; terms versions readable by members
 ];
 // Service-role-only tables: no client may read them at all.
 const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
@@ -69,6 +70,9 @@ beforeAll(async () => {
   await db.query(`insert into public.stock_deal_dismissals(org_id, deal_id, reason) values ($1, $2, 'Synthetic reason')`, [ORG_A, deal.rows[0].id]);
   const unit = await db.query(`insert into public.stock_units(org_id, vin, model_part, location_id) values ($1, 'RLSTESTVIN0000001', '3000D', 'JHB') returning id`, [ORG_A]);
   await db.query(`insert into public.stock_invoice_exceptions(org_id, invoice_number, reason, unit_id) values ($1, 'INV-RLS-1', 'voided', $2)`, [ORG_A, unit.rows[0].id]);
+  // 0015: a saved view owned by ADMIN_A and a synthetic terms version (server-written).
+  await db.query(`insert into public.saved_views(org_id, user_id, scope, name, query) values ($1,$2,'form:release-form','Unread','{"view":"unread"}')`, [ORG_A, ADMIN_A]);
+  await db.query(`insert into public.terms_versions(org_id, key, sha256, body) select $1, 'rls-test', public.terms_body_sha256(b), b from (select '[{"id":"t","text":"Synthetic terms."}]'::jsonb as b) x`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });
