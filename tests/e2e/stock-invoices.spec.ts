@@ -262,6 +262,15 @@ test('Invoice rules live: the job reserves, sells and records exceptions once; I
   const [manualAudit] = await sql<{ meta: Record<string, unknown> }>(
     `select meta from public.audit_log where org_id = $1 and action = 'stock.sell' and meta->>'invoice_number' = $2`, [ORG, INV('M')]);
   expect(manualAudit.meta).toMatchObject({ mode: 'manual', vin: VIN(3), from_status: 'reserved' });
+
+  // The invoice reaches Xero later: the job only links its Xero id to the unit; nothing else changes.
+  const later = randomUUID();
+  await seedInvoice(later, { number: INV('M'), status: 'PAID', due: 0, total: 700, reference: VIN(3) });
+  await sql(`insert into public.outbox_jobs(org_id, queue, payload) values ($1, 'stock.invoices', $2)`, [ORG, JSON.stringify({ kind: 'ids', invoice_ids: [later] })]);
+  await drain(request);
+  expect(await unit(3)).toEqual({ status: 'sold', invoice_number: INV('M'), xero_invoice_id: later, sold: true });
+  expect(await sql(`select 1 from public.audit_log where org_id = $1 and action in ('stock.sell', 'stock.reserve', 'stock.exception') and meta->>'invoice_number' = $2`, [ORG, INV('M')]))
+    .toHaveLength(2); // the manual reserve and sell only
 });
 
 test('Preview mode changes nothing and shows what each invoice would do', async ({ page, request }) => {

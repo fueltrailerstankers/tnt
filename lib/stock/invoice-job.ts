@@ -58,13 +58,16 @@ export async function loadModelParts(db: SupabaseClient, orgId: string): Promise
   return (rows as Array<{ part_number: string }>).map((m) => m.part_number);
 }
 
+/** A unit as the rules see it, plus the Xero invoice it is linked to (null after a manual apply). */
+export type JobUnit = UnitFacts & { xero_invoice_id: string | null };
+
 /** Every unit of the org (VIN, status, invoice number), sold included: VINs and invoice numbers are unique. */
-export async function loadUnitFacts(db: SupabaseClient, orgId: string): Promise<UnitFacts[]> {
-  const out: UnitFacts[] = [];
+export async function loadUnitFacts(db: SupabaseClient, orgId: string): Promise<JobUnit[]> {
+  const out: JobUnit[] = [];
   for (let from = 0; ; from += UNIT_PAGE) {
-    const rows = await must(db.from('stock_units').select('id, vin_norm, status, invoice_number')
+    const rows = await must(db.from('stock_units').select('id, vin_norm, status, invoice_number, xero_invoice_id')
       .eq('org_id', orgId).order('id', { ascending: true }).range(from, from + UNIT_PAGE - 1), 'stock units');
-    out.push(...(rows as UnitFacts[]));
+    out.push(...(rows as JobUnit[]));
     if ((rows as unknown[]).length < UNIT_PAGE) return out;
   }
 }
@@ -139,7 +142,7 @@ async function currentPayload(db: SupabaseClient, job: Job): Promise<StockInvoic
  * the deadline (all of them unless out of time).
  */
 async function runBatch(
-  db: SupabaseClient, orgId: string, mode: InvoiceRuleMode, rows: MirrorInvoiceRow[], units: UnitFacts[], modelParts: string[],
+  db: SupabaseClient, orgId: string, mode: InvoiceRuleMode, rows: MirrorInvoiceRow[], units: JobUnit[], modelParts: string[],
   res: StockInvoicesResult, deadline: number,
 ): Promise<number> {
   const ids = rows.map((r) => r.invoice_id);
@@ -153,7 +156,9 @@ async function runBatch(
     countOutcome(res, outcome);
     if (outcome.kind !== 'ignore') res.evaluated += 1;
     if (mode !== 'live') continue;
-    const p = rpcOutcome(outcome);
+    // Already applied (e.g. manually before the invoice reached Xero): the RPC only links the Xero invoice id.
+    const unlinked = outcome.kind === 'noop' && units.find((u) => u.id === outcome.unitId)?.xero_invoice_id === null;
+    const p = unlinked && outcome.kind === 'noop' ? outcome.status : rpcOutcome(outcome);
     if (!p) continue;
     if (outcome.kind === 'exception' && recorded.has(exceptionKey(row.invoice_id, outcome.reason))) continue;
     const { data, error } = await db.rpc('stock_apply_invoice', {
@@ -168,6 +173,8 @@ async function runBatch(
     if (r?.result === 'reserved' || r?.result === 'sold') res.applied += 1;
     if (r?.result === 'exception' && r.recorded) res.recorded += 1;
     applyRpcResult(units, data);
+    const linked = units.find((u) => u.id === (data as { unit_id?: unknown } | null)?.unit_id);
+    if (linked && r?.result !== 'exception') linked.xero_invoice_id = row.invoice_id;
   }
   return done;
 }
