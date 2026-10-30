@@ -22,6 +22,8 @@ import { INVOICE_RULES_KEY, invoicesFromInstant, STOCK_START_KEY, stockSettingsF
 // Logs to job_runs with counts only; never references or customer data.
 
 const BATCH = 200;
+/** Ids per `in.(...)` filter: 100 uuids keep the request URL well under proxy limits. */
+const IN_CHUNK = 100;
 const UNIT_PAGE = 1000;
 const BUDGET_MS = 20_000;
 
@@ -69,9 +71,9 @@ export async function loadUnitFacts(db: SupabaseClient, orgId: string): Promise<
 
 export async function loadItemCodes(db: SupabaseClient, orgId: string, invoiceIds: readonly string[]): Promise<Map<string, (string | null)[]>> {
   const lines: LineCodeRow[] = [];
-  for (let i = 0; i < invoiceIds.length; i += BATCH) {
+  for (let i = 0; i < invoiceIds.length; i += IN_CHUNK) {
     const rows = await must(db.from('xero_invoice_lines').select('invoice_id, item_code')
-      .eq('org_id', orgId).in('invoice_id', invoiceIds.slice(i, i + BATCH)), 'invoice lines');
+      .eq('org_id', orgId).in('invoice_id', invoiceIds.slice(i, i + IN_CHUNK)), 'invoice lines');
     lines.push(...(rows as LineCodeRow[]));
   }
   return itemCodesByInvoice(invoiceIds, lines);
@@ -79,10 +81,13 @@ export async function loadItemCodes(db: SupabaseClient, orgId: string, invoiceId
 
 /** Exceptions already recorded for these invoices ("<xero invoice id>|<reason>"), resolved ones included. */
 async function recordedExceptions(db: SupabaseClient, orgId: string, invoiceIds: readonly string[]): Promise<Set<string>> {
-  if (!invoiceIds.length) return new Set();
-  const rows = await must(db.from('stock_invoice_exceptions').select('xero_invoice_id, reason')
-    .eq('org_id', orgId).in('xero_invoice_id', [...invoiceIds]), 'stock exceptions');
-  return new Set((rows as Array<{ xero_invoice_id: string; reason: string }>).map((r) => `${r.xero_invoice_id}|${r.reason}`));
+  const out = new Set<string>();
+  for (let i = 0; i < invoiceIds.length; i += IN_CHUNK) {
+    const rows = await must(db.from('stock_invoice_exceptions').select('xero_invoice_id, reason')
+      .eq('org_id', orgId).in('xero_invoice_id', invoiceIds.slice(i, i + IN_CHUNK)), 'stock exceptions');
+    for (const r of rows as Array<{ xero_invoice_id: string; reason: string }>) out.add(`${r.xero_invoice_id}|${r.reason}`);
+  }
+  return out;
 }
 
 /**
@@ -178,9 +183,9 @@ export async function processStockInvoices(db: SupabaseClient, orgId: string, pa
   const [units, modelParts] = await Promise.all([loadUnitFacts(db, orgId), loadModelParts(db, orgId)]);
 
   if (payload.kind === 'ids') {
-    for (let i = 0; i < payload.invoice_ids.length; i += BATCH) {
+    for (let i = 0; i < payload.invoice_ids.length; i += IN_CHUNK) {
       const rows = await must(db.from('xero_invoices').select(MIRROR_INVOICE_COLUMNS)
-        .eq('org_id', orgId).in('invoice_id', payload.invoice_ids.slice(i, i + BATCH)).gte('updated_utc', since)
+        .eq('org_id', orgId).in('invoice_id', payload.invoice_ids.slice(i, i + IN_CHUNK)).gte('updated_utc', since)
         .order('invoice_id', { ascending: true }), 'invoices');
       // An ids job is small; it finishes even past the budget rather than dropping ids.
       await runBatch(db, orgId, settings.rules, rows as MirrorInvoiceRow[], units, modelParts, res, Number.POSITIVE_INFINITY);
