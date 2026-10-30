@@ -55,3 +55,12 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
+
+## Repo notes (Cognito import in the app)
+- `/admin/forms/import` (permission `import.run`, admin only): save/replace/remove the Cognito API key, Test connection, Dry run / Import per form or All forms, live progress, Stop/Resume. docs/M5.md section 3a.
+- Key: `cognito_api_keys` (0015), service role only, AES-256-GCM with `ENCRYPTION_KEY` (AAD `cognito-api-key:<org>`), last 4 characters in clear. Decrypt only in `lib/import/cognito/job.ts` (job + Test connection); never return, log or audit it.
+- Runs: `import_runs` (0015), org admins read, server writes; `report` is counts/reason codes only, `error` is a code (check constraint). One queued/running run per form (unique index).
+- Job `cognito.import` `{ run_id }`: one leased, time-boxed slice (`importSlice`, at most 40 s and within the drain's deadline, passed to handlers as `ctx.deadline`), checkpoints report + cursor together, re-enqueues itself, then the next form of a batch; an apply queues `deal-files.rebuild`. `/api/jobs/cognito-import` drains only these (optional every-minute schedule in `supabase/scheduler.sql`).
+- The importer is shared with the CLI: `runImport` (CLI) and `runImportSlice` (job) both use `importForm`. Sources resume through `listPositioned` (positions: by-number `next`/`misses`, list `skip`); a source without it is resumed by index.
+- `COGNITO_API_URL` overrides the API base (e2e: `tests/e2e/mock-cognito.mjs`, port `E2E_COGNITO_PORT`, default 54598). The e2e spec numbers mock entries above existing ones and deletes what it imported in `afterAll`.
+- The route `/admin/forms/import` shadows a form slug `import`: a form builder must not allow that slug.
