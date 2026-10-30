@@ -189,3 +189,21 @@ describe('assertPerm', () => {
     }
   });
 });
+
+describe('xero.read is not used any more', () => {
+  it('no app or lib code checks the deprecated xero.read (use deals.read, quotes.read or invoices.read)', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+    const path = await import('node:path');
+    const root = path.resolve(__dirname, '../..');
+    const hits: string[] = [];
+    const walk = (dir: string) => {
+      for (const n of readdirSync(dir)) {
+        const p = path.join(dir, n);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.(ts|tsx)$/.test(n) && !p.endsWith(path.join('lib', 'security', 'can.ts')) && /['"]xero\.read['"]/.test(readFileSync(p, 'utf8'))) hits.push(path.relative(root, p));
+      }
+    };
+    for (const d of ['app', 'lib', 'components']) walk(path.join(root, d));
+    expect(hits).toEqual([]);
+  });
+});

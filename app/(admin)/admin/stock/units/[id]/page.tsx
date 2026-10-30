@@ -43,7 +43,7 @@ export default async function UnitRecord({ params, searchParams }: {
   const manage = can(member, 'stock.manage') && !listsFailed;
   const accessories = unit.accessories ?? [];
   const invoice = unit.invoice_number
-    ? unit.xero_invoice_id && can(member, 'xero.read')
+    ? unit.xero_invoice_id && can(member, 'invoices.read')
       ? <Link href={`/admin/xero/invoices/${encodeURIComponent(unit.xero_invoice_id)}`} className="font-mono font-semibold text-accent-text">{unit.invoice_number}</Link>
       : <span className="font-mono">{unit.invoice_number}</span>
     : '—';

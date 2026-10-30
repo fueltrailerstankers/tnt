@@ -36,7 +36,9 @@ export function formScope(slug: string): ViewScope {
 export function scopePermission(scope: ViewScope): Permission {
   const p = parseScope(scope);
   if (!p) throw new Error('unknown saved-view scope');
-  return p.kind === 'form' ? 'entries.read' : p.kind === 'leads' ? 'leads.read' : 'xero.read';
+  if (p.kind === 'form') return 'entries.read';
+  if (p.kind === 'leads') return 'leads.read';
+  return p.kind === 'xero_quotes' ? 'quotes.read' : 'invoices.read';
 }
 
 /** Staff route of a list. */
