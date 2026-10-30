@@ -19,16 +19,51 @@ export const ICONS = {
   moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   plus: 'M12 5v14M5 12h14',
+  // Workflow stages (design nav/journey paths).
+  job: 'M14 6l4 4-9 9H5v-4zM12 8l4 4',
+  inspect: 'M9 11l2 2 4-4M4 4h16v16H4z',
+  release: 'M7 11V7a5 5 0 0 1 9.9-1M5 11h14v10H5z',
+  delivery: 'M3 6h11v10H3zM14 9h4l3 3v4h-7zM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  store: 'M3 8l9-5 9 5v12H3zM8 20v-6h8v6M3 8h18',
+  // Status and actions (design paths where the design has one).
+  warning: 'M12 3 2 20h20zM12 10v4M12 17.5v.01',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8v.01',
+  check: 'M5 12l4 4 10-10',
+  x: 'M6 6l12 12M18 6 6 18',
+  chevronLeft: 'M15 6l-6 6 6 6',
+  chevronRight: 'M9 6l6 6-6 6',
+  arrowDown: 'M12 5v14M5 12l7 7 7-7',
+  lock: 'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  download: 'M12 4v12M7 11l5 5 5-5M4 20h16',
+  upload: 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
+  image: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01',
+  file: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6',
+  filter: 'M3 5h18l-7 8v6l-4 2v-8z',
+  columns: 'M4 4h16v16H4zM10 4v16M15 4v16',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  refresh: 'M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
+  mail: 'M3 5h18v14H3zM3 7l9 6 9-6',
+  phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
+  spinner: 'M12 3a9 9 0 1 0 9 9',
+  minus: 'M5 12h14',
+  shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4',
+  // Stock (M6).
   stock: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9',
   factory: 'M3 21V10l6 3V10l6 3V6h6v15zM3 21h18M7 17h2M12 17h2M17 17h2',
-  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
 } as const;
 
 export type IconName = keyof typeof ICONS;
 
-export function Icon({ name, size = 18, strokeWidth = 1.75 }: { name: IconName; size?: number; strokeWidth?: number }) {
+export function Icon({ name, size = 18, strokeWidth = 1.75, className }: { name: IconName; size?: number; strokeWidth?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className={className}>
       <path d={ICONS[name]} />
     </svg>
   );

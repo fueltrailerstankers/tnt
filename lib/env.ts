@@ -34,6 +34,8 @@ const appSchema = z.object({
   PUBLIC_ORG_ID: z.string().uuid().default(DEFAULT_ORG_ID),
   RESEND_API_KEY: z.string().optional(),
   MAIL_FROM: z.string().optional(),
+  /** Cloudflare Turnstile on public forms. Empty = no check (local dev and the offline e2e stub only). */
+  TURNSTILE_SECRET_KEY: z.string().optional(),
 });
 
 /** App settings for server code. Optional integrations stay off when their keys are empty. */
@@ -44,5 +46,12 @@ export function appEnv() {
     PUBLIC_ORG_ID: blank(process.env.PUBLIC_ORG_ID),
     RESEND_API_KEY: blank(process.env.RESEND_API_KEY),
     MAIL_FROM: blank(process.env.MAIL_FROM),
+    TURNSTILE_SECRET_KEY: blank(process.env.TURNSTILE_SECRET_KEY),
   });
+}
+
+/** Turnstile site key for the public form widget, or undefined when Turnstile is not configured. */
+export function turnstileSiteKey(): string | undefined {
+  const v = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  return v && v.trim() ? v.trim() : undefined;
 }

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { Icon } from '@/components/ui/Icon';
+import { buttonClass } from '@/components/ui/styles';
 import { appEnv } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -15,11 +17,14 @@ export default async function Thanks({ params, searchParams }: { params: Promise
   // The message always comes from the spec, never from the URL.
   const message = (form && a ? findAction(form.spec, a)?.confirmation : undefined) ?? DEFAULT;
   return (
-    <div className="space-y-4 rounded border bg-surface p-6" role="status">
-      <h1 className="text-xl font-semibold">{form?.spec.name ?? 'Thank you'}</h1>
-      <p>{message}</p>
+    <div className="mx-auto max-w-lg rounded-lg border border-border bg-surface p-6 text-center shadow-card sm:p-8" role="status">
+      <span aria-hidden="true" className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-status-green-bg text-status-green-fg">
+        <Icon name="check" size={24} strokeWidth={2.5} />
+      </span>
+      <h1 className="text-h1">{form?.spec.name ?? 'Thank you'}</h1>
+      <p className="mt-2 text-body text-fg-muted">{message}</p>
       {form?.isActive ? (
-        <Link href={`/f/${slug}`} className="inline-block rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-4 py-2">
+        <Link href={`/f/${slug}`} className={buttonClass('secondary', 44, 'mt-6')}>
           Fill in another
         </Link>
       ) : null}

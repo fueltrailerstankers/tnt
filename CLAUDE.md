@@ -56,6 +56,15 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
 
+## Repo notes (UI handoff, forms)
+- Forms render through `lib/spec/presentation.ts` (pure): steps, section cards and display rows over the spec. It never renames or drops a field; `tests/unit/presentation.test.ts` fails if any spec cell is missing or shown twice. Per-form layouts live in `PRESENTATIONS`; forms without one get their spec pages with narrow rows packed side by side.
+- Delivery Note is 5 steps; each step's `requireSigned` blocks Next, and `gate` keeps Customer signature 1 locked until the terms box is scrolled to the end. Server validation still applies on Submit (the form jumps to the first step with an error).
+- Field controls: `components/form-engine/` (`FileField` drop zone, `SignaturePad` theme-aware ink with black-ink PNG export, `Checklist` Pass/Fail chips, `CountField` Store Room minimums parsed from labels). Keep input names (`f.<Field>`, `sig.<Field>`, `file.<Field>`, `cl.<n>.pass|fail|comments`) and test ids (`sig-*`, `file-*`, `terms-scroll`) stable.
+- DEAL "Import from Xero" (staff only) reads the mirror via `importQuoteStaff` and fills fields with `dealFieldsFromQuote` (shared with the M3 Submit job). It never calls or writes Xero.
+- Public forms verify Cloudflare Turnstile in `submitPublic` when `TURNSTILE_SECRET_KEY` is set (fails closed); production must set it and `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- `/e/<token>`: `inspectRoleLink` + pure `linkStatus` give expired/revoked/unknown pages; `resolveRoleLink` (all reads and saves) accepts only `ok`.
+- The throwaway Postgres for tests must be UTF-8 (`pg_createcluster ... --encoding=UTF8 --locale=C.UTF-8`); SQL_ASCII breaks the M6 VIN tests.
+
 ## Repo notes (M6 stock overview and unit register)
 - Stock pages live under `app/(admin)/admin/stock`; its `layout.tsx` renders the stock tabs (`lib/stock/tabs.ts` `STOCK_TABS`, filtered by `can()`, `built` flag like NAV) for every stock page. New stock pages render inside it, start with `components/stock/StockHeader.tsx`, and still call `requirePerm`. One `stock` item in NAV.
 - Register logic is pure in `lib/stock/register.ts` (URL query, search -> PostgREST `or()`, CSV table, export audit row, Correct/Transfer inputs); reads go through `lib/stock/register-query.ts` (server-only, caller's RLS). Link to the register with `unitsHref({ model, location, status })`; `?q=<VIN>` finds a unit.
