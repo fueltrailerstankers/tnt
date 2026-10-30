@@ -34,7 +34,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const reasonLabel = (r: string) => EXCEPTION_REASON_LABEL[r as ExceptionReason] ?? r;
 
 /** Cells that stack as label/value pairs on phones and sit in table columns from sm up. */
-const td = 'flex justify-between gap-3 px-0 py-0.5 sm:table-cell sm:px-3 sm:py-2';
+const td = 'flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-0 py-0.5 sm:table-cell sm:px-3 sm:py-2';
 const tdLabel = 'text-small font-semibold text-fg-muted sm:hidden';
 
 /**
