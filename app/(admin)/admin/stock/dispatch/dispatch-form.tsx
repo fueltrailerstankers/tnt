@@ -6,7 +6,7 @@ import { FieldError, Input, Label, Select, Textarea } from '@/components/ui/Fiel
 import { cardClass } from '@/components/ui/styles';
 import { MAX_ACCESSORIES } from '@/lib/stock/deal';
 import {
-  ACCESSORY_FIELDS, DISPATCH_COPY, MAX_NOTES, modelOptionLabel, moveOfferLabel, type DispatchField, type DispatchMode, type FindOutcome,
+  ACCESSORY_FIELDS, DISPATCH_COPY, findMatches, MAX_NOTES, modelOptionLabel, moveOfferLabel, type DispatchField, type DispatchMode, type FindOutcome,
 } from '@/lib/stock/dispatch';
 import { STOCK_COPY } from '@/lib/stock/errors';
 import { checkVin, dispatchUnit, findDeal, moveFactoryUnit, type DispatchResult, type VinNote } from './actions';
@@ -56,7 +56,7 @@ export function DispatchForm({ models, locations, today, currentYear, initial }:
   const [finding, startFind] = useTransition();
   const [saving, startSave] = useTransition();
 
-  const found = find?.kind === 'found' && String(find.deal.year) === dealYear.trim() && String(find.deal.number) === dealNumber.trim();
+  const found = findMatches(find, dealYear, dealNumber);
   const blocked = mode === 'deal' && !found;
   const modelMissing = mode === 'deal' && found && !model;
 
@@ -68,6 +68,11 @@ export function DispatchForm({ models, locations, today, currentYear, initial }:
     startFind(async () => {
       const r = await findDeal(dealYear, dealNumber);
       setFind(r);
+      if (r.kind === 'found') {
+        // Show the deal as found ("0260" -> "260").
+        setDealYear(String(r.deal.year));
+        setDealNumber(String(r.deal.number));
+      }
       const p = prefill(r, known);
       if (p) {
         setModel(p.model);

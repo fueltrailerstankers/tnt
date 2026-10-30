@@ -30,7 +30,7 @@ async function makeDeal(over: { location?: string | null; model?: string | null;
 
 const dealStatus = async (id: string) => (await sql<{ status: string }>(`select status from public.stock_deals where id = $1`, [id]))[0]?.status;
 
-async function findUnit(page: Page, number: number) {
+async function findUnit(page: Page, number: number | string) {
   const main = page.getByRole('main');
   await main.getByRole('radio', { name: 'Existing sequence number' }).check();
   await main.getByRole('textbox', { name: 'Deal year', exact: true }).fill(String(YEAR));
@@ -139,6 +139,10 @@ test('Find unit: not found and dismissed block; admin dismisses with a reason an
   await expect(row).toContainText('Dismissed');
   await expect(row.getByTestId('dismissed-reason')).toHaveText('SENT 26/03');
   await expect(page.getByTestId('dismissal-history')).toContainText(`${deal.label} · SENT 26/03`);
+  // "Refresh dismissals" reloads the same view.
+  await page.getByRole('link', { name: 'Refresh dismissals' }).click();
+  await expect(page).toHaveURL(/\/admin\/stock\/deals\?branch=JHB&dismissed=1$/);
+  await expect(page.getByTestId('dismissal-history')).toContainText(`${deal.label} · SENT 26/03`);
 
   await page.goto('/admin/stock/dispatch');
   await expect(await findUnit(page, deal.number)).toHaveText('This deal has been dismissed. Only an admin can restore it before dispatch.');
@@ -208,7 +212,9 @@ test('A unit registered at the Factory moves to its branch with the deal (factor
 
     // Its deal arrives later: dispatching the same VIN to a branch offers the move instead of a duplicate error.
     await page.goto('/admin/stock/dispatch');
-    await expect(await findUnit(page, deal.number)).toHaveText(`Deal ${deal.label} · Model not recognised · Cape Town. Add or confirm the VIN and destination.`);
+    // Typed with a leading zero: still the same deal (numbers compared as numbers), and submit is enabled.
+    await expect(await findUnit(page, `0${deal.number}`)).toHaveText(`Deal ${deal.label} · Model not recognised · Cape Town. Add or confirm the VIN and destination.`);
+    await expect(main.getByRole('textbox', { name: 'Sequence number', exact: true })).toHaveValue(String(deal.number));
     await expect(main.getByText('Model not recognised on the DEAL: choose the model.')).toBeVisible();
     await expect(main.getByLabel('Destination branch').locator('option[value="FACTORY"]')).toBeDisabled();
     await main.getByLabel('Model / part number').selectOption('2500D');
@@ -229,4 +235,54 @@ test('A unit registered at the Factory moves to its branch with the deal (factor
   } finally {
     await sql(`update public.memberships set role = 'admin' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
   }
+});
+
+test('Dismiss and restore are refused by the server for staff and factory, even from a page rendered for an admin', async ({ page }) => {
+  const open = await makeDeal({ location: 'DBN' });
+  const gone = await makeDeal({ location: 'DBN' });
+  await sql(`update public.stock_deals set status = 'dismissed', dismissed_reason = 'SENT 26/03', dismissed_at = now() where id = $1`, [gone.id]);
+  await signIn(page);
+  const actionDone = () => page.waitForResponse((r) => r.request().method() === 'POST' && !!r.request().headers()['next-action']);
+  try {
+    for (const role of ['staff', 'factory']) {
+      // Rendered as admin (buttons present), then the membership changes: the server action must refuse.
+      await sql(`update public.memberships set role = 'admin' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
+      await page.goto('/admin/stock/deals?branch=DBN');
+      await page.getByRole('button', { name: `Dismiss deal ${open.label}` }).click();
+      const dialog = page.getByRole('dialog', { name: `Dismiss deal ${open.label}` });
+      await dialog.getByLabel('Reason').fill('Not allowed');
+      await sql(`update public.memberships set role = $3 where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID, role]);
+      const dismissed = actionDone();
+      await dialog.getByRole('button', { name: 'Dismiss' }).click();
+      await dismissed;
+      expect(await dealStatus(open.id), role).toBe('awaiting_dispatch');
+      expect(await sql(`select 1 from public.stock_deal_dismissals where deal_id = $1`, [open.id])).toHaveLength(0);
+
+      await sql(`update public.memberships set role = 'admin' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
+      await page.goto('/admin/stock/deals?branch=DBN&dismissed=1');
+      const restore = page.getByRole('button', { name: `Restore deal ${gone.label}` });
+      await expect(restore).toBeVisible();
+      await sql(`update public.memberships set role = $3 where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID, role]);
+      const restored = actionDone();
+      await restore.click();
+      await restored;
+      expect(await dealStatus(gone.id), role).toBe('dismissed');
+    }
+    expect(await sql(`select 1 from public.audit_log where entity_id = any($1::text[])`, [[open.id, gone.id]])).toHaveLength(0);
+  } finally {
+    await sql(`update public.memberships set role = 'admin' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
+  }
+});
+
+test('Deals page: a page past the end shows the last page with Previous', async ({ page }) => {
+  // 60 awaiting deals in a year of their own: page 3 is past the end (PostgREST would answer 416).
+  const year = 2031;
+  await sql(`insert into public.stock_deals(org_id, year, number, location_id, model_part)
+             select $1, $2, 700000 + g, 'JHB', '3000D' from generate_series(1, 60) g on conflict do nothing`, [ORG, year]);
+  await signIn(page);
+  await page.goto(`/admin/stock/deals?year=${year}&page=3`);
+  await expect(page.getByTestId('deals-page')).toHaveText('Page 2 of 2');
+  await expect(page.getByTestId('deal-row')).toHaveCount(10);
+  await expect(page.getByRole('link', { name: 'Previous' })).toHaveAttribute('href', `/admin/stock/deals?year=${year}`);
+  await expect(page.getByRole('link', { name: 'Next' })).toHaveCount(0);
 });

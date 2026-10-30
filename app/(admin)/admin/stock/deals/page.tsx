@@ -9,7 +9,7 @@ import { requirePerm } from '@/lib/security/require';
 import { todayIn } from '@/lib/spec/values';
 import { DEALS_FROM_KEY, parseDealsFrom, type DealStatus } from '@/lib/stock/deal-sync';
 import {
-  DEAL_STATUS_LABEL, DEAL_STATUS_TONE, DEALS_COPY, DEALS_PAGE_SIZE, dealsHref, outstandingFooter, parseDealsQuery, permissionLine, yearOptions,
+  clampPage, DEAL_STATUS_LABEL, DEAL_STATUS_TONE, DEALS_COPY, DEALS_PAGE_SIZE, dealsHref, outstandingFooter, pageCount, parseDealsQuery, permissionLine, yearOptions,
 } from '@/lib/stock/deals-view';
 import { dispatchHref } from '@/lib/stock/dispatch';
 import { STOCK_COPY } from '@/lib/stock/errors';
@@ -61,28 +61,37 @@ export default async function StockDeals({ searchParams }: { searchParams: Promi
     if (branch) c = c.eq('location_id', branch);
     return c;
   };
-  let list = db.from('stock_deals')
-    .select('id, entry_id, year, number, location_id, model_part, quote_number, status, dismissed_reason, created_at', { count: 'exact' })
-    .eq('org_id', member.orgId).eq('year', q.year).eq('status', q.dismissed ? 'dismissed' : 'awaiting_dispatch')
-    .order('number', { ascending: false })
-    .range((q.page - 1) * DEALS_PAGE_SIZE, q.page * DEALS_PAGE_SIZE - 1);
-  if (q.branch) list = list.eq('location_id', q.branch);
+  const listStatus = q.dismissed ? 'dismissed' : 'awaiting_dispatch';
+  let listCount = db.from('stock_deals').select('id', { count: 'exact', head: true })
+    .eq('org_id', member.orgId).eq('year', q.year).eq('status', listStatus);
+  if (q.branch) listCount = listCount.eq('location_id', q.branch);
   const yearEnd = (ascending: boolean) => db.from('stock_deals').select('year').eq('org_id', member.orgId).order('year', { ascending }).limit(1);
 
-  const [all, perBranch, rows, oldest, newest, history] = await Promise.all([
+  const [all, perBranch, listed, oldest, newest, history] = await Promise.all([
     outstanding(null),
     Promise.all(branches.map((b) => outstanding(b.id))),
-    list,
+    listCount,
     yearEnd(true),
     yearEnd(false),
     loadDismissalHistory(db, member.orgId, 10),
   ]);
-  if (all.error || rows.error || perBranch.some((r) => r.error)) throw new Error('stock deals unreadable');
+  if (all.error || listed.error || perBranch.some((r) => r.error)) throw new Error('stock deals unreadable');
+
+  // A page past the end (old link, rows dismissed meanwhile) shows the last page instead of a range error.
+  const total = listed.count ?? 0;
+  const pages = pageCount(total);
+  const view = { ...q, page: clampPage(q.page, total) };
+  let list = db.from('stock_deals')
+    .select('id, entry_id, year, number, location_id, model_part, quote_number, status, dismissed_reason, created_at')
+    .eq('org_id', member.orgId).eq('year', q.year).eq('status', listStatus)
+    .order('number', { ascending: false })
+    .range((view.page - 1) * DEALS_PAGE_SIZE, view.page * DEALS_PAGE_SIZE - 1);
+  if (q.branch) list = list.eq('location_id', q.branch);
+  const rows = await list;
+  if (rows.error) throw new Error('stock deals unreadable');
 
   const counts = new Map(branches.map((b, i) => [b.id, perBranch[i].count ?? 0]));
   const deals = (rows.data ?? []) as DealRow[];
-  const total = rows.count ?? 0;
-  const pages = Math.max(1, Math.ceil(total / DEALS_PAGE_SIZE));
   const years = yearOptions(oldest.data?.[0]?.year ?? null, newest.data?.[0]?.year ?? null, currentYear, q.year);
   const footerCount = q.branch ? counts.get(q.branch) ?? 0 : all.count ?? 0;
   const kpis = [{ id: null as string | null, label: DEALS_COPY.allBranches, value: all.count ?? 0 }, ...branches.map((b) => ({ id: b.id as string | null, label: b.name, value: counts.get(b.id) ?? 0 }))];
@@ -95,7 +104,11 @@ export default async function StockDeals({ searchParams }: { searchParams: Promi
           <h1 className="text-h1">{DEALS_COPY.title}</h1>
           <p className="text-body text-fg-muted">{permissionLine(canManage)}</p>
         </div>
-        <StatusChip status={dealsFrom ? DEALS_COPY.importFrom(dealsFrom) : DEALS_COPY.importOff} color={dealsFrom ? 'teal' : 'gray'} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusChip status={dealsFrom ? DEALS_COPY.importFrom(dealsFrom) : DEALS_COPY.importOff} color={dealsFrom ? 'teal' : 'gray'} />
+          {/* A plain link: a full reload of the same view re-reads deals and the dismissal history. */}
+          <a href={dealsHref(view, currentYear)} className={buttonClass('secondary', 36)}>{DEALS_COPY.refresh}</a>
+        </div>
       </header>
 
       <p className="rounded-sm border border-border bg-surface-2 p-3 text-body text-fg">{STOCK_COPY.dealClearsNote}</p>
@@ -195,11 +208,11 @@ export default async function StockDeals({ searchParams }: { searchParams: Promi
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4 text-small text-fg-muted">
           <span data-testid="deals-footer">{outstandingFooter(footerCount)}</span>
-          {pages > 1 ? (
+          {pages > 1 || view.page > 1 ? (
             <span className="flex items-center gap-3">
-              {q.page > 1 ? <Link href={dealsHref(q, currentYear, { page: q.page - 1 })}>Previous</Link> : null}
-              <span>Page {q.page} of {pages}</span>
-              {q.page < pages ? <Link href={dealsHref(q, currentYear, { page: q.page + 1 })}>Next</Link> : null}
+              {view.page > 1 ? <Link href={dealsHref(view, currentYear, { page: view.page - 1 })}>Previous</Link> : null}
+              <span data-testid="deals-page">Page {view.page} of {pages}</span>
+              {view.page < pages ? <Link href={dealsHref(view, currentYear, { page: view.page + 1 })}>Next</Link> : null}
             </span>
           ) : null}
         </div>

@@ -7,6 +7,7 @@ export const DEALS_PAGE_SIZE = 50;
 
 export const DEALS_COPY = {
   eyebrow: 'DEALS AWAITING DISPATCH',
+  refresh: 'Refresh dismissals',
   title: 'Outstanding deals',
   tableTitle: 'Awaiting factory dispatch',
   tableHint: 'Created deals stay here until linked to a completed dispatch.',
@@ -75,6 +76,16 @@ export function parseDealsQuery(sp: Record<string, Param>, currentYear: number, 
     dismissed: one(sp.dismissed) === '1',
     page: Number.isFinite(p) && p > 0 && p < 100_000 ? p : 1,
   };
+}
+
+/** Pages for a row count (at least 1). */
+export function pageCount(total: number, size = DEALS_PAGE_SIZE): number {
+  return Math.max(1, Math.ceil(Math.max(0, total) / size));
+}
+
+/** The requested page, or the last page when it is past the end (PostgREST answers 416 for a range past the rows). */
+export function clampPage(page: number, total: number, size = DEALS_PAGE_SIZE): number {
+  return Math.min(Math.max(1, page), pageCount(total, size));
 }
 
 /** Query string for the deals page (defaults left out). */

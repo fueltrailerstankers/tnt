@@ -235,6 +235,16 @@ export function findOutcome(
   };
 }
 
+/**
+ * Whether a Find unit result still belongs to the typed deal year and sequence number (compared as numbers, so
+ * "0260" is 260). Only a found deal that still matches enables Complete dispatch.
+ */
+export function findMatches(find: { kind: string; deal?: { year: number; number: number } } | null, year: string, number: string): boolean {
+  if (find?.kind !== 'found' || !find.deal) return false;
+  const q = dealQuery(year, number);
+  return !!q && q.year === find.deal.year && q.number === find.deal.number;
+}
+
 /** Year and number from the query string (?year=&number=), or null when either is missing or invalid. */
 export function dealQuery(year: string | string[] | undefined, number: string | string[] | undefined): { year: number; number: number } | null {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';

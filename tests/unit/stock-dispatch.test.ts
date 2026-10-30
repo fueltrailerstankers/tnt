@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACCESSORY_FIELDS, dealQuery, dispatchHref, dispatchRpcArgs, errorField, fieldMessage, findOutcome, isIsoDate, modelOptionLabel,
+  ACCESSORY_FIELDS, dealQuery, dispatchHref, dispatchRpcArgs, errorField, fieldMessage, findMatches, findOutcome, isIsoDate, modelOptionLabel,
   moveOfferLabel, parseDispatch, savedNotice, savedUrl, vinCheck, type FoundDealRow,
 } from '@/lib/stock/dispatch';
 import {
-  DEALS_COPY, dealsHref, DismissInput, outstandingFooter, parseDealsQuery, permissionLine, RestoreInput, yearOptions,
+  clampPage, DEALS_COPY, dealsHref, DismissInput, outstandingFooter, pageCount, parseDealsQuery, permissionLine, RestoreInput, yearOptions,
 } from '@/lib/stock/deals-view';
 import { parseStockError, STOCK_COPY } from '@/lib/stock/errors';
 
@@ -111,6 +111,19 @@ describe('findOutcome (Find unit)', () => {
   });
 });
 
+describe('findMatches', () => {
+  const found = { kind: 'found', deal: { year: 2026, number: 260 } };
+  it('compares the typed year and number with the found deal as numbers', () => {
+    expect(findMatches(found, '2026', '260')).toBe(true);
+    expect(findMatches(found, ' 2026 ', '0260')).toBe(true);
+    expect(findMatches(found, '2026', '261')).toBe(false);
+    expect(findMatches(found, '2025', '260')).toBe(false);
+    expect(findMatches(found, '2026', '')).toBe(false);
+    expect(findMatches({ kind: 'dismissed' }, '2026', '260')).toBe(false);
+    expect(findMatches(null, '2026', '260')).toBe(false);
+  });
+});
+
 describe('errorField', () => {
   it('puts VIN errors under the VIN, deal errors under Find unit, the rest on their field', () => {
     const at = (message: string, detail: Record<string, unknown> = {}) => errorField(parseStockError({ message, details: JSON.stringify(detail), hint: 'stock' })!);
@@ -177,6 +190,16 @@ describe('deals page query and copy', () => {
     expect(dealsHref(q, 2026)).toBe('/admin/stock/deals?year=2025&branch=CPT');
     expect(dealsHref(q, 2026, { year: 2026, branch: null })).toBe('/admin/stock/deals');
     expect(dealsHref(q, 2026, { page: 2, dismissed: true })).toBe('/admin/stock/deals?year=2025&branch=CPT&dismissed=1&page=2');
+  });
+
+  it('clamps a page past the end to the last page (60 deals: page 3 -> 2)', () => {
+    expect(pageCount(0)).toBe(1);
+    expect(pageCount(50)).toBe(1);
+    expect(pageCount(60)).toBe(2);
+    expect(clampPage(3, 60)).toBe(2);
+    expect(clampPage(2, 60)).toBe(2);
+    expect(clampPage(5, 0)).toBe(1);
+    expect(clampPage(0, 60)).toBe(1);
   });
 
   it('offers every year from the oldest deal to this year, newest first', () => {
