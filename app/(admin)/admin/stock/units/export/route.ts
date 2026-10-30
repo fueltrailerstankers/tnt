@@ -1,7 +1,7 @@
 import { toCsv } from '@/lib/admin/grid';
 import { ForbiddenError } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
-import { EXPORT_CHUNK, EXPORT_MAX_ROWS, parseRegisterQuery, unitsCsvTable, type UnitRow } from '@/lib/stock/register';
+import { EXPORT_CHUNK, EXPORT_MAX_ROWS, exportAuditRow, parseRegisterQuery, unitsCsvTable, type UnitRow } from '@/lib/stock/register';
 import { loadLocations, loadModels, selectUnits } from '@/lib/stock/register-query';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -37,10 +37,9 @@ export async function GET(req: Request) {
   const csv = toCsv(unitsCsvTable(rows, (p) => desc.get(p), (id) => loc.get(id)));
 
   // audit_log has no client insert policy: the service role writes the row, after the permission check.
-  await createAdminClient().from('audit_log').insert({
-    org_id: member.orgId, actor_user: member.userId, action: 'stock.export', entity: 'stock_units', entity_id: null,
-    meta: { format: 'csv', rows: rows.length, search: !!rq.q, model: rq.model, location: rq.location, status: rq.status },
-  });
+  // No audit row, no export.
+  const { error: auditError } = await createAdminClient().from('audit_log').insert(exportAuditRow(member, rq, rows.length));
+  if (auditError) return new Response('The export could not be recorded. Try again.', { status: 502 });
 
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(csv, {

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { toCsv } from '@/lib/admin/grid';
 import { can, ROLES, type Member } from '@/lib/security/can';
 import {
-  ALL_BRANCHES, changedSummary, correctionFields, CorrectInput, CSV_HEADER, dealLabel, EMPTY_REGISTER_QUERY, invalidField,
+  ALL_BRANCHES, changedSummary, correctionFields, CorrectInput, CSV_HEADER, dealLabel, EMPTY_REGISTER_QUERY, exportAuditRow, invalidField,
   parseRegisterQuery, parseRegisterSearch, registerHref, registerOrFilter, registerQueryString, statusesFor, transferArgs,
   TransferInput, unitsCsvTable, unitsHref, type UnitRow,
 } from '@/lib/stock/register';
@@ -104,6 +104,15 @@ describe('CSV export table', () => {
     expect(dealLabel({ deal_year: 2026, sequence: 249 })).toBe('2026 / 249');
     expect(dealLabel({ deal_year: null, sequence: 12 })).toBe('12');
     expect(dealLabel({ deal_year: 2026, sequence: null })).toBe('—');
+  });
+  it('audits an export with the row count and filter codes, never the search text', () => {
+    const rq = parseRegisterQuery({ q: 'SECRET TEXT', model: '3000d', location: 'jhb', status: 'sold' }, LOCS);
+    const row = exportAuditRow({ orgId: 'o', userId: 'u' }, rq, 3);
+    expect(row).toEqual({
+      org_id: 'o', actor_user: 'u', action: 'stock.export', entity: 'stock_units', entity_id: null,
+      meta: { format: 'csv', rows: 3, search: true, model: '3000D', location: 'JHB', status: 'sold' },
+    });
+    expect(JSON.stringify(row)).not.toContain('SECRET');
   });
 });
 

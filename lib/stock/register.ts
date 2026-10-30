@@ -171,6 +171,17 @@ export function unitsCsvTable(
   ];
 }
 
+/**
+ * The 'stock.export' audit row: row count and filter codes only. The search text is never stored (it may be
+ * anything a user typed); model part numbers, location ids and status values are codes.
+ */
+export function exportAuditRow(member: { orgId: string; userId: string }, rq: RegisterQuery, rows: number) {
+  return {
+    org_id: member.orgId, actor_user: member.userId, action: 'stock.export', entity: 'stock_units', entity_id: null,
+    meta: { format: 'csv', rows, search: !!rq.q, model: rq.model, location: rq.location, status: rq.status },
+  };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Correct record (stock_correct_unit) and Transfer (stock_move_unit)
 // ---------------------------------------------------------------------------------------------------
