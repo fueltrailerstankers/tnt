@@ -43,10 +43,14 @@ async function xeroStatus(orgId: string): Promise<ShellData['xero']> {
   }
 }
 
-async function displayName(db: SupabaseClient, userId: string): Promise<string | null> {
+/** The member's name in this org (Users & access), else their profile name. */
+async function displayName(db: SupabaseClient, member: Member): Promise<string | null> {
   try {
-    const { data } = await db.from('profiles').select('full_name').eq('id', userId).maybeSingle();
-    return (data?.full_name as string | null) ?? null;
+    const [{ data: m }, { data }] = await Promise.all([
+      db.from('memberships').select('display_name').eq('org_id', member.orgId).eq('user_id', member.userId).maybeSingle(),
+      db.from('profiles').select('full_name').eq('id', member.userId).maybeSingle(),
+    ]);
+    return (m?.display_name as string | null) || ((data?.full_name as string | null) ?? null);
   } catch {
     return null;
   }
@@ -55,7 +59,7 @@ async function displayName(db: SupabaseClient, userId: string): Promise<string |
 export async function loadShellData(db: SupabaseClient, member: Member): Promise<ShellData> {
   const [tasks, userName, xero] = await Promise.all([
     can(member, 'tasks.read') ? taskCount(db, member.orgId) : Promise.resolve(0),
-    displayName(db, member.userId),
+    displayName(db, member),
     showsXeroStatus(member) ? xeroStatus(member.orgId) : Promise.resolve(null),
   ]);
   return { tasks, userName, xero };
