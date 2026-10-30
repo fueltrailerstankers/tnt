@@ -15,7 +15,7 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0011 | M6 | stock control: locations, 52 models (seeded for the default org), stock deals, append-only dismissal history, units (VIN unique per org on `stock_norm_vin`, sold included), invoice exceptions, `stock_matrix` view; read-only for stock.read roles (invoice exceptions: stock.invoices roles, not factory); writes via the `stock_*` RPCs (audited); `app_settings` `stock.*` keys server-only (as 0009); factory role kept out of entries and the Xero mirror |
 | 0012 | M4 fix | one-time lead intake events: unique (lead_id, kind) for created, duplicate, routed, emailed |
 | 0013 | M1 fix | DEAL DATE CREATED defaults to today (spec update) |
-| 0015 | M5 | in-app Cognito import: `cognito_api_keys` (one per org, AES-256-GCM with ENCRYPTION_KEY, last 4 characters in clear; service role only) and `import_runs` (per form, dry_run/apply, cursor + counts-only report; org admins read, server writes; one queued/running run per form) |
+| 0020 | M5 | in-app Cognito import: `cognito_api_keys` (one per org, AES-256-GCM with ENCRYPTION_KEY, last 4 characters in clear; service role only) and `import_runs` (per form, dry_run/apply, cursor + counts-only report; org admins read, server writes; one queued/running run per form) |
 
 The live project got 0012 and 0013 before 0010/0011: apply 0010 and 0011 next (with the Supabase CLI: `supabase db push --include-all`). 0012 depends on 0008 only.
 

@@ -58,8 +58,8 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 
 ## Repo notes (Cognito import in the app)
 - `/admin/forms/import` (permission `import.run`, admin only): save/replace/remove the Cognito API key, Test connection, Dry run / Import per form or All forms, live progress, Stop/Resume. docs/M5.md section 3a.
-- Key: `cognito_api_keys` (0015), service role only, AES-256-GCM with `ENCRYPTION_KEY` (AAD `cognito-api-key:<org>`), last 4 characters in clear. Decrypt only in `lib/import/cognito/job.ts` (job + Test connection); never return, log or audit it.
-- Runs: `import_runs` (0015), org admins read, server writes; `report` is counts/reason codes only, `error` is a code (check constraint). One queued/running run per form (unique index).
+- Key: `cognito_api_keys` (0020), service role only, AES-256-GCM with `ENCRYPTION_KEY` (AAD `cognito-api-key:<org>`), last 4 characters in clear. Decrypt only in `lib/import/cognito/job.ts` (job + Test connection); never return, log or audit it.
+- Runs: `import_runs` (0020), org admins read, server writes; `report` is counts/reason codes only, `error` is a code (check constraint). One queued/running run per form (unique index).
 - Job `cognito.import` `{ run_id }`: one leased, time-boxed slice (`importSlice`, at most 40 s and within the drain's deadline, passed to handlers as `ctx.deadline`), checkpoints report + cursor together, re-enqueues itself, then the next form of a batch; an apply queues `deal-files.rebuild`. `/api/jobs/cognito-import` drains only these (optional every-minute schedule in `supabase/scheduler.sql`).
 - The importer is shared with the CLI: `runImport` (CLI) and `runImportSlice` (job) both use `importForm`. Sources resume through `listPositioned` (positions: by-number `next`/`misses`, list `skip`); a source without it is resumed by index.
 - `COGNITO_API_URL` overrides the API base (e2e: `tests/e2e/mock-cognito.mjs`, port `E2E_COGNITO_PORT`, default 54598). The e2e spec numbers mock entries above existing ones and deletes what it imported in `afterAll`.

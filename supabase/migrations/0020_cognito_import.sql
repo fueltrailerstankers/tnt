@@ -1,4 +1,4 @@
--- 0015: in-app Cognito import (docs/M5.md "Import from the app").
+-- 0020: in-app Cognito import (docs/M5.md "Import from the app").
 --
 -- cognito_api_keys: one Cognito API key per org, service role only (RLS on, no policies, no client grants).
 --   The key is AES-256-GCM encrypted with ENCRYPTION_KEY (AAD = 'cognito-api-key:' || org_id), like the Xero
