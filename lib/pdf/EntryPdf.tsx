@@ -5,7 +5,8 @@ import { Document, Image, Link, Page, StyleSheet, Text, View } from '@react-pdf/
 import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { pages } from '@/lib/spec/layout';
 import type { FormSpec } from '@/lib/spec/types';
-import { displayValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import { formatValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import { hiddenFields, isHeading } from '@/lib/spec/visibility';
 
 export interface PdfEntry {
   number: number;
@@ -113,6 +114,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function EntryPdf(p: PdfProps) {
   const tz = p.timezone;
+  const hidden = hiddenFields(p.spec, p.data);
   return (
     <Document title={p.title} author="Trailers & Tankers" creator="Trailers & Tankers platform">
       <Page size="A4" style={styles.page}>
@@ -126,9 +128,10 @@ export function EntryPdf(p: PdfProps) {
         {pages(p.spec).map((pg) => (
           <View key={pg.index}>
             {pg.title ? <Text style={styles.pageTitle}>{pg.title}</Text> : null}
-            {pg.rows.map((row) => (
+            {/* M8: fields hidden by showWhen for this entry are left out (none on the kit forms). */}
+            {pg.rows.map((row) => ({ row, cells: row.cells.filter((c) => !hidden.has(c.field)) })).filter((r) => r.cells.length).map(({ row, cells }) => (
               <View key={row.row} style={styles.row}>
-                {row.cells.map((c, i) => (
+                {cells.map((c, i) => (
                   <View key={i} style={[styles.cell, { width: `${(c.span / 24) * 100}%` }]}>{renderCell(c.field, p)}</View>
                 ))}
               </View>
@@ -179,6 +182,14 @@ function renderCell(f: ReturnType<typeof pages>[number]['rows'][number]['cells']
         </Field>
       );
     case 'section': {
+      if (isHeading(f)) {
+        return (
+          <View wrap={false}>
+            <Text style={styles.heading}>{f.label.trim() || f.name}</Text>
+            {f.description ? <Text style={styles.help}>{f.description}</Text> : null}
+          </View>
+        );
+      }
       const rows = (p.data.checklist as ChecklistRow[] | undefined) ?? [];
       return (
         <Field label={f.label}>
@@ -201,7 +212,7 @@ function renderCell(f: ReturnType<typeof pages>[number]['rows'][number]['cells']
     default:
       return (
         <Field label={f.label.trim() || f.name}>
-          <Text style={styles.value}>{displayValue(p.data[f.name]) || ' '}</Text>
+          <Text style={styles.value}>{formatValue(f, p.data[f.name], { timeZone: p.timezone }) || ' '}</Text>
         </Field>
       );
   }

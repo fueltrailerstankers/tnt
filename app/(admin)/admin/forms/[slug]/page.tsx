@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { adminForm } from '@/lib/admin/context';
-import { columnChoices, formatDateTime, PAGE_SIZE, parseGridQuery } from '@/lib/admin/grid';
+import { columnChoices, formatDateTime, gridCell, PAGE_SIZE, parseGridQuery } from '@/lib/admin/grid';
 import { listEntries } from '@/lib/admin/list';
 import { can } from '@/lib/security/can';
 import { inputFields } from '@/lib/spec/types';
-import { displayValue } from '@/lib/spec/values';
 import { NEW_ENTRY_STATUS, statusColor } from '@/lib/workflow/rules';
 import { markRead } from './actions';
 
@@ -123,7 +122,7 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
                   <td className="p-2"><StatusChip status={e.status} color={statusColor(spec, e.status)} /></td>
                   {q.cols.map((c) => (
                     <td key={c} className="max-w-xs truncate p-2">
-                      {protectedFields.has(c) && !reveal && e.data[c] ? '(protected)' : displayValue(e.data[c])}
+                      {protectedFields.has(c) && !reveal && e.data[c] ? '(protected)' : gridCell(spec, c, e.data[c], org.timezone)}
                     </td>
                   ))}
                   <td className="whitespace-nowrap p-2 text-fg-muted">{formatDateTime(e.createdAt, org.timezone)}</td>
