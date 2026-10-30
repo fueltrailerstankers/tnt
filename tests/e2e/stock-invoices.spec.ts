@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { signIn, sql } from './helpers';
+import { ADMIN, sql } from './helpers';
 import { E2E_XERO } from './xero-env';
 
 // M6 stock pages C: Pilot setup, opening stock import, the stock.invoices job, Invoice review and Activity.
@@ -13,6 +13,15 @@ const VIN = (n: number) => `E2E${run}V${String(n).padStart(3, '0')}`;
 const INV = (s: string) => `INV-${run}-${s}`;
 
 const main = (page: Page) => page.getByRole('main');
+
+/** helpers.signIn with room for the dev server's first compile of a stock page. */
+async function signIn(page: Page, next: string) {
+  await page.goto(`/login?next=${encodeURIComponent(next)}`);
+  await page.getByLabel('Email').fill(ADMIN.email);
+  await page.getByLabel('Password').fill(ADMIN.password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`), { timeout: 60_000 });
+}
 
 async function drain(request: APIRequestContext) {
   const res = await request.post('/api/jobs/outbox', { headers: { Authorization: `Bearer ${E2E_XERO.JOB_SECRET}` } });
@@ -91,10 +100,10 @@ test('Opening stock CSV: dry run lists problems by line, a clean file imports, r
   ].join('\n'));
   await check.click();
   const report = box.getByTestId('opening-report');
-  await expect(report.getByTestId('opening-problems')).toContainText(`VIN ${VIN(1)} appears more than once: lines 2, 3`);
-  await expect(report.getByTestId('opening-problems')).toContainText('Unknown model NOTAMODEL: line 4');
-  await expect(report.getByTestId('opening-problems')).toContainText('Unknown location: line 5');
-  await expect(report.getByTestId('opening-problems')).toContainText('Line 6: Status must be available, reserved or sold.');
+  await expect(report.getByTestId('opening-problem-list')).toContainText(`VIN ${VIN(1)} appears more than once: lines 2, 3`);
+  await expect(report.getByTestId('opening-problem-list')).toContainText('Unknown model NOTAMODEL: line 4');
+  await expect(report.getByTestId('opening-problem-list')).toContainText('Unknown location: line 5');
+  await expect(report.getByTestId('opening-problem-list')).toContainText('Line 6: Status must be available, reserved or sold.');
   await expect(report).not.toContainText('Pretoria');
   await expect(report).not.toContainText('on hold');
   await expect(apply).toBeDisabled();
@@ -111,7 +120,7 @@ test('Opening stock CSV: dry run lists problems by line, a clean file imports, r
   await upload('opening.csv', clean);
   await check.click();
   await expect(report.getByTestId('opening-new')).toHaveText('5');
-  await expect(report.getByTestId('opening-problems')).toHaveCount(0);
+  await expect(report.getByTestId('opening-problem-list')).toHaveCount(0);
   await expect(apply).toBeEnabled();
   await apply.click();
   await expect(box.getByText('Imported 5 new units.')).toBeVisible();
@@ -150,7 +159,7 @@ const INVOICES = {
 async function seedInvoice(id: string, o: { number: string; status: string; due: number; total: number; reference: string; updated?: string; codes?: string[] }) {
   await sql(
     `insert into public.xero_invoices(org_id, tenant_id, invoice_id, invoice_number, invoice_type, reference, status, currency_code, total, amount_due, amount_paid, updated_utc, raw)
-     values ($1, 'tenant-e2e', $2, $3, 'ACCREC', $4, $5, 'ZAR', $6, $7, $6 - $7, $8, '{}')`,
+     values ($1, 'tenant-e2e', $2, $3, 'ACCREC', $4, $5, 'ZAR', $6::numeric, $7::numeric, $6::numeric - $7::numeric, $8, '{}')`,
     [ORG, id, o.number, o.reference, o.status, o.total, o.due, o.updated ?? new Date().toISOString()],
   );
   for (const [i, code] of (o.codes ?? []).entries()) {

@@ -111,7 +111,7 @@ function ReportView({ report }: { report: OpeningReport }) {
       {report.errorCount ? (
         <div className="rounded-sm border border-border p-3">
           <h3 className="text-body font-semibold">Problems to fix</h3>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-body" data-testid="opening-problems">
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-body" data-testid="opening-problem-list">
             {report.duplicates.map((d) => <li key={d.vin}>VIN {d.vin} appears more than once: lines {lineList(d.lines)}</li>)}
             {report.unknownModels.map((m) => <li key={m.model}>Unknown model {m.model}: line{m.lines.length === 1 ? '' : 's'} {lineList(m.lines)}</li>)}
             <Lines label="Unknown location" lines={report.unknownLocationLines} />
