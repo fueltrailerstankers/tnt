@@ -18,6 +18,7 @@ interface Overview {
 
 export default async function FormsIndex() {
   const member = await requirePerm('forms.read');
+  const canImport = can(member, 'import.run');
   const manage = can(member, 'forms.manage'); // M8: builder links
   const db = await createClient();
   const { data } = await db.rpc('form_overview');
@@ -27,7 +28,10 @@ export default async function FormsIndex() {
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-h1">Forms</h1>
-        {manage ? <Link href="/admin/forms/new" className={buttonClass('primary', 36)}>New form</Link> : null}
+        <div className="flex flex-wrap gap-2">
+          {canImport ? <Link href="/admin/forms/import" className={buttonClass('secondary', 36)}>Import from Cognito</Link> : null}
+          {manage ? <Link href="/admin/forms/new" className={buttonClass('primary', 36)}>New form</Link> : null}
+        </div>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {forms.map((f) => (
@@ -42,6 +46,7 @@ export default async function FormsIndex() {
             <div className="mt-auto flex flex-wrap gap-2">
               <Link href={`/admin/forms/${f.slug}/new`} className={buttonClass('primary', 36)}>New entry</Link>
               <Link href={`/admin/forms/${f.slug}`} className={buttonClass('secondary', 36)}>Entries</Link>
+              {canImport ? <Link href={`/admin/forms/import#form-${f.slug}`} className={buttonClass('ghost', 36)}>Import entries</Link> : null}
               {manage ? <Link href={`/admin/forms/${f.slug}/design`} className={buttonClass('secondary', 36)}>Design</Link> : null}
             </div>
           </li>

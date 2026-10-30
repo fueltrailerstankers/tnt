@@ -17,11 +17,14 @@ const ORG_READABLE = [
   'lead_sources', 'routing_rules', 'leads', 'lead_events',
   'xero_action_runs', // M3: org admins only
   'stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals', // M6
+  'xero_credit_notes', // M6 0019
   'saved_views', 'terms_versions', // 0015: own saved views; terms versions readable by members
+  'import_runs', // Cognito import: org admins only
   'form_versions', // 0018: published form specs, members read, server-only writes
 ];
 // Service-role-only tables: no client may read them at all.
-const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
+const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states',
+  'cognito_api_keys'];
 
 let db: Client;
 let entryA: string;
@@ -58,6 +61,7 @@ beforeAll(async () => {
   await db.query(`insert into public.xero_invoices(org_id, tenant_id, invoice_id, invoice_number, currency_code, total, raw) values ($1,'t','i1','INV-90001','ZAR',100,'{}')`, [ORG_A]);
   await db.query(`insert into public.xero_invoice_lines(org_id, invoice_id, line_no, description) values ($1,'i1',1,'x')`, [ORG_A]);
   await db.query(`insert into public.xero_payments(org_id, tenant_id, payment_id, invoice_id, amount, currency_code, raw) values ($1,'t','p1','i1',100,'ZAR','{}')`, [ORG_A]);
+  await db.query(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, credit_note_type, raw) values ($1,'t','cn1','ACCRECCREDIT','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_attachments(org_id, attachment_id, parent_type, parent_id, raw) values ($1,'a1','Invoice','i1','{}')`, [ORG_A]);
   await db.query(`insert into public.xero_sync_state(org_id, entity) values ($1,'invoices')`, [ORG_A]);
   await db.query(`insert into public.deal_files(org_id, quote_no, quote_id) values ($1,'90001','q1')`, [ORG_A]);
@@ -74,6 +78,9 @@ beforeAll(async () => {
   // 0015: a saved view owned by ADMIN_A and a synthetic terms version (server-written).
   await db.query(`insert into public.saved_views(org_id, user_id, scope, name, query) values ($1,$2,'form:release-form','Unread','{"view":"unread"}')`, [ORG_A, ADMIN_A]);
   await db.query(`insert into public.terms_versions(org_id, key, sha256, body) select $1, 'rls-test', public.terms_body_sha256(b), b from (select '[{"id":"t","text":"Synthetic terms."}]'::jsonb as b) x`, [ORG_A]);
+  // Cognito import: an encrypted key (synthetic bytes) and a run with counts only.
+  await db.query(`insert into public.cognito_api_keys(org_id, key_enc, last4) values ($1, '\\x01', 'abcd')`, [ORG_A]);
+  await db.query(`insert into public.import_runs(org_id, form_slug, mode, status) values ($1, 'store-room', 'dry_run', 'done')`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });

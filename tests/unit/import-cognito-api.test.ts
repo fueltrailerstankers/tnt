@@ -80,7 +80,8 @@ describe('HttpCognitoSource', () => {
       if (url.endsWith('/files/F-1')) return json({ Id: 'F-1', File: 'https://blob.example.invalid/abc' });
       return new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), { headers: { 'content-type': 'application/pdf' } });
     });
-    const src = new HttpCognitoSource({ apiKey: 'secret', fetch: f, sleep: noSleep });
+    // The storage host resolves to a public address (a fake resolver: tests never use DNS).
+    const src = new HttpCognitoSource({ apiKey: 'secret', fetch: f, sleep: noSleep, lookup: async () => ['93.184.216.34'] });
     const a = await src.downloadFile({ id: 'F-1', url: null, inline: null });
     expect(a.contentType).toBe('application/pdf');
     expect(a.bytes.length).toBe(5);

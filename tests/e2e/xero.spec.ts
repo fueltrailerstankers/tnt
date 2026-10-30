@@ -11,7 +11,7 @@ type J = Record<string, unknown>;
 type XInvoice = { InvoiceID: string; InvoiceNumber: string; Reference: string; Status: string; Total: number; CurrencyCode: string; UpdatedDateUTC: string; HasAttachments: boolean; LineItems: unknown[] };
 type XQuote = { QuoteID: string; QuoteNumber: string; Total: number; CurrencyCode: string; LineItems: unknown[] };
 type XPayment = { PaymentID: string; Amount: number };
-type MockData = { tenant: { tenantId: string; tenantName: string }; contacts: J[]; quotes: XQuote[]; invoices: XInvoice[]; payments: XPayment[]; attachments: Record<string, J[]> };
+type MockData = { tenant: { tenantId: string; tenantName: string }; contacts: J[]; quotes: XQuote[]; invoices: XInvoice[]; payments: XPayment[]; attachments: Record<string, J[]>; creditNotes: J[] };
 type LogLine = { method: string; path: string; api: boolean; grant?: string };
 
 const THANKS = 'Thank you for filling out the form. Your response has been recorded.';
@@ -41,7 +41,7 @@ async function fullSyncUntilDone(request: APIRequestContext) {
     expect(body.results).toHaveLength(1);
     expect(['ok', 'partial']).toContain(body.results[0].status);
     const states = await sql<{ entity: string; backfill_done: boolean }>(`select entity, backfill_done from xero_sync_state where org_id = $1`, [ORG]);
-    if (states.length === 5 && states.every((s) => s.backfill_done)) return;
+    if (states.length === 6 && states.every((s) => s.backfill_done)) return;
   }
   throw new Error('backfill did not finish');
 }
@@ -112,7 +112,7 @@ test('full sync mirrors the mock: counts, totals, ZAR kept; month check matches'
   // Other specs (leads, quote picker) seed synthetic mirror rows under their own tenant ids in the shared
   // e2e database. Count only what this mock's sync wrote: drop rows from any other tenant first.
   const [{ tenant_id: tenant }] = await sql<{ tenant_id: string }>(`select tenant_id from xero_connections where org_id = $1 and status = 'connected'`, [ORG]);
-  for (const t of ['xero_contacts', 'xero_quotes', 'xero_invoices', 'xero_payments']) await sql(`delete from ${t} where org_id = $1 and tenant_id <> $2`, [ORG, tenant]);
+  for (const t of ['xero_contacts', 'xero_quotes', 'xero_invoices', 'xero_credit_notes', 'xero_payments']) await sql(`delete from ${t} where org_id = $1 and tenant_id <> $2`, [ORG, tenant]);
   await sql(`delete from xero_quote_lines l where org_id = $1 and not exists (select 1 from xero_quotes q where q.org_id = l.org_id and q.quote_id = l.quote_id)`, [ORG]);
   await sql(`delete from xero_invoice_lines l where org_id = $1 and not exists (select 1 from xero_invoices i where i.org_id = l.org_id and i.invoice_id = l.invoice_id)`, [ORG]);
   await fullSyncUntilDone(request);
@@ -129,6 +129,7 @@ test('full sync mirrors the mock: counts, totals, ZAR kept; month check matches'
     union all select 'invoices', count(*)::int, sum(total)::text, array_agg(distinct currency_code::text) from xero_invoices where org_id = $1
     union all select 'invoice_lines', count(*)::int, null, array[]::text[] from xero_invoice_lines where org_id = $1
     union all select 'payments', count(*)::int, sum(amount)::text, array_agg(distinct currency_code::text) from xero_payments where org_id = $1
+    union all select 'credit_notes', count(*)::int, sum(total)::text, array_agg(distinct currency_code::text) from xero_credit_notes where org_id = $1
     union all select 'attachments', count(*)::int, null, array[]::text[] from xero_attachments where org_id = $1`, [ORG]);
   const got = Object.fromEntries(m.map((r) => [r.entity, r]));
   const sum = (xs: number[]) => xs.reduce((a, b) => a + cents(b), 0);
@@ -143,6 +144,10 @@ test('full sync mirrors the mock: counts, totals, ZAR kept; month check matches'
   expect(got.payments.n).toBe(data.payments.length);
   expect(cents(got.payments.total!)).toBe(sum(data.payments.map((p) => p.Amount)));
   expect(got.attachments.n).toBe(Object.values(data.attachments).flat().length);
+  // Credit notes (M6 0019): read-only mirror, allocations kept as invoice ids.
+  expect(got.credit_notes.n).toBe(data.creditNotes.length);
+  const [cn1] = await sql<{ invoice_ids: string[]; credit_note_type: string }>(`select invoice_ids, credit_note_type from xero_credit_notes where org_id = $1 and credit_note_number = 'CN-0001'`, [ORG]);
+  expect(cn1).toEqual({ invoice_ids: [data.invoices[0].InvoiceID], credit_note_type: 'ACCRECCREDIT' });
   for (const e of ['quotes', 'invoices', 'payments']) expect(got[e].currencies).toEqual(['ZAR']);
   // The old open invoice came in through the open-status pass; the old paid one did not.
   expect(await sql(`select invoice_number from xero_invoices where invoice_number in ('INV-0420', 'INV-0421')`)).toEqual([{ invoice_number: 'INV-0420' }]);

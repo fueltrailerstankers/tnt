@@ -29,6 +29,8 @@ export const USERS = [
   // M8: staff without forms.manage (the builder must refuse them).
   { id: '00000000-0000-0000-0000-00000000a018', email: 'staff-m8@example.invalid', password: 'correct-horse-battery', role: 'staff', name: 'Test Staff M8' },
 ];
+// M6 stock overview: a factory member (stock read + dispatch only), for the stock tab and permission checks.
+USERS.push({ id: '00000000-0000-0000-0000-00000000f101', email: 'factory-stock@example.invalid', password: 'factory-stock-e2e-only', role: 'factory', name: 'Test Factory' });
 const ORG = '00000000-0000-0000-0000-000000000001';
 
 // ---------------------------------------------------------------------------------------------------
@@ -249,6 +251,10 @@ async function rest(req, url, body) {
         const list = cols ? cols.map(ident).join(', ') : '*';
         let total = null;
         if (wantCount) total = (await c.query(`select count(*)::int as n from ${table} ${filter}`, values)).rows[0].n;
+        // Like PostgREST: with a count, a range starting past the last row is 416 (PGRST103), not an empty page.
+        if (total !== null && Number(offset ?? 0) > total) {
+          throw new HttpError(416, { code: 'PGRST103', message: 'Requested range not satisfiable', details: `An offset of ${Number(offset)} was requested, but there are only ${total} rows.`, hint: null });
+        }
         if (req.method === 'HEAD') return { status: 200, json: undefined, total, from: 0, len: 0 };
         const r = await c.query(`select coalesce(json_agg(x), '[]'::json) as j from (select ${list} from ${table} ${filter} ${orderBy(url.searchParams.get('order'))} ${lim} ${off}) x`, values);
         return { status: 200, json: r.rows[0].j, total, from: Number(offset ?? 0), single };

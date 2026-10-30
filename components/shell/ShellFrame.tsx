@@ -7,6 +7,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { activeKey } from '@/lib/ui/nav';
+import type { SearchAccess } from '@/lib/ui/search';
 import { GlobalSearch } from './GlobalSearch';
 import type { ShellNavItem, ShellUser, ShellXero } from './types';
 import { UserMenu } from './UserMenu';
@@ -30,8 +31,8 @@ const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
  * Both are rendered and switched with CSS so there is no layout shift and no second data fetch.
  */
 export function ShellFrame({
-  items, user, xero, signOut, children,
-}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; signOut: () => Promise<void>; children: ReactNode }) {
+  items, user, xero, signOut, children, searchAccess,
+}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; signOut: () => Promise<void>; children: ReactNode; searchAccess?: SearchAccess }) {
   const pathname = usePathname();
   const current = activeKey(pathname, items);
   const [menu, setMenu] = useState(false);
@@ -124,7 +125,7 @@ export function ShellFrame({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Desktop top bar */}
         <header className="hidden flex-wrap items-center gap-3 border-b border-border bg-surface px-7 py-[11px] lg:flex">
-          <GlobalSearch inputRef={deskSearch} className="max-w-[560px] flex-1 basis-72" />
+          <GlobalSearch inputRef={deskSearch} access={searchAccess} className="max-w-[560px] flex-1 basis-72" />
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
             <UserMenu name={user.name} initials={user.initials} role={user.role} signOut={signOut} />
@@ -158,7 +159,7 @@ export function ShellFrame({
         </header>
         {phoneSearch ? (
           <div className="border-b border-border bg-surface px-3 py-2 lg:hidden">
-            <GlobalSearch inputRef={phoneSearchInput} showHint={false} className="h-11 w-full" />
+            <GlobalSearch inputRef={phoneSearchInput} access={searchAccess} showHint={false} className="h-11 w-full" />
           </div>
         ) : null}
 
