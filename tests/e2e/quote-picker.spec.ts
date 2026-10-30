@@ -83,3 +83,34 @@ test('public: Check says found or not found, and never shows quotes or customers
   expect(rows.length).toBeGreaterThan(0);
   for (const r of rows) expect(r.data.QuoteNo).toBe('919191');
 });
+
+test('staff DEAL: Import from Xero fills the lines and total from the mirrored quote', async ({ page }) => {
+  await sql(`delete from xero_quote_lines where org_id = $1 and quote_id = 'e2e-qp-1'`, [ORG]);
+  await sql(
+    `insert into xero_quote_lines (org_id, quote_id, line_no, item_code, description, quantity, unit_amount, line_amount, currency_code)
+     values ($1, 'e2e-qp-1', 1, 'TT-45K', 'Fuel tanker 45 000 L', 1, 100000, 100000, 'ZAR'),
+            ($1, 'e2e-qp-1', 2, 'BLK-KIT', 'Bottom-loading kit', 1, 25000, 25000, 'ZAR')`, [ORG]);
+  await page.goto(`/login?next=${encodeURIComponent('/admin/forms/deal/new')}`);
+  await page.getByLabel('Email').fill(ADMIN.email);
+  await page.getByLabel('Password').fill(ADMIN.password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/admin\/forms\/deal\/new$/, { timeout: 60_000 });
+
+  const main = page.getByRole('main');
+  await main.getByRole('button', { name: 'Import from Xero' }).click();
+  await expect(main.getByText('Type a quote number first.')).toBeVisible();
+
+  await main.getByRole('combobox', { name: 'QUOTE NO' }).fill('880011');
+  await main.getByRole('button', { name: 'Import from Xero' }).click();
+  await expect(main.getByText(/Imported QU-880011 · 2 lines · total/)).toBeVisible();
+  await expect(main.getByLabel('PART NO 1')).toHaveValue('TT-45K');
+  await expect(main.getByLabel('LINE 1', { exact: true })).toHaveValue('Fuel tanker 45 000 L');
+  await expect(main.getByLabel('PART NO 2')).toHaveValue('BLK-KIT');
+  await expect(main.getByLabel('LINE 3')).toHaveValue('');
+  await expect(main.getByLabel('Total')).toHaveValue('125000');
+
+  await main.getByRole('combobox', { name: 'QUOTE NO' }).fill('990099');
+  await main.getByRole('button', { name: 'Import from Xero' }).click();
+  await expect(main.getByText('QU-990099 is not in the Xero mirror yet.')).toBeVisible();
+  await sql(`delete from xero_quote_lines where org_id = $1 and quote_id = 'e2e-qp-1'`, [ORG]);
+});

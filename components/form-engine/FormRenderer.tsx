@@ -16,7 +16,8 @@ import { FileField } from './FileField';
 import { QuoteField } from './QuoteField';
 import { SignaturePad } from './SignaturePad';
 import { errorCls, inputCls, labelCls, partLabelCls, primaryBtn, secondaryBtn, textareaCls } from './styles';
-import type { ActionButton, ExistingFile, LookupConfig, QuoteConfig, SubmitState, UploadFn } from './types';
+import { formatMoney } from '@/lib/admin/format';
+import type { ActionButton, ExistingFile, LookupConfig, QuoteConfig, QuoteImport, SubmitState, UploadFn } from './types';
 
 export interface FormRendererProps {
   spec: FormSpec;
@@ -35,6 +36,8 @@ export interface FormRendererProps {
   hidden?: Record<string, string>;
   /** Public forms carry a honeypot field that real people never see. */
   honeypot?: boolean;
+  /** Staff DEAL only: fill lines and total from the mirrored Xero quote. */
+  importQuote?: (quoteNo: string) => Promise<QuoteImport>;
 }
 
 const SECONDARY_ACTION = /change|reject|cancel|decline/i;
@@ -50,6 +53,7 @@ export function FormRenderer(props: FormRendererProps) {
   const [counts, setCounts] = useState<Record<string, string>>(() => initialCounts(steps, props.initial));
   const [review, setReview] = useState<Array<[string, string]>>([]);
   const [filesRev, setFilesRev] = useState(0);
+  const [imported, setImported] = useState<Record<string, boolean>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const readOnly = props.actions.length === 0;
@@ -180,7 +184,7 @@ export function FormRenderer(props: FormRendererProps) {
           {st.sections.map((sec) => (
             <SectionCard key={sec.key} section={sec}>
               {sec.kind === 'lines' ? (
-                <LinesTable section={sec} initial={props.initial} errors={errors} />
+                <LinesTable section={sec} initial={props.initial} errors={errors} imported={imported} />
               ) : sec.kind === 'count' ? (
                 <div className="grid gap-x-4 gap-y-4 [grid-template-columns:repeat(auto-fill,minmax(min(15.5rem,100%),1fr))]">
                   {sec.rows.flatMap((r) => r.cells).map((c) => {
@@ -189,7 +193,7 @@ export function FormRenderer(props: FormRendererProps) {
                     if (label.trim() === 'OTHER' || c.cell.field.type !== 'text') {
                       return (
                         <div key={name} className="[grid-column:1/-1]">
-                          <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} />
+                          <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} />
                         </div>
                       );
                     }
@@ -210,7 +214,7 @@ export function FormRenderer(props: FormRendererProps) {
                         className="min-w-0 sm:[grid-column:var(--gc-sm)] md:[grid-column:var(--gc)]"
                         style={{ '--gc': `span ${c.span} / span ${c.span}`, '--gc-sm': c.span >= 18 ? '1 / -1' : 'auto' } as CSSProperties}
                       >
-                        <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} />
+                        <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} />
                       </div>
                     )),
                   )}
@@ -350,7 +354,7 @@ function ReviewCard({ rows }: { rows: Array<[string, string]> }) {
 }
 
 /** Deal lines: part number + description pairs on one row each, labelled by the spec labels for screen readers. */
-function LinesTable({ section, initial, errors }: { section: Section; initial: EntryData; errors: Record<string, string> }) {
+function LinesTable({ section, initial, errors, imported }: { section: Section; initial: EntryData; errors: Record<string, string>; imported: Record<string, boolean> }) {
   const val = (n: string) => (initial[n] === undefined || initial[n] === null ? '' : String(initial[n]));
   return (
     <div className="space-y-2">
@@ -360,7 +364,7 @@ function LinesTable({ section, initial, errors }: { section: Section; initial: E
         <span>Description</span>
       </div>
       {section.rows.map((r, i) => r.cells.length === 1 ? (
-        <TotalRow key={i} dc={r.cells[0]} initial={initial} errors={errors} />
+        <TotalRow key={i} dc={r.cells[0]} initial={initial} errors={errors} imported={!!imported[cellId(r.cells[0].cell)]} />
       ) : (
         <div key={i} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[2rem_minmax(8rem,1fr)_minmax(0,3fr)] sm:items-center">
           <span aria-hidden="true" className="row-span-2 pt-3 text-right font-mono text-label tracking-normal text-fg-muted sm:row-span-1 sm:pt-0">{i + 1}</span>
@@ -379,7 +383,7 @@ function LinesTable({ section, initial, errors }: { section: Section; initial: E
                   placeholder={isPart ? '—' : 'Description'}
                   autoComplete="off"
                   aria-invalid={err ? true : undefined}
-                  className={inputCls(err, isPart ? 'font-mono' : '')}
+                  className={inputCls(err, `${isPart ? 'font-mono' : ''} ${imported[name] ? 'bg-accent-soft' : ''}`)}
                 />
                 {err ? <p className={errorCls}>{err}</p> : null}
               </div>
@@ -392,7 +396,7 @@ function LinesTable({ section, initial, errors }: { section: Section; initial: E
 }
 
 /** Manual total at the foot of the lines table: label left, amount right-aligned in mono. */
-function TotalRow({ dc, initial, errors }: { dc: DisplayCell; initial: EntryData; errors: Record<string, string> }) {
+function TotalRow({ dc, initial, errors, imported }: { dc: DisplayCell; initial: EntryData; errors: Record<string, string>; imported: boolean }) {
   const name = cellId(dc.cell);
   const id = `f-${name}`;
   const f = dc.cell.field;
@@ -414,10 +418,57 @@ function TotalRow({ dc, initial, errors }: { dc: DisplayCell; initial: EntryData
           autoComplete="off"
           aria-invalid={err ? true : undefined}
           aria-describedby={err ? `${id}-err` : undefined}
-          className={inputCls(err, 'text-right font-mono text-base font-semibold')}
+          className={inputCls(err, `text-right font-mono text-base font-semibold ${imported ? 'bg-accent-soft' : ''}`)}
         />
         <ErrorText msg={err} id={`${id}-err`} />
       </div>
+    </div>
+  );
+}
+
+function ImportQuoteButton({ run, quoteField, onFilled }: { run: (no: string) => Promise<QuoteImport>; quoteField: string; onFilled: (names: Record<string, boolean>) => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const click = async () => {
+    const form = ref.current?.form;
+    if (!form) return;
+    const no = (form.elements.namedItem(`f.${quoteField}`) as HTMLInputElement | null)?.value ?? '';
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await run(no);
+      if (!r.ok) return setMsg({ ok: false, text: r.error });
+      const filled: Record<string, boolean> = {};
+      for (const [k, val] of Object.entries(r.fields)) {
+        const el = form.elements.namedItem(`f.${k}`);
+        if (el instanceof HTMLInputElement) {
+          el.value = val;
+          if (val) filled[k] = true;
+        }
+      }
+      onFilled(filled);
+      const total = r.total !== null ? ` · total ${formatMoney(r.total, r.currency)}${r.currency ? ` ${r.currency}` : ''}` : '';
+      setMsg({ ok: true, text: `Imported ${r.quoteNumber} · ${r.lines} line${r.lines === 1 ? '' : 's'}${total}. Check the lines, then save.` });
+    } catch {
+      setMsg({ ok: false, text: 'Import failed. Try again.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <button
+        ref={ref}
+        type="button"
+        onClick={() => void click()}
+        disabled={busy}
+        className="inline-flex h-12 items-center gap-2 rounded-pill border border-accent bg-accent-soft px-4 text-body font-semibold text-accent-text transition hover:brightness-95 disabled:opacity-60 sm:h-10"
+      >
+        <Icon name="download" size={16} strokeWidth={2} />
+        {busy ? 'Importing…' : 'Import from Xero'}
+      </button>
+      {msg ? <p role="status" className={`text-small font-medium ${msg.ok ? 'text-status-green-fg' : 'text-status-red-fg'}`}>{msg.text}</p> : null}
     </div>
   );
 }
@@ -495,6 +546,7 @@ type ViewProps = FormRendererProps & {
   setTermsRead: (f: (m: Record<string, boolean>) => Record<string, boolean>) => void;
   clearGate: (name: string) => void;
   onFiles: () => void;
+  onImported: (names: Record<string, boolean>) => void;
 };
 
 function FieldView(p: ViewProps) {
@@ -522,12 +574,19 @@ function FieldView(p: ViewProps) {
   const required = 'required' in f && !!f.required;
 
   if (f.type === 'text' && p.quotes && isQuoteField(p.spec.slug, name)) {
-    return (
+    const field = (
       <QuoteField
         id={id} name={name} label={label} hideLabel={hideLabel}
         value={v === undefined || v === null ? '' : String(v)} err={err} disabled={p.readOnly}
         config={p.quotes} inputClassName={inputCls(err, 'font-mono')}
       />
+    );
+    if (!p.importQuote || p.readOnly) return field;
+    return (
+      <div>
+        {field}
+        <ImportQuoteButton run={p.importQuote} quoteField={name} onFilled={p.onImported} />
+      </div>
     );
   }
 
