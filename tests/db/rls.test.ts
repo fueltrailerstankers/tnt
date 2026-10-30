@@ -18,6 +18,7 @@ const ORG_READABLE = [
   'xero_action_runs', // M3: org admins only
   'stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals', // M6
   'saved_views', 'terms_versions', // 0015: own saved views; terms versions readable by members
+  'form_versions', // 0018: published form specs, members read, server-only writes
 ];
 // Service-role-only tables: no client may read them at all.
 const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
