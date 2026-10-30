@@ -4,7 +4,7 @@
 import { Document, Image, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { pages } from '@/lib/spec/layout';
-import type { FormSpec } from '@/lib/spec/types';
+import type { FieldSpec, FormSpec } from '@/lib/spec/types';
 import { formatValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
 import { hiddenFields, isHeading } from '@/lib/spec/visibility';
 
@@ -119,12 +119,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export function EntryPdf(p: PdfProps) {
   const tz = p.timezone;
   const hidden = hiddenFields(p.spec, p.data);
+  // M8 Documents tab (document #1 options; the kit forms set none to false, so they print as before).
+  const d1 = p.spec.documents.find((d) => d.number === 1);
+  const blankOk = d1?.includeBlankFields !== false;
+  const isBlank = (f: FieldSpec) => {
+    if (blankOk || !('name' in f) || f.type === 'section' || f.type === 'table') return false;
+    if (f.type === 'file') return !(p.files[f.name] ?? []).length;
+    if (f.type === 'signature') return !p.signatures[f.name];
+    return formatValue(f, p.data[f.name]) === '';
+  };
   return (
     <Document title={p.title} author="Trailers & Tankers" creator="Trailers & Tankers platform">
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.org}>TRAILERS & TANKERS</Text>
-          <Text style={styles.title}>{p.title}</Text>
+          {d1?.includeLogo !== false ? <Text style={styles.org}>TRAILERS & TANKERS</Text> : null}
+          {d1?.includeTitle !== false ? <Text style={styles.title}>{p.title}</Text> : null}
           <Text style={styles.meta}>
             Entry #{p.entry.number} · {p.entry.status} · created {formatTime(p.entry.createdAt, tz)} · updated {formatTime(p.entry.updatedAt, tz)}
           </Text>
@@ -134,7 +143,7 @@ export function EntryPdf(p: PdfProps) {
           <View key={pg.index}>
             {pg.title ? <Text style={styles.pageTitle}>{pg.title}</Text> : null}
             {/* M8: fields hidden by showWhen for this entry are left out (none on the kit forms). */}
-            {pg.rows.map((row) => ({ row, cells: row.cells.filter((c) => !hidden.has(c.field)) })).filter((r) => r.cells.length).map(({ row, cells }) => (
+            {pg.rows.map((row) => ({ row, cells: row.cells.filter((c) => !hidden.has(c.field) && !isBlank(c.field)) })).filter((r) => r.cells.length).map(({ row, cells }) => (
               <View key={row.row} style={styles.row}>
                 {cells.map((c, i) => (
                   <View key={i} style={[styles.cell, { width: `${(c.span / 24) * 100}%` }]}>{renderCell(c.field, p)}</View>

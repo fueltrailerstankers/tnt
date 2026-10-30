@@ -60,6 +60,7 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
           ) : null}
           {form.isActive ? <Link href={`/f/${slug}`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Public link</Link> : null}
           {can(member, 'forms.manage') ? <Link href={`/admin/forms/${slug}/settings`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Form settings</Link> : null}
+          {can(member, 'forms.manage') ? <Link href={`/admin/forms/${slug}/design`} className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-2">Design</Link> : null}
         </div>
       </div>
 

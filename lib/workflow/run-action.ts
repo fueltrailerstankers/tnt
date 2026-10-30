@@ -6,14 +6,14 @@ import { fileCountsOf, loadEntryById, loadFiles, sealData, type EntryFile, type 
 import type { FormRecord } from '@/lib/forms/forms';
 import { loadOrg } from '@/lib/forms/org';
 import { checkStaged, downloadObject, ENTRY_BUCKET, finalPath, moveObject, removeObjects, saveSignature } from '@/lib/forms/storage';
-import { ensureDocument, SIGNED_DOCUMENT_FORMS } from '@/lib/pdf/documents';
+import { ensureDocument, hasInternalOnly, publicDocument, SIGNED_DOCUMENT_FORMS } from '@/lib/pdf/documents';
 import { can, type Member } from '@/lib/security/can';
 import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
 import { defaultData, prepareSave, readFormData, renderSummary, todayIn, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
 import { SIGNING, signatureMeta, termsBlocksFor } from '@/lib/terms/signing';
 import { ensureTermsVersion } from '@/lib/terms/versions';
-import { buildEmail, eventKey } from './email-template';
+import { buildEmail, eventKey, isExternalEmail } from './email-template';
 import { createRoleLink } from './links';
 import { MAX_ATTACHMENT_BYTES, sendEmail, type Attachment } from './mailer';
 import { enqueue } from '@/lib/jobs/outbox';
@@ -287,12 +287,17 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
     };
     const docNumbers = new Set<number>(email.attachDocuments ?? []);
     if (email.includeDocumentAttachments) docNumbers.add(1);
+    // M8: an email to an address from the entry gets a PDF and files without internalOnly fields.
+    const external = isExternalEmail(email) && hasInternalOnly(form);
+    const internalNames = new Set(external ? inputFields(form.spec).filter((f) => 'internalOnly' in f && f.internalOnly).map((f) => f.name) : []);
     for (const n of docNumbers) {
-      const doc = await ensureDocument(db, form, entry, n, org.timezone, actorUser).catch(() => null);
+      const doc = external && n === 1
+        ? await publicDocument(db, form, entry, org.timezone).catch(() => null)
+        : await ensureDocument(db, form, entry, n, org.timezone, actorUser).catch(() => null);
       if (doc) add({ filename: doc.name, content: doc.bytes, contentType: 'application/pdf' });
     }
     if (email.includeAttachments) {
-      for (const f of files.filter((x) => x.kind === 'file')) {
+      for (const f of files.filter((x) => x.kind === 'file' && !internalNames.has(x.fieldKey))) {
         const b = await downloadObject(db, ENTRY_BUCKET, f.storagePath);
         if (b) add({ filename: f.fileName, content: b, contentType: f.contentType ?? undefined });
       }
