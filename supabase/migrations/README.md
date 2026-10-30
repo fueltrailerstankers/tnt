@@ -16,6 +16,8 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0012 | M4 fix | one-time lead intake events: unique (lead_id, kind) for created, duplicate, routed, emailed |
 | 0013 | M1 fix | DEAL DATE CREATED defaults to today (spec update) |
 | 0015 | UI handoff | saved views (own rows), append-only terms versions, signature metadata on entry_files |
+| 0016 | M6 dispatch | `stock_remove_untouched_deal` (stock-dispatch branch) |
+| 0017 | M6 overview | optimistic locking: optional `p_expected_updated_at` on `stock_correct_unit` / `stock_move_unit` (raises `UNIT_CHANGED` under the row lock); the 0011 bodies are kept as internal `*_unchecked`, so calls without it behave as before; grants as 0011 |
 
 The live project got 0012 and 0013 before 0010/0011: apply 0010 and 0011 next (with the Supabase CLI: `supabase db push --include-all`). 0012 depends on 0008 only.
 
@@ -44,5 +46,5 @@ It is additive:
   unchanged.
 
 **Reserved numbers (work in progress on other branches; pick the next free number above these):**
-0014 users and access (M7), 0016-0017 stock pages (M6, only if needed), 0018 form builder (M8),
-0020 in-app Cognito import. 0015 is the UI handoff foundation. Next free number: 0021.
+0014 users and access (M7), 0018 form builder (M8),
+0020 in-app Cognito import. 0016 (dispatch) and 0017 (overview) are M6 stock. 0015 is the UI handoff foundation. Next free number: 0021.

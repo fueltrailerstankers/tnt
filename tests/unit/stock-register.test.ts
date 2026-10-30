@@ -9,6 +9,7 @@ import {
   TransferInput, unitsCsvTable, unitsHref, type UnitRow,
   EXPORT_MAX_ROWS, exportTooManyMessage, isStale, normalizeNewlines, sortNewestFirst, STALE_MESSAGE, statusFilterOf,
 } from '@/lib/stock/register';
+import { stockErrorMessage } from '@/lib/stock/errors';
 import { currentStockTab, STOCK_TABS, stockTabs } from '@/lib/stock/tabs';
 import { NAV, visibleNav } from '@/lib/ui/nav';
 
@@ -215,6 +216,9 @@ describe('concurrent changes (review item 1)', () => {
       const body = src.slice(src.indexOf(`export async function ${fn}`));
       expect(body.indexOf('isStale(')).toBeLessThan(body.indexOf('db.rpc('));
     }
+    // The RPCs re-check the version under the row lock (0017), so a write between the check and the save is refused too.
+    expect(src.match(/p_expected_updated_at: parsed\.data\.updated_at/g)).toHaveLength(2);
+    expect(stockErrorMessage({ code: 'UNIT_CHANGED', detail: { unit_id: UNIT_ID } })).toBe(STALE_MESSAGE);
     const forms = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/stock/units/[id]/unit-forms.tsx'), 'utf8');
     expect(forms.match(/<input type="hidden" name="updated_at" value=\{unit\.updated_at\} \/>/g)).toHaveLength(2);
   });
