@@ -48,7 +48,7 @@ export async function correctUnit(_prev: ActionState, fd: FormData): Promise<Act
   }
   if (!Object.keys(diff.fields).length) return { ok: 'No changes to save.' };
 
-  const { error } = await db.rpc('stock_correct_unit', { p_org: member.orgId, p_unit: unit.id, p_fields: diff.fields });
+  const { error } = await db.rpc('stock_correct_unit', { p_org: member.orgId, p_unit: unit.id, p_fields: diff.fields, p_expected_updated_at: parsed.data.updated_at });
   if (error) return { error: stockMessageFor(error, { locationName: await nameOf(db, member.orgId) }) };
   revalidatePath('/admin/stock', 'layout');
   return { ok: `Record corrected: ${changedSummary(diff.fields)}.` };
@@ -71,7 +71,7 @@ export async function transferUnit(_prev: ActionState, fd: FormData): Promise<Ac
   // The destination list and the reason rule were shown for the unit as it was: refuse if it has moved since.
   if (isStale(unit, parsed.data.updated_at)) return { error: STALE_MESSAGE };
   const locationName = await nameOf(db, member.orgId);
-  const { error } = await db.rpc('stock_move_unit', args);
+  const { error } = await db.rpc('stock_move_unit', { ...args, p_expected_updated_at: parsed.data.updated_at });
   if (error) return { error: stockMessageFor(error, { locationName }) };
   revalidatePath('/admin/stock', 'layout');
   const to = locationName(args.p_location) ?? args.p_location;
