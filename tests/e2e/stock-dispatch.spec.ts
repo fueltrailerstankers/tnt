@@ -96,7 +96,7 @@ test('DEAL submit creates exactly one stock deal; an Update re-syncs the same de
 
   // Dispatch -> prefilled existing-sequence mode; complete it.
   await row.getByRole('link', { name: `Dispatch deal ${YEAR} / ${entry.number}` }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/stock/dispatch\\?year=${YEAR}&number=${entry.number}$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/stock/dispatch\\?year=${YEAR}&number=${entry.number}$`), { timeout: 30_000 }); // first dev compile of the page
   const main = page.getByRole('main');
   await expect(page.getByTestId('find-result')).toHaveText(`Deal ${YEAR} / ${entry.number} · 1000DB · Cape Town. Add or confirm the VIN and destination.`);
   await expect(main.getByRole('radio', { name: 'Existing sequence number' })).toBeChecked();
