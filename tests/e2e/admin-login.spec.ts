@@ -25,13 +25,13 @@ test('admin signs in, sees /admin with 7 forms, and can sign out', async ({ page
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
-  await expect(page.getByTestId('org-name')).toHaveText('Trailers & Tankers');
-  await expect(page.getByTestId('role')).toHaveText('admin');
-  await expect(page.getByTestId('forms-count')).toHaveText('7');
+  // Home greets the signed-in admin (SAST time of day), shows their role and lists the seven forms.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Good (morning|afternoon|evening), Test$/);
+  await expect(page.getByRole('button', { name: /^User menu, .+, admin$/i })).toBeVisible();
+  await expect(page.locator('[data-testid^="form-row-"]')).toHaveCount(7);
 
   await page.reload();
-  await expect(page.getByTestId('forms-count')).toHaveText('7');
+  await expect(page.locator('[data-testid^="form-row-"]')).toHaveCount(7);
 
   await page.getByRole('button', { name: /^User menu/ }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();

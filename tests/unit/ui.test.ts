@@ -62,9 +62,11 @@ describe('navigation', () => {
     expect(homeShowsForms(member('factory'))).toBe(false);
     expect(homeShowsForms(null)).toBe(false);
     for (const r of ['admin', 'staff', 'reviewer'] as const) expect(homeShowsForms(member(r)), r).toBe(true);
-    const page = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/page.tsx'), 'utf8');
-    expect(page).toContain('homeShowsForms(member)');
-    expect(page).toMatch(/showForms \? \(\(\(await supabase\.rpc\('form_overview'\)/);
+    // Home's loader gates the forms, entries and counts on it (lib/home/load.ts).
+    const loader = readFileSync(path.resolve(__dirname, '../../lib/home/load.ts'), 'utf8');
+    expect(loader).toContain('entries: homeShowsForms(member)');
+    expect(loader).toMatch(/show\.entries \? soft\(Promise\.resolve\(db\.rpc\('form_overview'\)/);
+    expect(loader).toMatch(/const formsP = show\.entries \? /);
   });
   it('picks the longest matching prefix', () => {
     const defs = NAV.filter((n) => n.built);

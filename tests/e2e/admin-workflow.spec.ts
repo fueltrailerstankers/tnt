@@ -28,7 +28,9 @@ test('Inspection runs Submitted -> Reviewed -> Approved with an email at each st
 
   // 2. Reviewer: the task shows up, Mark Reviewed emails the inspector a role link.
   await signIn(page, '/admin/tasks');
-  await expect(page.getByTestId('tasks-trailer-inspection-checklist')).toContainText(`#${e.number} Test Inspector`);
+  const task = page.getByTestId(`task-inspection-${e.number}`);
+  await expect(task).toContainText(`Inspection #${e.number} · TESTVIN0000000777`);
+  await expect(task).toContainText('Test Inspector');
   await page.goto(`/admin/forms/trailer-inspection-checklist/entries/${e.number}`);
   await expect(page.getByTestId('entry-status')).toHaveText('Submitted');
   await expect(page.locator('input[name="cl.2.fail"]')).toBeChecked();
@@ -101,14 +103,15 @@ test('Store Room APPROVAL is a task; staff set APPROVED EMAILED by hand', async 
   const [e] = await sql<{ number: number }>(`select e.number from entries e join forms f on f.id = e.form_id where f.slug = 'store-room' order by e.number desc limit 1`);
 
   await signIn(page, '/admin/tasks');
-  await expect(page.getByTestId('tasks-store-room')).toContainText(`#${e.number}`);
+  await expect(page.getByTestId(`task-store-room-${e.number}`)).toContainText(`Store Room count #${e.number}`);
   await page.goto(`/admin/forms/store-room/entries/${e.number}`);
   await page.getByLabel('Set status').selectOption('APPROVED EMAILED');
   await page.getByRole('button', { name: 'Set status' }).click();
   await expect(page.getByTestId('entry-status')).toHaveText('APPROVED EMAILED');
   await expect(page.getByTestId('timeline')).toContainText('SetStatus → APPROVED EMAILED');
   await page.goto('/admin/tasks');
-  await expect(page.getByTestId('tasks-store-room')).not.toContainText(`#${e.number} `);
+  await expect(page.getByRole('heading', { name: 'Tasks', level: 1 })).toBeVisible();
+  await expect(page.getByTestId(`task-store-room-${e.number}`)).toHaveCount(0);
 });
 
 test('Grid: unread badge, views, search, export, mark read; entry PDF downloads', async ({ page, request }) => {
@@ -120,7 +123,9 @@ test('Grid: unread badge, views, search, export, mark read; entry PDF downloads'
 
   await signIn(page);
   await expect(page.getByTestId('unread-release-form')).toHaveText(/\d+/);
-  await page.getByTestId('form-row-release-form').getByRole('link', { name: 'RELEASE FORM' }).click();
+  await page.getByTestId('form-row-release-form').getByRole('link', { name: 'Release Form', exact: true }).click();
+  // Home has its own "Unread entries" tile: wait for the grid before looking for its Unread view.
+  await expect(page).toHaveURL(/\/admin\/forms\/release-form$/);
   await page.getByRole('link', { name: 'Unread' }).click();
   await expect(page).toHaveURL(/view=unread/);
   await expect(page.getByRole('link', { name: 'Unread' })).toHaveAttribute('aria-current', 'page');
