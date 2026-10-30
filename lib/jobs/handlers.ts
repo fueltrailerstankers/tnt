@@ -5,11 +5,14 @@ import { fetchOne, runXeroSync, type SyncMode } from '@/lib/integrations/xero/sy
 import { processLeadEvent } from '@/lib/leads/intake-job';
 import { rematchOpenLeads } from '@/lib/leads/service';
 import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
+import { STOCK_DEAL_HANDLERS } from '@/lib/stock/deal-jobs';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
 
 export const HANDLERS: Record<string, Handler> = {
   // M3 Xero actions ("xero.<action>"); each checks its mode (off / dry_run / live) itself.
   ...XERO_ACTION_HANDLERS,
+  // M6 stock deals: 'stock.deal-sync' (one DEAL entry) and 'stock.deals-backfill' (all, resumable).
+  ...STOCK_DEAL_HANDLERS,
   // A webhook named a changed invoice/contact: fetch it, then refresh deal files once.
   'xero.fetch': async (db, job) => {
     const { entity, id, event_id } = job.payload as { entity: 'invoices' | 'contacts'; id: string; event_id?: string };
