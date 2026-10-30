@@ -55,3 +55,10 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Base UI: `components/ui/` (`Button`/`buttonClass`, `Input`/`Select`/`Textarea`/`Label`/`FieldError`, `StatusChip`, `SegmentedControl`, `Tabs`, `Logo`, `Icon`). Status tones come from `lib/ui/status.ts`.
 - Logo: `public/logo-on-dark.png` on charcoal (sidebar 40px, phone header 30px, public header 40px), `logo-on-light.png` on light surfaces and PDFs. Never recolour or stretch.
 - e2e: the shell adds a search box labelled "Search by quote no, VIN or invoice no"; scope form label lookups to `page.getByRole('main')` on staff pages. Sign out is in the user menu.
+
+## Repo notes (M6 deals and dispatch)
+- DEAL -> stock deal: `lib/stock/deal-sync.ts` (pure scope/plan rules), `lib/stock/deal-sync-run.ts` (sync/backfill against a `DealSyncStore`, unit tested with an in-memory store), `lib/stock/deal-jobs.ts` (Supabase store + outbox handlers `stock.deal-sync`, `stock.deals-backfill`; `enqueueStockJobsForSave` is called from `runAction` afterSave and `systemUpdateEntry`). The sync never writes status/unit/dismissal columns.
+- Stock deals exist only for DEALs dated on/after app_settings `stock.deals_from`; unset = none. "Rebuild deals" = `enqueueDealsBackfill`.
+- Deals and Dispatch pages read through the caller's RLS (`lib/stock/lookup.ts`) and write only through the stock RPCs called as the signed-in user after `requirePerm` (the RPCs write the audit rows). Copy lives in `lib/stock/deals-view.ts` / `lib/stock/dispatch.ts`; error copy in `lib/stock/errors.ts`.
+- Dispatch success redirects to `/admin/stock/units?q=VIN&saved=dispatch|move`; `savedNotice()` gives the confirmation text.
+- e2e `tests/e2e/stock-dispatch.spec.ts` switches the admin's membership to `factory` for the phone test and restores it in `finally`.
