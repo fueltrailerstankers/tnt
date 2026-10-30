@@ -134,7 +134,7 @@ $$ select exists (select 1 from public.memberships mine
 -- Admins pass for every area.
 create or replace function public.has_access(p_org uuid, p_area text, p_level text default 'read') returns boolean
 language sql stable security definer set search_path = '' as $$
-  select exists (
+  select p_level in ('read', 'write') and p_area = any (public.access_areas()) and exists (
     select 1 from public.memberships m
     where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active'
       and (m.role = 'admin'
