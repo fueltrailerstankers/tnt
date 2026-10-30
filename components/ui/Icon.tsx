@@ -54,6 +54,9 @@ export const ICONS = {
   spinner: 'M12 3a9 9 0 1 0 9 9',
   minus: 'M5 12h14',
   shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4',
+  // Stock (M6).
+  stock: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9',
+  factory: 'M3 21V10l6 3V10l6 3V6h6v15zM3 21h18M7 17h2M12 17h2M17 17h2',
 } as const;
 
 export type IconName = keyof typeof ICONS;

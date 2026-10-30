@@ -19,6 +19,7 @@ export const STOCK_ERROR_CODES = [
   'INVOICE_LINKED_OTHER_UNIT',
   'UNIT_NOT_FOUND',
   'UNIT_SOLD',
+  'UNIT_CHANGED',
   'MODEL_NOT_FOUND',
   'LOCATION_NOT_FOUND',
   'REASON_REQUIRED',
@@ -134,6 +135,8 @@ export function stockErrorMessage(e: StockError, opts: MessageOptions = {}): str
       return 'This invoice is linked to another unit. Review the conflict before proceeding.';
     case 'UNIT_NOT_FOUND':
       return 'Unit not found.';
+    case 'UNIT_CHANGED':
+      return 'This unit changed since you opened it. Reload and check.';
     case 'UNIT_SOLD':
       return 'This unit is sold. No stock record has been changed.';
     case 'MODEL_NOT_FOUND':
