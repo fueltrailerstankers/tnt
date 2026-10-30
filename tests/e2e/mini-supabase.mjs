@@ -14,6 +14,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { runRpc } from './pgrst-rpc.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -229,16 +230,8 @@ async function rest(req, url, body) {
   try {
     return await withRole(id, async (c) => {
       if (parts[0] === 'rpc') {
-        const fn = ident(parts[1]);
-        const args = body && typeof body === 'object' ? Object.entries(body) : [];
-        const sqlArgs = args.map(([k, v]) => { values.push(v); return `${ident(k)} => $${values.length}`; }).join(', ');
-        const r = await c.query(`select coalesce(json_agg(x), '[]'::json) as j from public.${fn}(${sqlArgs}) x`, values);
-        // Like PostgREST: a scalar (non-set, non-composite) function returns the bare value.
-        const kind = await c.query(`select p.proretset, t.typtype from pg_proc p join pg_namespace n on n.oid = p.pronamespace join pg_type t on t.oid = p.prorettype where n.nspname = 'public' and p.proname = $1 limit 1`, [parts[1]]);
-        const k = kind.rows[0];
-        // json_agg over a scalar function aggregates the bare values ([true]), not {fn: value} objects.
-        if (k && !k.proretset && k.typtype !== 'c' && k.typtype !== 'p') return { status: 200, json: r.rows[0].j[0] ?? null };
-        return { status: 200, json: r.rows[0].j };
+        // Non-SETOF functions answer with one value (scalar or row object), SETOF with an array: see pgrst-rpc.mjs.
+        return { status: 200, json: await runRpc(c, parts[1], body, ident) };
       }
       const table = `public.${ident(parts[0])}`;
       const cols = selectList(url.searchParams.get('select'));
