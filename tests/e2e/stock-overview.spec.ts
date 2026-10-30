@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signIn, sql } from './helpers';
+import { ADMIN, signIn, sql } from './helpers';
 
 // M6 stock pages A: overview (KPIs, model x branch matrix), unit register (search, filters, CSV export), unit record
 // with the admin Correct record and Transfer forms, and what a factory member sees. Synthetic data only: made-up
@@ -29,6 +29,26 @@ test.beforeAll(async () => {
   await sql(ins, [ORG, VIN.d, 'CTLL2', 'DBN', 'sold', `INV-${PREFIX}-D`, [], null, null, new Date().toISOString(), null]);
   await sql(ins, [ORG, VIN.f, 'CTLL2', 'FACTORY', 'available', null, [], null, null, null, null]);
   await sql(`insert into public.stock_deals (org_id, year, number, location_id, model_part) values ($1, 2026, $2, 'JHB', 'CTLL2')`, [ORG, DEAL_NO]);
+});
+
+// Warm-up: `next dev` compiles each route on first use, which can outlast a 5s expectation on a cold run. Open the
+// stock routes once with generous timeouts so the tests below measure the app, not the compiler.
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(180_000);
+  const base = `http://127.0.0.1:${process.env.E2E_APP_PORT ?? 3100}`;
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${base}/login?next=${encodeURIComponent('/admin/stock')}`, { timeout: 90_000 });
+    await page.getByLabel('Email').fill(ADMIN.email);
+    await page.getByLabel('Password').fill(ADMIN.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL(/\/admin\/stock$/, { timeout: 90_000 });
+    await page.goto(`${base}/admin/stock/units?q=${PREFIX}`, { timeout: 90_000 });
+    await page.goto(`${base}/admin/stock/units/${await unitId(VIN.a)}`, { timeout: 90_000 });
+    await page.request.get(`${base}/admin/stock/units/export?q=warmup-${PREFIX}`, { timeout: 90_000 });
+  } finally {
+    await page.close();
+  }
 });
 
 /** The stock plan's KPIs computed straight from the database (independent of lib/stock/kpi.ts). */
@@ -175,7 +195,6 @@ test('register: URL-synced search, filters, deal search, CSV export of the filte
 
 test('unit record: every field; admin Correct record and Transfer with mapped errors, audited', async ({ page }) => {
   await signIn(page, `/admin/stock/units?q=${PREFIX}`);
-  const main = page.getByRole('main');
   await page.getByTestId('unit-table').getByRole('link', { name: `View ${VIN.a}` }).click();
   const idA = await unitId(VIN.a);
   await expect(page).toHaveURL(new RegExp(`/admin/stock/units/${idA}\\?q=${PREFIX}$`));
