@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { attach, PDF, signIn, sql } from './helpers';
+import { ADMIN, attach, PDF, sql } from './helpers';
 import { E2E_XERO } from './xero-env';
 
 // M6 stock pages B: DEAL -> stock deal sync, Deals (dismiss / restore), Dispatch (both modes, every Find unit
@@ -11,6 +11,15 @@ const run = Date.now().toString(36).toUpperCase();
 const YEAR = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric' }).format(new Date()));
 let nextNumber = 900_000 + (Date.now() % 50_000) * 2;
 const vin = (tag: string) => `E2E${run}${tag}`;
+
+/** helpers.signIn, with room for the first dev-mode compile of the target page (the login waits for it). */
+async function signIn(page: Page, next = '/admin') {
+  await page.goto(`/login?next=${encodeURIComponent(next)}`);
+  await page.getByLabel('Email').fill(ADMIN.email);
+  await page.getByLabel('Password').fill(ADMIN.password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`), { timeout: 30_000 });
+}
 
 async function drainOutbox(request: APIRequestContext) {
   const res = await request.post('/api/jobs/outbox', { headers: { Authorization: `Bearer ${E2E_XERO.JOB_SECRET}` } });
