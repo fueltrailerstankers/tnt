@@ -131,8 +131,16 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   expect(e.data).toEqual({}); // encrypted form: nothing readable in data
   expect(e.data_encrypted).toBeTruthy();
   expect(e.data_encrypted).not.toContain(Buffer.from('TESTVIN').toString('hex'));
-  const sigs = await sql(`select field_key from entry_files where entry_id = $1 and kind = 'signature' order by field_key`, [e.id]);
+  const sigs = await sql<{ field_key: string; signer_role: string; sign_method: string; signed_at: string | null; terms_version_id: string | null }>(
+    `select field_key, signer_role, sign_method, signed_at, terms_version_id from entry_files where entry_id = $1 and kind = 'signature' order by field_key`, [e.id]);
   expect(sigs.map((s) => s.field_key)).toEqual(['SalesRepSignature', 'Signature', 'Signature2', 'Signature3', 'Signature4']);
+  // Rule 12: each signature records its signer, the server time and the exact terms version shown.
+  expect(sigs.map((s) => s.signer_role)).toEqual(['sales_rep', 'customer', 'customer', 'customer', 'customer']);
+  expect(new Set(sigs.map((s) => s.sign_method))).toEqual(new Set(['draw']));
+  expect(sigs.every((s) => s.signed_at)).toBe(true);
+  expect(new Set(sigs.map((s) => s.terms_version_id)).size).toBe(1);
+  const [tv] = await sql<{ key: string; blocks: number }>(`select key, jsonb_array_length(body) as blocks from terms_versions where id = $1`, [sigs[0].terms_version_id]);
+  expect(tv).toEqual({ key: 'delivery-note', blocks: 4 });
   const docs = await sql<{ sha256: string; size_bytes: string }>(`select sha256, size_bytes from entry_documents where entry_id = $1 and template_number = 1`, [e.id]);
   expect(docs).toHaveLength(1);
   expect(docs[0].sha256).toMatch(/^[0-9a-f]{64}$/);

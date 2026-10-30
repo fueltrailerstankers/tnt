@@ -26,6 +26,10 @@ export interface EntryFile {
   contentType: string | null;
   sizeBytes: number | null;
   sortOrder: number;
+  /** Signature rows on signing forms (rule 12): server time, signer role and the terms version shown. */
+  signedAt?: string | null;
+  signerRole?: string | null;
+  termsVersionId?: string | null;
 }
 
 export const ENTRY_COLUMNS = 'id, form_id, org_id, number, status, summary, data, data_encrypted, created_at, updated_at, submitted_at';
@@ -70,13 +74,14 @@ export async function loadEntryById(db: SupabaseClient, form: FormRecord, id: st
 export async function loadFiles(db: SupabaseClient, entryId: string): Promise<EntryFile[]> {
   const { data, error } = await db
     .from('entry_files')
-    .select('id, field_key, kind, storage_path, file_name, content_type, size_bytes, sort_order')
+    .select('id, field_key, kind, storage_path, file_name, content_type, size_bytes, sort_order, signed_at, signer_role, terms_version_id')
     .eq('entry_id', entryId)
     .order('sort_order');
   if (error) throw new Error(`entry_files: ${error.message}`);
   return (data ?? []).map((f) => ({
     id: f.id, fieldKey: f.field_key, kind: f.kind, storagePath: f.storage_path, fileName: f.file_name,
     contentType: f.content_type, sizeBytes: f.size_bytes, sortOrder: f.sort_order,
+    signedAt: f.signed_at ?? null, signerRole: f.signer_role ?? null, termsVersionId: f.terms_version_id ?? null,
   }));
 }
 
