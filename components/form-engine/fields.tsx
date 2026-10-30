@@ -37,8 +37,10 @@ export function ChoiceInput(p: Common & { style: 'dropdown' | 'checkboxes' | 'ra
 
   if (p.multi || p.style === 'checkboxes' || p.style === 'radio') {
     const type = p.multi || p.style === 'checkboxes' ? 'checkbox' : 'radio';
+    // aria-required is valid on a radiogroup, not on a plain group of checkboxes.
+    const groupAttrs = type === 'radio' ? { role: 'radiogroup', ...attrs } : a11y(p.id, p.err, p.help, false);
     return (
-      <fieldset {...attrs}>
+      <fieldset {...groupAttrs}>
         <Legend text={p.label} required={p.required} />
         <div className="flex flex-wrap gap-x-4">
           {p.options.map((o) => (
@@ -103,7 +105,7 @@ export function YesNoInput(p: Common & { style?: 'radio' | 'toggle'; value: unkn
     );
   }
   return (
-    <fieldset {...attrs}>
+    <fieldset role="radiogroup" {...attrs}>
       <Legend text={p.label} required={p.required} />
       <div className="flex gap-6">
         {(['yes', 'no'] as const).map((v) => (
@@ -124,7 +126,7 @@ export function RatingInput(p: Common & { value: unknown }) {
   const [value, setValue] = useState(typeof p.value === 'number' ? p.value : 0);
   const attrs = a11y(p.id, p.err, p.help, p.required);
   return (
-    <fieldset {...attrs}>
+    <fieldset role="radiogroup" {...attrs}>
       <Legend text={p.label} required={p.required} />
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((n) => (

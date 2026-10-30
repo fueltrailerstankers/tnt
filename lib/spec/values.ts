@@ -380,7 +380,7 @@ export type Audience = 'public' | 'staff';
 export function lockedFor(spec: FormSpec, audience: Audience): Set<string> {
   const out = new Set<string>();
   if (audience !== 'public') return out;
-  for (const f of inputFields(spec)) if ('readOnly' in f && (f.readOnly || f.internalOnly)) out.add(f.name);
+  for (const f of inputFields(spec)) if (('readOnly' in f && f.readOnly) || ('internalOnly' in f && f.internalOnly)) out.add(f.name);
   return out;
 }
 

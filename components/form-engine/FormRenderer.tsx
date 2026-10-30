@@ -300,7 +300,7 @@ function FieldView(p: ViewProps) {
       if (f.style === 'checkboxes' || f.multi) {
         const selected = new Set(Array.isArray(v) ? (v as string[]) : v ? [String(v)] : []);
         return (
-          <fieldset {...errProps}>
+          <fieldset {...a11y(id, err, help, false)}>
             <Legend text={label} required={req} />
             <div className="flex flex-wrap gap-4">
               {f.options.map((o) => (
@@ -333,13 +333,16 @@ function FieldView(p: ViewProps) {
       const obj = (v ?? {}) as Record<string, string>;
       const partLabel: Record<string, string> = { Line1: 'Address Line 1', Line2: 'Address Line 2', PostalCode: 'Postal / Zip Code', State: 'State / Province / Region' };
       return (
-        <fieldset {...errProps}>
+        <fieldset {...a11y(id, err, help, false)}>
           <Legend text={label} required={req} />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {f.parts.map((part) => (
               <div key={part} className={f.type === 'address' && part.startsWith('Line') ? 'sm:col-span-2' : ''}>
                 <label htmlFor={`${id}-${part}`} className="text-xs text-fg-muted">{partLabel[part] ?? part}</label>
-                <input id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)} readOnly={locked} />
+                <input
+                  id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)}
+                  readOnly={locked} aria-required={f.type === 'name' && req ? true : undefined}
+                />
               </div>
             ))}
           </div>
