@@ -1,7 +1,7 @@
 // The two small expression languages used by the specs. Pure. Unknown syntax throws so a spec
 // change cannot silently turn a rule into "always true".
 //
-// allowedWhen:  always | status == 'X' | status != 'X' | <clause> AND role == 'Y'
+// allowedWhen:  always | status == 'X' | status != 'X' | status in ('X', 'Y') | <clause> AND role == 'Y'
 // customError:  <Field> is empty | <Field> has 0 files, joined with AND
 
 export interface ActionContext {
@@ -19,6 +19,13 @@ function conj<C>(expr: string, clause: (s: string) => Pred<C>): Pred<C> {
 export function parseAllowedWhen(expr: string): Pred<ActionContext> {
   if (expr.trim() === 'always') return () => true;
   return conj<ActionContext>(expr, (s) => {
+    // M8 builder: status in ('A', 'B') ("allowed when status is one of").
+    const list = s.match(/^(status|role)\s+in\s+\((\s*'[^']*'\s*(?:,\s*'[^']*'\s*)*)\)$/);
+    if (list) {
+      const key = list[1] as 'status' | 'role';
+      const values = [...list[2].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+      return (c) => values.includes(c[key]);
+    }
     const m = s.match(/^(status|role)\s*(==|!=)\s*'([^']*)'$/);
     if (!m) throw new Error(`Unsupported allowedWhen clause: ${s}`);
     const [, key, op, value] = m;

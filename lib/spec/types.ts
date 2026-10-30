@@ -220,6 +220,11 @@ export const FormSpec = z.object({
     preventLookup: z.boolean().optional(),
     hasLookups: z.boolean().optional(),
     isLookupSourceFor: z.array(z.string()).optional(),
+    /**
+     * M8: 'exact' (builder forms) renders rows exactly as the author placed them; absent/'packed' lets
+     * lib/spec/presentation pack Cognito's narrow rows side by side (kit forms).
+     */
+    layout: z.enum(['packed', 'exact']).optional(),
   }),
   fields: z.array(FieldSpec),
   workflow: z.object({ roles: z.array(Role), statuses: z.array(Status), actions: z.array(Action) }),

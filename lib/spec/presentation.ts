@@ -268,7 +268,7 @@ export function present(spec: FormSpec): Step[] {
     backButton: p.backButton,
     sections: def?.kind === 'count'
       ? [{ key: `${p.index}-0`, kind: 'count', rows: p.rows.map((r) => ({ cells: r.cells.map((cell) => ({ cell, span: cell.span })) })) }]
-      : headingSections(p, def?.kind ?? 'grid'),
+      : headingSections(p, def?.kind ?? 'grid', spec.settings.layout !== 'exact'),
     requireSigned: [],
   }));
 }
@@ -278,12 +278,13 @@ export function present(spec: FormSpec): Step[] {
  * heading, with its description; the fields before the first heading form an untitled card. A page without
  * headings (every kit form) is one card, as before.
  */
-function headingSections(p: Page, kind: SectionKind): Section[] {
+function headingSections(p: Page, kind: SectionKind, pack: boolean): Section[] {
   const out: Section[] = [];
   let current: { title?: string; description?: string; heading?: FieldSpec; rows: Row[] } = { rows: [] };
   const flush = (key: string) => {
     if (current.heading || current.rows.length) {
-      out.push({ key, title: current.title, description: current.description, kind, rows: packRows(current.rows), ...(current.heading ? { heading: current.heading } : {}) });
+      const rows = pack ? packRows(current.rows) : current.rows.map((r) => ({ cells: r.cells.map((cell) => ({ cell, span: cell.span })) }));
+      out.push({ key, title: current.title, description: current.description, kind, rows, ...(current.heading ? { heading: current.heading } : {}) });
     }
   };
   let n = 0;
