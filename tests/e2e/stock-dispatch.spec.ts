@@ -32,9 +32,9 @@ const dealStatus = async (id: string) => (await sql<{ status: string }>(`select 
 
 async function findUnit(page: Page, number: number) {
   const main = page.getByRole('main');
-  await main.getByLabel('Existing sequence number').check();
-  await main.getByLabel('Deal year').fill(String(YEAR));
-  await main.getByLabel('Sequence number').fill(String(number));
+  await main.getByRole('radio', { name: 'Existing sequence number' }).check();
+  await main.getByRole('textbox', { name: 'Deal year', exact: true }).fill(String(YEAR));
+  await main.getByRole('textbox', { name: 'Sequence number', exact: true }).fill(String(number));
   await main.getByRole('button', { name: 'Find unit' }).click();
   return page.getByTestId('find-result');
 }
@@ -82,7 +82,7 @@ test('DEAL submit creates exactly one stock deal; an Update re-syncs the same de
   const row = page.locator(`[data-testid="deal-row"][data-deal="${YEAR} / ${entry.number}"]`);
   await expect(row).toContainText('Cape Town');
   await expect(row).toContainText(quote);
-  await expect(row.getByRole('link', { name: `${YEAR} / ${entry.number}` })).toHaveAttribute('href', `/admin/forms/deal/entries/${entry.number}`);
+  await expect(row.getByRole('link', { name: `${YEAR} / ${entry.number}`, exact: true })).toHaveAttribute('href', `/admin/forms/deal/entries/${entry.number}`);
   await expect(page.getByTestId('deals-footer')).toContainText('Dispatches without a deal number do not clear this list.');
 
   // Dispatch -> prefilled existing-sequence mode; complete it.
@@ -90,12 +90,12 @@ test('DEAL submit creates exactly one stock deal; an Update re-syncs the same de
   await expect(page).toHaveURL(new RegExp(`/admin/stock/dispatch\\?year=${YEAR}&number=${entry.number}$`));
   const main = page.getByRole('main');
   await expect(page.getByTestId('find-result')).toHaveText(`Deal ${YEAR} / ${entry.number} · 1000DB · Cape Town. Add or confirm the VIN and destination.`);
-  await expect(main.getByLabel('Existing sequence number')).toBeChecked();
+  await expect(main.getByRole('radio', { name: 'Existing sequence number' })).toBeChecked();
   await expect(main.getByLabel('Model / part number')).toHaveValue('1000DB');
   await expect(main.getByLabel('Destination branch')).toHaveValue('CPT');
   await expect(main.getByLabel('Accessory 01')).toHaveValue('Sample hose reel');
   await expect(main.getByLabel('Accessory 02')).toHaveValue('Sample spare wheel');
-  await main.getByLabel('VIN', { exact: true }).fill(` ${vin('A').toLowerCase()} `);
+  await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(` ${vin('A').toLowerCase()} `);
   await main.getByRole('button', { name: 'Complete dispatch →' }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/stock/units\\?q=${vin('A')}&saved=dispatch$`));
 
@@ -120,7 +120,8 @@ test('DEAL submit creates exactly one stock deal; an Update re-syncs the same de
 
 test('Find unit: not found and dismissed block; admin dismisses with a reason and restores', async ({ page }) => {
   const deal = await makeDeal({ location: 'JHB', accessories: ['Sample hose reel'] });
-  await signIn(page, '/admin/stock/dispatch');
+  await signIn(page);
+  await page.goto('/admin/stock/dispatch');
   await expect(await findUnit(page, 99_999_999)).toHaveText('No matching deal for this year and number.');
   await expect(page.getByRole('button', { name: 'Complete dispatch →' })).toBeDisabled();
 
@@ -157,11 +158,12 @@ test('Find unit: not found and dismissed block; admin dismisses with a reason an
 test('Duplicate VIN is blocked, sold units included; a free dispatch never clears a deal', async ({ page }) => {
   const deal = await makeDeal();
   await sql(`insert into public.stock_units(org_id, vin, model_part, location_id, status, sequence, sold_at) values ($1, $2, '2500D', 'JHB', 'sold', 248, now())`, [ORG, vin('SOLD')]);
-  await signIn(page, '/admin/stock/dispatch');
+  await signIn(page);
+  await page.goto('/admin/stock/dispatch');
   const main = page.getByRole('main');
   await main.getByLabel('Model / part number').selectOption('1000DB');
-  await main.getByLabel('VIN', { exact: true }).fill(vin('SOLD'));
-  await main.getByLabel('VIN', { exact: true }).press('Tab');
+  await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(vin('SOLD'));
+  await main.getByRole('textbox', { name: 'VIN', exact: true }).press('Tab');
   await main.getByLabel('Destination branch').selectOption('CPT');
   const dup = 'VIN already used — 2500D; sequence 248; Johannesburg; Sold. Open the existing record instead.';
   await expect(page.getByTestId('vin-note')).toHaveText(dup); // checked on blur
@@ -170,7 +172,7 @@ test('Duplicate VIN is blocked, sold units included; a free dispatch never clear
   expect(await sql(`select 1 from public.stock_units where org_id = $1 and vin_norm = $2`, [ORG, vin('SOLD')])).toHaveLength(1);
 
   // Free dispatch with a new VIN: saved, and the deal stays outstanding.
-  await main.getByLabel('VIN', { exact: true }).fill(vin('FREE'));
+  await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(vin('FREE'));
   await main.getByLabel('Accessory 01').fill('Sample hose reel');
   await main.getByRole('button', { name: 'Complete dispatch →' }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/stock/units\\?q=${vin('FREE')}&saved=dispatch$`));
@@ -183,7 +185,8 @@ test('Duplicate VIN is blocked, sold units included; a free dispatch never clear
 test('A unit registered at the Factory moves to its branch with the deal (factory staff, 390px phone)', async ({ page }) => {
   const deal = await makeDeal({ model: null });
   await page.setViewportSize({ width: 390, height: 844 });
-  await signIn(page, '/admin/stock/dispatch');
+  await signIn(page);
+  await page.goto('/admin/stock/dispatch');
   await sql(`update public.memberships set role = 'factory' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
   try {
     // Factory staff: no Dismiss on the Deals page.
@@ -196,7 +199,7 @@ test('A unit registered at the Factory moves to its branch with the deal (factor
     await page.goto('/admin/stock/dispatch');
     const main = page.getByRole('main');
     await main.getByLabel('Model / part number').selectOption('2500D');
-    await main.getByLabel('VIN', { exact: true }).fill(vin('FAC'));
+    await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(vin('FAC'));
     await main.getByLabel('Destination branch').selectOption('FACTORY');
     await main.getByLabel('Dispatch notes').fill('Pre-registered at the factory');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -209,8 +212,8 @@ test('A unit registered at the Factory moves to its branch with the deal (factor
     await expect(main.getByText('Model not recognised on the DEAL: choose the model.')).toBeVisible();
     await expect(main.getByLabel('Destination branch').locator('option[value="FACTORY"]')).toBeDisabled();
     await main.getByLabel('Model / part number').selectOption('2500D');
-    await main.getByLabel('VIN', { exact: true }).fill(vin('FAC'));
-    await main.getByLabel('VIN', { exact: true }).press('Tab');
+    await main.getByRole('textbox', { name: 'VIN', exact: true }).fill(vin('FAC'));
+    await main.getByRole('textbox', { name: 'VIN', exact: true }).press('Tab');
     await expect(page.getByTestId('vin-note')).toHaveText('This VIN is already registered at the Factory. Choose a destination branch to move it.');
     await main.getByRole('button', { name: 'Complete dispatch →' }).click();
     await expect(main.getByRole('alert')).toContainText('This VIN is already registered at the Factory. Move this factory unit to Cape Town instead.');
