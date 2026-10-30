@@ -2,7 +2,7 @@
 // Literal inbox addresses in the spec are configuration, so they come from notification_recipients
 // (event key "<form-slug>.<Action>"); field tokens such as [InspectorEmail] resolve from the entry.
 import { displayValue, formatValue, type EntryData } from '@/lib/spec/values';
-import { inputFields, type EmailSpec, type FormSpec } from '@/lib/spec/types';
+import { fieldByName, inputFields, type EmailSpec, type FormSpec } from '@/lib/spec/types';
 import { hiddenNames, isHeading } from '@/lib/spec/visibility';
 
 export interface EmailContext {
@@ -57,13 +57,16 @@ function escapeHtml(s: string): string {
 }
 
 /** Replaces [Entry.AdminLink], [Entry.Number], [Entry.Status] and [Field] tokens. Values are HTML-escaped. */
-export function fillTokens(template: string, ctx: Pick<EmailContext, 'data' | 'entryNumber' | 'status' | 'adminLink'>, html: boolean): string {
+export function fillTokens(
+  template: string, ctx: Pick<EmailContext, 'data' | 'entryNumber' | 'status' | 'adminLink'> & Partial<Pick<EmailContext, 'spec' | 'timeZone'>>, html: boolean,
+): string {
   const esc = html ? escapeHtml : (s: string) => s;
   return template.replace(/\[([A-Za-z_][A-Za-z0-9_.]*)\]/g, (whole, key: string) => {
     if (key === 'Entry.AdminLink') return esc(ctx.adminLink);
     if (key === 'Entry.Number') return String(ctx.entryNumber);
     if (key === 'Entry.Status') return esc(ctx.status);
-    if (key in ctx.data) return esc(displayValue(ctx.data[key]));
+    // M8: with the spec, values render by type (a datetime in the org timezone, rating "4/5").
+    if (key in ctx.data) return esc(ctx.spec ? formatValue(fieldByName(ctx.spec, key), ctx.data[key], { timeZone: ctx.timeZone }) : displayValue(ctx.data[key]));
     return whole;
   });
 }

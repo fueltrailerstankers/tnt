@@ -15,7 +15,7 @@ import {
   prepareSave, publicData, publicSpec, readFormData, renderSummary, validateEntry,
 } from '@/lib/spec/values';
 import { hiddenFields, hiddenNames, isHeading, showWhenProblems } from '@/lib/spec/visibility';
-import { entryDetailRows, isExternalEmail } from '@/lib/workflow/email-template';
+import { entryDetailRows, fillTokens, isExternalEmail } from '@/lib/workflow/email-template';
 import { normalisePdf, pdfHash, renderHtml, sha } from './kit-snapshot';
 import { fd, SLUGS, spec as kitSpec } from './specs';
 
@@ -478,6 +478,8 @@ describe('grid, export and email rows', () => {
     expect(labels).toContain('Internal note');
     expect(Object.fromEntries(rows)).toMatchObject({ Appointment: '2026-10-29 14:30', Price: 'R 1,500.00', Score: '5/5' });
     expect(entryDetailRows(S, saved, {}, { external: true }).map(([k]) => k)).not.toContain('Internal note');
+    expect(fillTokens('[Appointment] [Price] [Score]', { data: saved, entryNumber: 1, status: 'Submitted', adminLink: '', spec: S, timeZone: TZ }, false))
+      .toBe('2026-10-29 14:30 R 1,500.00 5/5');
     expect(isExternalEmail({ to: ['[Email]'] })).toBe(true);
     expect(isExternalEmail({ to: ['office@example.invalid'] })).toBe(false);
   });
