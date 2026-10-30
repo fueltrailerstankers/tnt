@@ -16,6 +16,7 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0012 | M4 fix | one-time lead intake events: unique (lead_id, kind) for created, duplicate, routed, emailed |
 | 0013 | M1 fix | DEAL DATE CREATED defaults to today (spec update) |
 | 0015 | UI handoff | saved views (own rows), append-only terms versions, signature metadata on entry_files |
+| 0016 | M6 deals | `stock_remove_untouched_deal` (service role): the DEAL sync removes an out-of-scope deal only when it never had a unit, dismissal or stock audit row, checked in the delete itself (dismissal history cascades on delete) |
 | 0016 | M6 dispatch | `stock_remove_untouched_deal` (stock-dispatch branch) |
 | 0017 | M6 overview | optimistic locking: optional `p_expected_updated_at` on `stock_correct_unit` / `stock_move_unit` (raises `UNIT_CHANGED` under the row lock); the 0011 bodies are kept as internal `*_unchecked`, so calls without it behave as before; grants as 0011 |
 | 0020 | M5 | in-app Cognito import: `cognito_api_keys` (one per org, AES-256-GCM with ENCRYPTION_KEY, last 4 characters in clear; service role only) and `import_runs` (per form, dry_run/apply, cursor + counts-only report; org admins read, server writes; one queued/running run per form) |

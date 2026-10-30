@@ -75,12 +75,28 @@ export function dealLocation(v: unknown): string | null {
   return null;
 }
 
-/** First PARTNO1..8 matching a model part number (case and space insensitive), with its line number. */
+/**
+ * The part number before a suffix ("CTLL1-GWM" -> "CTLL1", "3000D/RED" -> "3000D", "BOX02 ISO" -> "BOX02"). Same
+ * separators as isModelItemCode in lib/stock/invoice.ts (tests/unit/stock-deal.test.ts checks both agree).
+ */
+export function partBase(code: string): string {
+  return code.trim().split(/[\s\-/_.:]/)[0] ?? '';
+}
+
+/**
+ * The model on the DEAL, with its line number: the first PARTNO1..8 that is a model part number (case and space
+ * insensitive); when none is, the first whose part before a suffix is one (CTLL1-GWM, 3000D/RED).
+ */
 export function detectModel(data: Record<string, unknown>, modelParts: readonly string[]): { modelPart: string | null; line: number | null } {
   const known = new Map(modelParts.map((p) => [partKey(p), p]));
-  for (let i = 1; i <= DEAL_LINE_COUNT; i++) {
-    const k = partKey(text(data[`PARTNO${i}`]));
-    if (k && known.has(k)) return { modelPart: known.get(k)!, line: i };
+  const codes = Array.from({ length: DEAL_LINE_COUNT }, (_, i) => text(data[`PARTNO${i + 1}`]));
+  for (let i = 0; i < codes.length; i++) {
+    const k = partKey(codes[i]);
+    if (k && known.has(k)) return { modelPart: known.get(k)!, line: i + 1 };
+  }
+  for (let i = 0; i < codes.length; i++) {
+    const k = codes[i] ? partKey(partBase(codes[i]!)) : '';
+    if (k && known.has(k)) return { modelPart: known.get(k)!, line: i + 1 };
   }
   return { modelPart: null, line: null };
 }

@@ -15,8 +15,12 @@ export interface Job {
   attempts: number;
 }
 
-/** `deadline` is when the drain stops starting jobs (ms since epoch); a long job can size its own work by it. */
-export type Handler = (db: SupabaseClient, job: Job, ctx: { deadline: number }) => Promise<void>;
+/** What a handler may know about its run: the drain's deadline (ms since epoch), so long jobs cap their own time budget to it. */
+export interface JobContext {
+  deadline: number;
+}
+
+export type Handler = (db: SupabaseClient, job: Job, ctx?: JobContext) => Promise<void>;
 
 export async function enqueue(db: SupabaseClient, orgId: string | null, queue: string, payload: Record<string, unknown> = {}, opts: { uniquePending?: boolean } = {}) {
   if (opts.uniquePending) {
