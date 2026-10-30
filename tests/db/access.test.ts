@@ -126,6 +126,12 @@ describe('memberships trigger and constraints', () => {
     }
   });
 
+  it('must_change_password defaults to false and only the server sets it', async () => {
+    const r = await db.query(`select must_change_password from public.memberships where org_id = $1 and user_id = $2`, [ORG, STAFF]);
+    expect(r.rows[0].must_change_password).toBe(false);
+    await expect(as(db, 'authenticated', STAFF, () => db.query(`update public.memberships set must_change_password = false where user_id = $1`, [STAFF]))).rejects.toThrow(/permission denied/);
+  });
+
   it('rejects a bad status', async () => {
     await expect(db.query(`update public.memberships set status = 'owner' where org_id = $1 and user_id = $2`, [ORG, STAFF])).rejects.toThrow(/memberships_status_check/);
   });

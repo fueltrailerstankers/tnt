@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { areaOf, areaOrFilter, describe as describeRow, filterQuery, hrefFor, parseFilters, toCsv, type AuditRow } from '@/lib/activity/describe';
 import { AREAS, PRESET_ACCESS, type AccessMap } from '@/lib/security/can';
 import {
-  accessChanges, accessFromForm, changeError, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
+  AddInput, accessChanges, accessFromForm, changeError, generatePassword, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
   resolveAccess, type MemberState,
 } from '@/lib/users/rules';
 
@@ -57,6 +57,30 @@ describe('inputs', () => {
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123_-', type: 'invite' }).success).toBe(true);
     expect(ConfirmQuery.safeParse({ token_hash: 'a b<script>', type: 'invite' }).success).toBe(false);
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type: 'phone_change' }).success).toBe(false);
+  });
+});
+
+describe('add user', () => {
+  const base = { email: 'New@Example.Invalid', name: 'Nia New', role: 'staff', branch: '' };
+  it('needs a temporary password of at least 12 characters unless one is generated', () => {
+    expect(AddInput.safeParse({ ...base, password: 'short-pass1', generate: false }).success).toBe(false);
+    expect(AddInput.safeParse({ ...base, generate: false }).success).toBe(false);
+    expect(AddInput.parse({ ...base, password: 'long-enough-12', generate: false }).email).toBe('new@example.invalid');
+    expect(AddInput.safeParse({ ...base, generate: true }).success).toBe(true);
+  });
+
+  it('generates 16 unambiguous characters, different each time', () => {
+    const a = generatePassword();
+    expect(a).toMatch(/^[A-HJ-NP-Za-km-z2-9]{16}$/);
+    expect(generatePassword()).not.toBe(a);
+    expect(generatePassword(24)).toHaveLength(24);
+  });
+
+  it('renders the audit rows', () => {
+    const names = new Map([['u-1', 'Pat Admin'], ['u-2', 'Nia New']]);
+    const row = { id: 1, created_at: '2026-10-01T10:00:00Z', actor_user: 'u-1', action: 'user.add', entity: 'user', entity_id: 'u-2', meta: { preset: 'staff' } };
+    expect(describeRow(row, names).text).toBe('Pat Admin added Nia New as Staff with a temporary password');
+    expect(describeRow({ ...row, actor_user: 'u-2', action: 'auth.password', meta: { first: true } }, names).text).toBe('Nia New replaced their temporary password');
   });
 });
 

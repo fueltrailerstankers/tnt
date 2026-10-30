@@ -4,7 +4,7 @@
 //   from tests/db/shim.sql + supabase/migrations. Every request runs inside a transaction as the caller's
 //   API role (anon / authenticated with JWT claims / service_role), so RLS and grants are the real ones.
 // - Auth (/auth/v1): password grant, refresh, user, logout for synthetic users (HS256 JWTs); M7 adds invite,
-//   admin generate_link / users/:id (ban), verify (token hash) and user update (password). Sent invite mails are
+//   admin createUser, generate_link / users/:id (ban), verify (token hash) and user update (password). Sent invite mails are
 //   kept in memory and listed at GET /__stub/mail?to=<email> (test-only).
 // - Storage (/storage/v1): in-memory objects with signed upload/download URLs, info, move, remove.
 //
@@ -140,6 +140,15 @@ async function authAdmin(req, url, raw) {
     const token_hash = newOtp(u, b.type);
     return { ...userJson(u), action_link: `http://stub/auth/v1/verify?token=${token_hash}&type=${b.type}`, email_otp: '000000', hashed_token: token_hash,
       redirect_to: url.searchParams.get('redirect_to') ?? b.redirect_to ?? null, verification_type: b.type };
+  }
+  if (url.pathname === '/auth/v1/admin/users' && req.method === 'POST') {
+    serviceOnly(req);
+    if (findByEmail(b.email)) throw EXISTS();
+    const u = await createAuthUser(String(b.email).toLowerCase(), b.user_metadata);
+    u.invitedAt = null;
+    u.confirmed = b.email_confirm === true;
+    if (typeof b.password === 'string') u.password = b.password;
+    return userJson(u);
   }
   let m;
   if ((m = url.pathname.match(/^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/))) {
