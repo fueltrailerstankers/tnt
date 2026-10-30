@@ -1,9 +1,9 @@
 import 'server-only';
-import { redirect } from 'next/navigation';
+import { forbidden, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { assertPerm, clampAccess, isRole, MEMBER_STATUSES, type Member, type MemberStatus, type Permission } from './can';
+import { can, clampAccess, isRole, MEMBER_STATUSES, type Member, type MemberStatus, type Permission } from './can';
 
 /** last_seen_at is written at most this often per member (ms). */
 const SEEN_EVERY = 5 * 60 * 1000;
@@ -48,11 +48,13 @@ async function touchLastSeen(membershipId: string, last: string | null): Promise
 }
 
 /**
- * Call at the top of every server action and route handler that mutates or exposes data.
- * Signed-out users are sent to /login; signed-in users without the permission (or not active) get ForbiddenError (403).
+ * Call at the top of every page, server action and route handler that mutates or exposes data.
+ * Signed-out users are sent to /login; signed-in users without the permission (or not active) get 403
+ * (forbidden(): app/forbidden.tsx for pages, a 403 response for route handlers and server actions).
  */
 export async function requirePerm(permission: Permission): Promise<Member> {
   const member = await getMember();
   if (!member) redirect('/login');
-  return assertPerm(member, permission);
+  if (!can(member, permission)) forbidden();
+  return member;
 }

@@ -31,6 +31,15 @@ export function areaOf(action: string): Area | null {
 
 export const FILTER_AREAS = AREAS.filter((a) => AREA_ACTIONS[a]);
 
+/** Suggestions for the action filter (any action can be typed). */
+export const KNOWN_ACTIONS = [
+  'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
+  'user.invite_resend', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
+  'form.public_link', 'entry.status', 'entry.delete', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
+  'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
+  'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
+] as const;
+
 /** PostgREST `or` filter for an area's actions (prefix match). */
 export function areaOrFilter(area: Area): string | null {
   const prefixes = AREA_ACTIONS[area];

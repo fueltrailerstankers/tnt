@@ -1,9 +1,12 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { Icon } from '@/components/ui/Icon';
 import { formatDateTime } from '@/lib/admin/grid';
 import { loadOrg } from '@/lib/forms/org';
 import { requirePerm } from '@/lib/security/require';
 import { createClient } from '@/lib/supabase/server';
-import { homeShowsForms } from '@/lib/ui/nav';
+import { can } from '@/lib/security/can';
+import { homeShowsForms, visibleNav } from '@/lib/ui/nav';
 
 export const metadata = { title: 'Admin · Trailers & Tankers' };
 
@@ -19,6 +22,10 @@ interface Overview {
 
 export default async function AdminHome() {
   const member = await requirePerm('admin.access');
+  // Home is an area too: without it, start on the first menu the member can read.
+  const areas = visibleNav(member);
+  if (!can(member, 'home.read')) redirect(areas[0]?.href ?? '/admin/account');
+  const tiles = areas.filter((n) => n.key !== 'home');
   const supabase = await createClient();
   // Factory staff have admin access but no entries: no form list, whose links would all be forbidden.
   const showForms = homeShowsForms(member);
@@ -35,6 +42,19 @@ export default async function AdminHome() {
         {showForms ? <div><dt className="text-fg-muted">Forms</dt><dd data-testid="forms-count">{forms.length}</dd></div> : null}
         <div><dt className="text-fg-muted">Display</dt><dd>{`${org.currency} · ${org.timezone}`}</dd></div>
       </dl>
+
+      <nav aria-label="Your areas">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6" data-testid="home-tiles">
+          {tiles.map((t) => (
+            <li key={t.key}>
+              <Link href={t.href} className="flex min-h-[52px] items-center gap-2 rounded-md border bg-surface p-3 font-semibold no-underline shadow-card hover:bg-surface-2">
+                <Icon name={t.icon} />
+                {t.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {recent.length ? (
         <div>

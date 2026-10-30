@@ -5,10 +5,14 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
+  // forbidden() from requirePerm renders app/forbidden.tsx with HTTP 403 (M7).
+  experimental: { authInterrupts: true },
   async headers() {
     return [
       // Role-link URLs carry a bearer token: never leak it in Referer, never cache the page.
       { source: "/e/:token*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
+      // Invite and sign-in links carry a one-time token hash.
+      { source: "/auth/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
       {
         source: "/:path*",
         headers: [

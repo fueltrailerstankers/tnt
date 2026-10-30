@@ -74,6 +74,7 @@ export function resolveAccess(role: Role, submitted: Record<string, unknown>): {
 export const PRESET_LABEL = (preset: string) => (preset === 'custom' ? 'Custom' : preset.charAt(0).toUpperCase() + preset.slice(1));
 
 export const STATUS_LABEL: Record<MemberStatus, string> = { invited: 'Invited', active: 'Active', disabled: 'Disabled' };
+export const STATUS_COLOR: Record<MemberStatus, 'yellow' | 'green' | 'gray'> = { invited: 'yellow', active: 'green', disabled: 'gray' };
 
 /** Where the invite email and copied links land: our /auth/confirm, then the set-password page. */
 export const ACCEPT_PATH = '/admin/account/password';
@@ -108,3 +109,15 @@ export const USER_ERRORS: Record<string, string> = {
   not_found: 'That member was not found.',
   state: 'That action does not apply to this member now.',
 };
+
+/** What the invite form shows after submitting (useActionState). The link is shown once and never stored. */
+export interface InviteState {
+  status: 'idle' | 'error' | 'done';
+  error?: string;
+  userId?: string;
+  link?: string;
+  /** email: the invite email went out; email_failed / existing: a link was made instead. */
+  sent?: 'email' | 'email_failed' | 'existing' | 'link';
+}
+
+export type LinkResult = { link: string } | { error: string };
