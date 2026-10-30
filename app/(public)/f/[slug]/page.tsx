@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { FormRenderer } from '@/components/form-engine/FormRenderer';
 import { Icon } from '@/components/ui/Icon';
-import { appEnv, publicEnv } from '@/lib/env';
+import { appEnv, publicEnv, turnstileSiteKey } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
 import { quoteFieldOf } from '@/lib/forms/quote-fields';
 import { loadOrg } from '@/lib/forms/org';
@@ -54,6 +54,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         lookup={hasLookup ? { mode: 'exact', find: findLookupPublic.bind(null, slug) } : undefined}
         quotes={quoteFieldOf(spec) ? { mode: 'check', check: checkQuotePublic.bind(null, slug) } : undefined}
         honeypot
+        turnstileSiteKey={turnstileSiteKey()}
       />
     </>
   );

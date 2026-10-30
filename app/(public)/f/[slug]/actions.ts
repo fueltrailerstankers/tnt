@@ -10,6 +10,7 @@ import { checkableQuoteNo, quoteFieldOf } from '@/lib/forms/quote-fields';
 import { issueUploads } from '@/lib/forms/storage';
 import { validateUploadRequest } from '@/lib/forms/uploads';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
+import { TURNSTILE_FIELD, verifyTurnstile } from '@/lib/security/turnstile';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runAction } from '@/lib/workflow/run-action';
 import type { LookupOption } from '@/lib/forms/lookup-types';
@@ -33,6 +34,10 @@ export async function submitPublic(slug: string, _prev: SubmitState, fd: FormDat
   // Honeypot: bots fill every field. Pretend success, store nothing.
   if (typeof fd.get('__hp') === 'string' && fd.get('__hp') !== '') redirect(`/f/${slug}/thanks`);
   if (fd.get('__uploading')) return { message: 'Wait for the uploads to finish, then submit again.', at: Date.now() };
+  const secret = appEnv().TURNSTILE_SECRET_KEY;
+  if (secret && !(await verifyTurnstile(fd.get(TURNSTILE_FIELD), clientIp(await headers()), secret))) {
+    return { message: 'Complete the security check above the Submit button, then submit again.', at: Date.now() };
+  }
 
   const ctx = await publicForm(slug);
   if (!ctx) return { message: 'This form is not available.', at: Date.now() };

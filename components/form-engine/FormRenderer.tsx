@@ -15,6 +15,7 @@ import { CountField } from './CountField';
 import { FileField } from './FileField';
 import { QuoteField } from './QuoteField';
 import { SignaturePad } from './SignaturePad';
+import { Turnstile } from './Turnstile';
 import { errorCls, inputCls, labelCls, partLabelCls, primaryBtn, secondaryBtn, textareaCls } from './styles';
 import { formatMoney } from '@/lib/admin/format';
 import type { ActionButton, ExistingFile, LookupConfig, QuoteConfig, QuoteImport, SubmitState, UploadFn } from './types';
@@ -38,6 +39,8 @@ export interface FormRendererProps {
   honeypot?: boolean;
   /** Staff DEAL only: fill lines and total from the mirrored Xero quote. */
   importQuote?: (quoteNo: string) => Promise<QuoteImport>;
+  /** Public forms: Cloudflare Turnstile site key (absent when not configured). */
+  turnstileSiteKey?: string;
 }
 
 const SECONDARY_ACTION = /change|reject|cancel|decline/i;
@@ -241,6 +244,8 @@ export function FormRenderer(props: FormRendererProps) {
           {st.review && st.index === step ? <ReviewCard rows={review} /> : null}
         </fieldset>
       ))}
+
+      {props.turnstileSiteKey && !readOnly && step === steps.length - 1 ? <Turnstile siteKey={props.turnstileSiteKey} resetKey={state.at} /> : null}
 
       <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
