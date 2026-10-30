@@ -17,7 +17,7 @@ const SENT: Record<NonNullable<InviteState['sent']>, string> = {
   link: 'Invite created. Send this link to the person; it opens the set-password page:',
 };
 
-export function InviteForm({ branches }: { branches: Array<{ id: string; name: string }> }) {
+export function InviteForm({ branches, allowAdmin }: { branches: Array<{ id: string; name: string }>; allowAdmin: boolean }) {
   const [state, action, pending] = useActionState(inviteUser, { status: 'idle' } as InviteState);
 
   if (state.status === 'done' && state.userId) {
@@ -47,7 +47,7 @@ export function InviteForm({ branches }: { branches: Array<{ id: string; name: s
           <Input id="email" name="email" type="email" required maxLength={254} autoComplete="off" />
         </div>
       </div>
-      <AccessMatrix initialRole="staff" initialAccess={PRESET_ACCESS.staff} />
+      <AccessMatrix initialRole="staff" initialAccess={PRESET_ACCESS.staff} allowAdmin={allowAdmin} />
       {branches.length ? (
         <div>
           <Label htmlFor="branch">Branch (optional)</Label>

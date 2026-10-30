@@ -38,6 +38,7 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
   const parsed = InviteInput.safeParse({ email: str(fd, 'email'), name: str(fd, 'name'), role: str(fd, 'role'), branch: str(fd, 'branch') ?? null, method: str(fd, 'method') });
   if (!parsed.success || !(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input' };
   const { email, name, role, branch, method } = parsed.data;
+  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only' };
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
   const admin = createAdminClient();
 
@@ -91,7 +92,7 @@ export async function saveUser(userId: string, fd: FormData): Promise<void> {
   if (!parsed.success || !(await validBranch(member.orgId, parsed.data.branch))) redirect(userUrl(before.userId, '/edit?error=input'));
   const { name, role, branch } = parsed.data;
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
-  const err = changeError(member.userId, before, { ...before, role, access }, await otherActiveAdmins(member.orgId, before.userId));
+  const err = changeError(member, before, { ...before, role, access }, await otherActiveAdmins(member.orgId, before.userId));
   if (err) redirect(userUrl(before.userId, `/edit?error=${err}`));
 
   const { error } = await createAdminClient().from('memberships').update({ role, access, display_name: name, branch })
@@ -110,6 +111,7 @@ export async function resendInvite(userId: string): Promise<void> {
   const target = await targetOf(member.orgId, userId);
   if (!target) redirect('/admin/settings/users?error=not_found');
   if (target.status !== 'invited' || !target.email) redirect(userUrl(target.userId, '?error=state'));
+  if (target.role === 'admin' && member.role !== 'admin') redirect(userUrl(target.userId, '?error=admin_only'));
   const r = await sendInvite(createAdminClient(), target.email, target.name);
   if (!('userId' in r)) redirect(userUrl(target.userId, `?error=${r.error === 'exists' ? 'state' : 'email'}`));
   await audit(member.orgId, member.userId, 'user.invite_resend', target.userId);
@@ -122,6 +124,7 @@ export async function inviteLinkFor(userId: string): Promise<LinkResult> {
   const target = await targetOf(member.orgId, userId);
   if (!target) return { error: 'not_found' };
   if (target.status !== 'invited' || !target.email) return { error: 'state' };
+  if (target.role === 'admin' && member.role !== 'admin') return { error: 'admin_only' };
   const l = await createLink(createAdminClient(), target.email, target.name);
   if ('error' in l || l.userId !== target.userId) return { error: 'auth' };
   await audit(member.orgId, member.userId, 'user.invite_link', target.userId);
@@ -133,7 +136,7 @@ export async function disableUser(userId: string): Promise<void> {
   const target = await targetOf(member.orgId, userId);
   if (!target) redirect('/admin/settings/users?error=not_found');
   if (target.status === 'disabled') redirect(userUrl(target.userId));
-  const err = changeError(member.userId, target, { ...target, status: 'disabled' }, await otherActiveAdmins(member.orgId, target.userId));
+  const err = changeError(member, target, { ...target, status: 'disabled' }, await otherActiveAdmins(member.orgId, target.userId));
   if (err) redirect(userUrl(target.userId, `?error=${err}`));
   const { error } = await createAdminClient().from('memberships').update({ status: 'disabled', disabled_at: new Date().toISOString() })
     .eq('org_id', member.orgId).eq('user_id', target.userId);
@@ -150,6 +153,8 @@ export async function enableUser(userId: string): Promise<void> {
   const target = await targetOf(member.orgId, userId);
   if (!target) redirect('/admin/settings/users?error=not_found');
   if (target.status !== 'disabled') redirect(userUrl(target.userId));
+  const err = changeError(member, target, { ...target, status: enabledStatus(target.acceptedAt) }, await otherActiveAdmins(member.orgId, target.userId));
+  if (err) redirect(userUrl(target.userId, `?error=${err}`));
   await createAdminClient().from('memberships').update({ status: enabledStatus(target.acceptedAt), disabled_at: null })
     .eq('org_id', member.orgId).eq('user_id', target.userId);
   const unbanned = await setBanned(createAdminClient(), target.userId, false);
@@ -164,7 +169,7 @@ export async function removeUser(userId: string, fd: FormData): Promise<void> {
   const target = await targetOf(member.orgId, userId);
   if (!target) redirect('/admin/settings/users?error=not_found');
   if (fd.get('confirm') !== 'remove') redirect(userUrl(target.userId, '?error=input'));
-  const err = changeError(member.userId, target, null, await otherActiveAdmins(member.orgId, target.userId));
+  const err = changeError(member, target, null, await otherActiveAdmins(member.orgId, target.userId));
   if (err) redirect(userUrl(target.userId, `?error=${err}`));
   const { error } = await createAdminClient().from('memberships').delete().eq('org_id', member.orgId).eq('user_id', target.userId);
   if (error) redirect(userUrl(target.userId, `?error=${/LAST_ADMIN/.test(error.message) ? 'last_admin' : 'state'}`));

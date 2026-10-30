@@ -24,6 +24,7 @@ export default async function EditUser({ params, searchParams }: { params: Promi
   const { data } = await createAdminClient().from('stock_locations').select('id, name, is_factory').eq('org_id', member.orgId).order('sort_order');
   const branches = ((data ?? []) as Array<{ id: string; name: string; is_factory: boolean }>).filter((b) => !b.is_factory);
   const self = target.userId === member.userId;
+  const adminOnly = member.role !== 'admin' && target.role === 'admin';
 
   return (
     <section className="max-w-3xl space-y-4">
@@ -40,7 +41,8 @@ export default async function EditUser({ params, searchParams }: { params: Promi
         <AccessMatrix
           initialRole={target.role}
           initialAccess={target.access}
-          lockedReason={self ? 'You cannot change your own access. Ask another admin.' : undefined}
+          lockedReason={self ? 'You cannot change your own access. Ask another admin.' : adminOnly ? 'Only an admin can change an admin.' : undefined}
+          allowAdmin={member.role === 'admin'}
         />
         {branches.length ? (
           <div>

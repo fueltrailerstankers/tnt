@@ -39,7 +39,7 @@ export const PasswordInput = z.object({
 
 export interface MemberState { userId: string; role: Role; access: AccessMap; status: MemberStatus }
 
-export type GuardError = 'self' | 'last_admin';
+export type GuardError = 'self' | 'last_admin' | 'admin_only';
 
 const isActiveAdmin = (m: Pick<MemberState, 'role' | 'status'>) => m.role === 'admin' && m.status === 'active';
 
@@ -47,9 +47,13 @@ const isActiveAdmin = (m: Pick<MemberState, 'role' | 'status'>) => m.role === 'a
  * Guards for a change to a member (the server action checks these; 0014's trigger is the SQL backstop for the
  * last admin). `next` is the member after the change, null for removal. `otherActiveAdmins` excludes the target.
  * - self: nobody changes their own preset, access or status, or removes themselves (no self lock-out).
+ * - admin_only: only an admin creates, changes, disables or removes an admin account (a member with Users write
+ *   cannot reach the admin-only actions by making an admin).
  * - last_admin: the org keeps at least one active admin.
  */
-export function changeError(actorId: string, before: MemberState, next: MemberState | null, otherActiveAdmins: number): GuardError | null {
+export function changeError(actor: { userId: string; role: Role }, before: MemberState, next: MemberState | null, otherActiveAdmins: number): GuardError | null {
+  const actorId = actor.userId;
+  if (actor.role !== 'admin' && (before.role === 'admin' || next?.role === 'admin')) return 'admin_only';
   if (before.userId === actorId) {
     if (!next || next.role !== before.role || next.status !== before.status || !sameAccess(next.access, before.access)) return 'self';
   }
@@ -104,6 +108,7 @@ export const USER_ERRORS: Record<string, string> = {
   exists: 'That person is already a member of this organisation.',
   self: 'You cannot change your own access, disable or remove yourself. Ask another admin.',
   last_admin: 'The organisation needs at least one active admin.',
+  admin_only: 'Only an admin can invite, change, disable or remove an admin.',
   auth: 'The sign-in service refused the request. Try again, or use Copy invite link.',
   email: 'The invite email could not be sent. Use Copy invite link instead.',
   not_found: 'That member was not found.',

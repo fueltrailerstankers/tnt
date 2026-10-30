@@ -17,7 +17,7 @@ export default async function InviteUser() {
       <p className="text-small text-fg-muted"><Link href="/admin/settings/users" className="underline">Users & access</Link> / Invite</p>
       <h1 className="text-h1">Invite user</h1>
       <p className="text-fg-muted">Pick a preset, then change any area. The person gets no access until they accept the invite and set a password.</p>
-      <InviteForm branches={branches} />
+      <InviteForm branches={branches} allowAdmin={member.role === 'admin'} />
     </section>
   );
 }

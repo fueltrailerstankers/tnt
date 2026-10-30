@@ -18,7 +18,7 @@ const HINTS: Partial<Record<Area, string>> = {
  * every area; changing any area makes the member Custom. Admin is write everywhere; factory can never read entries,
  * the Xero mirror or leads. With `lockedReason` the choices are shown but not editable (and submitted unchanged).
  */
-export function AccessMatrix({ initialRole, initialAccess, lockedReason }: { initialRole: Role; initialAccess: AccessMap; lockedReason?: string }) {
+export function AccessMatrix({ initialRole, initialAccess, lockedReason, allowAdmin = true }: { initialRole: Role; initialAccess: AccessMap; lockedReason?: string; allowAdmin?: boolean }) {
   const [role, setRole] = useState<Role>(initialRole);
   const [access, setAccess] = useState<AccessMap>(() => clampAccess(initialRole, initialAccess));
   const preset = presetOf(role, access);
@@ -36,7 +36,7 @@ export function AccessMatrix({ initialRole, initialAccess, lockedReason }: { ini
         <Label htmlFor="role">Preset</Label>
         <div className="flex flex-wrap items-center gap-3">
           <Select id="role" name={locked ? undefined : 'role'} value={role} disabled={locked} onChange={(e) => pickRole(e.target.value as Role)} className="max-w-56">
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+            {ROLES.filter((r) => allowAdmin || r !== 'admin' || r === role).map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
           </Select>
           <span className="text-small text-fg-muted" data-testid="preset-label" aria-live="polite">
             {preset === 'custom' ? `Custom (based on ${ROLE_LABELS[role]})` : `${ROLE_LABELS[role]} preset`}

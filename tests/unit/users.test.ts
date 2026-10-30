@@ -7,6 +7,8 @@ import {
 } from '@/lib/users/rules';
 
 const ME = 'u-me';
+const ADMIN_ACTOR = { userId: ME, role: 'admin' as const };
+const MANAGER = { userId: ME, role: 'staff' as const };
 const state = (userId: string, role: MemberState['role'], status: MemberState['status'] = 'active', access: AccessMap = PRESET_ACCESS[role]): MemberState =>
   ({ userId, role, status, access });
 
@@ -61,21 +63,31 @@ describe('inputs', () => {
 describe('guards', () => {
   it('nobody changes their own preset, access or status, or removes themselves; names are fine', () => {
     const me = state(ME, 'admin');
-    expect(changeError(ME, me, { ...me, role: 'staff', access: PRESET_ACCESS.staff }, 3)).toBe('self');
-    expect(changeError(ME, me, { ...me, status: 'disabled' }, 3)).toBe('self');
-    expect(changeError(ME, me, null, 3)).toBe('self');
-    expect(changeError(ME, me, { ...me }, 0)).toBeNull();
+    expect(changeError(ADMIN_ACTOR, me, { ...me, role: 'staff', access: PRESET_ACCESS.staff }, 3)).toBe('self');
+    expect(changeError(ADMIN_ACTOR, me, { ...me, status: 'disabled' }, 3)).toBe('self');
+    expect(changeError(ADMIN_ACTOR, me, null, 3)).toBe('self');
+    expect(changeError(ADMIN_ACTOR, me, { ...me }, 0)).toBeNull();
   });
 
   it('the last active admin cannot be disabled, demoted or removed', () => {
     const other = state('u-2', 'admin');
-    expect(changeError(ME, other, { ...other, status: 'disabled' }, 0)).toBe('last_admin');
-    expect(changeError(ME, other, { ...other, role: 'staff' }, 0)).toBe('last_admin');
-    expect(changeError(ME, other, null, 0)).toBe('last_admin');
-    expect(changeError(ME, other, null, 1)).toBeNull();
+    expect(changeError(ADMIN_ACTOR, other, { ...other, status: 'disabled' }, 0)).toBe('last_admin');
+    expect(changeError(ADMIN_ACTOR, other, { ...other, role: 'staff' }, 0)).toBe('last_admin');
+    expect(changeError(ADMIN_ACTOR, other, null, 0)).toBe('last_admin');
+    expect(changeError(ADMIN_ACTOR, other, null, 1)).toBeNull();
     // An invited or disabled admin is not "the last active admin".
-    expect(changeError(ME, state('u-3', 'admin', 'invited'), null, 0)).toBeNull();
-    expect(changeError(ME, state('u-4', 'staff'), null, 0)).toBeNull();
+    expect(changeError(ADMIN_ACTOR, state('u-3', 'admin', 'invited'), null, 0)).toBeNull();
+    expect(changeError(ADMIN_ACTOR, state('u-4', 'staff'), null, 0)).toBeNull();
+  });
+
+  it('only an admin creates, changes or removes an admin account', () => {
+    const other = state('u-2', 'admin');
+    const staff = state('u-3', 'staff');
+    expect(changeError(MANAGER, other, { ...other, status: 'disabled' }, 2)).toBe('admin_only');
+    expect(changeError(MANAGER, other, null, 2)).toBe('admin_only');
+    expect(changeError(MANAGER, staff, { ...staff, role: 'admin', access: PRESET_ACCESS.admin }, 2)).toBe('admin_only');
+    expect(changeError(MANAGER, staff, { ...staff, access: { ...staff.access, users: 'write' } }, 2)).toBeNull();
+    expect(changeError(ADMIN_ACTOR, staff, { ...staff, role: 'admin', access: PRESET_ACCESS.admin }, 2)).toBeNull();
   });
 
   it('enable returns to invited until the invite was accepted', () => {
