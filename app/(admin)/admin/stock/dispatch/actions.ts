@@ -37,9 +37,13 @@ const strings = (fd: FormData): Record<string, string | undefined> =>
   Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === 'string').map(([k, v]) => [k, v as string]));
 
 /** Find unit: the deal with this year and sequence number, and whether it can be dispatched. */
+const FindInput = z.object({ year: z.string().trim().max(10), number: z.string().trim().max(12) });
+const VinInput = z.string().max(80);
+
 export async function findDeal(year: string, number: string): Promise<FindOutcome | { kind: 'invalid'; message: string }> {
   const member = await requirePerm('stock.dispatch');
-  const q = dealQuery(String(year ?? '').slice(0, 10), String(number ?? '').slice(0, 12));
+  const input = FindInput.safeParse({ year, number });
+  const q = input.success ? dealQuery(input.data.year, input.data.number) : null;
   if (!q) return { kind: 'invalid', message: fieldMessage('deal') };
   const db = await createClient();
   const locations = await loadLocations(db, member.orgId);
@@ -49,8 +53,9 @@ export async function findDeal(year: string, number: string): Promise<FindOutcom
 /** VIN check on blur: any unit already registered with this VIN, sold included. */
 export async function checkVin(vin: string): Promise<VinNote> {
   const member = await requirePerm('stock.dispatch');
-  const raw = String(vin ?? '').slice(0, 80);
-  if (!isValidVin(raw)) return null;
+  const input = VinInput.safeParse(vin);
+  if (!input.success || !isValidVin(input.data)) return null;
+  const raw = input.data;
   const db = await createClient();
   const [locations, unit] = await Promise.all([loadLocations(db, member.orgId), lookupVin(db, member.orgId, normalizeVin(raw)!)]);
   const factory = new Set(locations.filter((l) => l.is_factory).map((l) => l.id));
