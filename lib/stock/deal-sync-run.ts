@@ -28,8 +28,11 @@ export interface DealSyncStore {
   insert(row: StockDealFields): Promise<'ok' | 'conflict'>;
   /** 'conflict' on a unique violation, or when a year/number change finds the deal no longer awaiting dispatch. */
   update(id: string, patch: Partial<StockDealFields>): Promise<'ok' | 'conflict'>;
-  /** Removes the deal only while it still awaits dispatch without a unit. */
-  remove(id: string): Promise<void>;
+  /**
+   * Removes the deal only while it is untouched (awaiting dispatch, never had a unit, no dismissal history), checked
+   * in the same statement as the delete. True when it was removed.
+   */
+  remove(id: string): Promise<boolean>;
 }
 
 const isReadable = (e: DealEntry | UnreadableEntry): e is DealEntry => !('unreadable' in e);
@@ -61,8 +64,9 @@ export async function applyDealEntry(
       else counts.conflicts += 1;
       return;
     case 'remove':
-      await store.remove(plan.id);
-      counts.removed += 1;
+      // Touched meanwhile (dismissed, dispatched or relinked): kept.
+      if (await store.remove(plan.id)) counts.removed += 1;
+      else counts.unchanged += 1;
       return;
     case 'noop':
       if (plan.reason === 'out_of_scope') counts.skipped += 1;

@@ -153,8 +153,10 @@ function memoryStore(opts: { dealsFrom?: string | null; entries?: Array<DealEntr
     },
     async remove(dealId) {
       const d = deals.get(dealId);
-      if (d && d.status === 'awaiting_dispatch' && !d.unit_id) deals.delete(dealId);
       writes.push(`remove ${dealId}`);
+      if (!d || d.status !== 'awaiting_dispatch' || d.unit_id || d.hasHistory) return false;
+      deals.delete(dealId);
+      return true;
     },
   };
   return store;
@@ -235,6 +237,15 @@ describe('backfillDeals (stock.deals-backfill)', () => {
     const r = await backfillDeals(store, { budgetMs: 60_000 });
     expect(r).toMatchObject({ removed: 1, unchanged: 1, failed: 1, complete: true });
     expect([...store.deals.keys()]).toEqual([id(9002)]);
+  });
+
+  it('keeps a deal the store refuses to remove (touched between the read and the delete)', async () => {
+    const store = memoryStore({ dealsFrom: '2026-02-01', entries: [entry(1, { DATECREATED: '2026-01-05' })], deals: [existing(1)] });
+    // A dismissal lands after the sync read the deal: the one-statement remove sees it and keeps the deal.
+    const remove = store.remove.bind(store);
+    store.remove = async (dealId) => { store.deals.get(dealId)!.hasHistory = true; return remove(dealId); };
+    expect(await backfillDeals(store, { budgetMs: 60_000 })).toMatchObject({ removed: 0, unchanged: 1 });
+    expect(store.deals.has(id(9001))).toBe(true);
   });
 
   it('does nothing when no start date is set', async () => {

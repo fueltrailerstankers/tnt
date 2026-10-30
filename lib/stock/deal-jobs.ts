@@ -102,9 +102,10 @@ export function supabaseDealStore(db: SupabaseClient, orgId: string): DealSyncSt
       return data?.length ? 'ok' : 'conflict';
     },
     async remove(id) {
-      const { error } = await db.from('stock_deals').delete()
-        .eq('org_id', orgId).eq('id', id).eq('status', 'awaiting_dispatch').is('unit_id', null);
+      // One statement re-checks the row and its history (dismissals, unit, stock audit rows): 0016.
+      const { data, error } = await db.rpc('stock_remove_untouched_deal', { p_org: orgId, p_deal: id });
       if (error) throw new Error(`stock deal not removed (${error.code ?? 'error'})`);
+      return data === true;
     },
   };
 }
