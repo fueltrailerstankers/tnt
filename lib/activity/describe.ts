@@ -34,7 +34,7 @@ export const FILTER_AREAS = AREAS.filter((a) => AREA_ACTIONS[a]);
 /** Suggestions for the action filter (any action can be typed). */
 export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
-  'user.invite_resend', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
+  'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
   'form.public_link', 'entry.status', 'entry.delete', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
   'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
   'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
@@ -62,10 +62,11 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'auth.sign_in': text = said(m.method === 'link' ? 'signed in with an invite or sign-in link' : 'signed in'); break;
     case 'auth.sign_out': text = said('signed out'); break;
     case 'auth.sign_in_failed': text = target ? `Failed sign-in for ${target}` : 'Failed sign-in for an unknown account'; break;
-    case 'auth.password': text = said('changed their password'); break;
+    case 'auth.password': text = said(m.first ? 'replaced their temporary password' : 'changed their password'); break;
     case 'user.accept': text = said('accepted the invite and set a password'); break;
     case 'user.name': text = said('changed their name'); break;
     case 'user.invite': text = said(`invited ${target ?? 'a member'}${str(m.preset) ? ` as ${label(str(m.preset)!)}` : ''}`); break;
+    case 'user.add': text = said(`added ${target ?? 'a member'}${str(m.preset) ? ` as ${label(str(m.preset)!)}` : ''} with a temporary password`); break;
     case 'user.invite_link': text = said(`created an invite link for ${target ?? 'a member'}`); break;
     case 'user.invite_resend': text = said(`resent the invite to ${target ?? 'a member'}`); break;
     case 'user.update': text = said(`changed ${target ?? 'a member'}: ${changeSummary(m)}`); break;

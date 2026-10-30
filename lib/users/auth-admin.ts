@@ -45,6 +45,13 @@ export async function createLink(admin: SupabaseClient, email: string, name: str
   return { userId: res.data.user.id, link: confirmLink(appEnv().APP_URL, token, type) };
 }
 
+/** Creates a confirmed account with a temporary password (Add user). No email is sent. */
+export async function createAccount(admin: SupabaseClient, email: string, password: string, name: string): Promise<{ userId: string } | AuthFail> {
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: name } });
+  if (error) return { error: isExists(error) ? 'exists' : 'auth' };
+  return data.user ? { userId: data.user.id } : { error: 'auth' };
+}
+
 /** Bans or unbans the account in Supabase Auth. */
 export async function setBanned(admin: SupabaseClient, userId: string, banned: boolean): Promise<boolean> {
   const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: banned ? BAN : 'none' });

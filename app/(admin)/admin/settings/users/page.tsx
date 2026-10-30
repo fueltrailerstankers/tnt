@@ -30,7 +30,12 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-fg-muted">{members.length} {members.length === 1 ? 'member' : 'members'}. Each has an access level per menu: None, Read or Write.</p>
-        {manage ? <Link href="/admin/settings/users/invite" className={buttonClass('primary', 44)}>Invite user</Link> : null}
+        {manage ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/settings/users/invite" className={buttonClass('primary', 44)}>Invite user</Link>
+            <Link href="/admin/settings/users/add" className={buttonClass('secondary', 44)}>Add user</Link>
+          </div>
+        ) : null}
       </div>
 
       <div className={tableWrapClass}>

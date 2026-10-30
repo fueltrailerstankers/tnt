@@ -31,6 +31,36 @@ export type EditInput = z.infer<typeof EditInput>;
 
 export const NameInput = z.object({ name });
 
+/** Temporary passwords for Add user: at least 12 characters, or generated (shown once). */
+export const TEMP_PASSWORD_MIN = 12;
+export const AddInput = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  name,
+  role: z.enum(ROLES),
+  branch,
+  password: z.string().max(200).optional(),
+  generate: z.boolean(),
+}).superRefine((v, ctx) => {
+  if (!v.generate && (v.password ?? '').length < TEMP_PASSWORD_MIN) ctx.addIssue({ code: 'custom', path: ['password'], message: 'short' });
+});
+export type AddInput = z.infer<typeof AddInput>;
+
+const PW_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+/** A random temporary password (no look-alike characters), from Web Crypto. */
+export function generatePassword(length = 16): string {
+  const out: string[] = [];
+  const buf = new Uint32Array(1);
+  while (out.length < length) {
+    crypto.getRandomValues(buf);
+    // Rejection sampling: no modulo bias.
+    if (buf[0] < Math.floor(0x1_0000_0000 / PW_ALPHABET.length) * PW_ALPHABET.length) out.push(PW_ALPHABET[buf[0] % PW_ALPHABET.length]);
+  }
+  return out.join('');
+}
+
+/** What the Add user form shows afterwards. A generated password is shown once and never stored or logged. */
+export interface AddState { status: 'idle' | 'error' | 'done'; error?: string; userId?: string; password?: string }
+
 /** New password (set after an invite, or changed from My account). */
 export const PasswordInput = z.object({
   password: z.string().min(10, 'Use at least 10 characters.').max(200),
@@ -105,6 +135,8 @@ export const ConfirmQuery = z.object({
 /** Error codes the users pages show, in plain words. */
 export const USER_ERRORS: Record<string, string> = {
   input: 'Check the values and try again.',
+  password: `Use a temporary password of at least 12 characters, or generate one.`,
+  account_exists: 'An account with that email already exists. Use Invite user instead.',
   exists: 'That person is already a member of this organisation.',
   self: 'You cannot change your own access, disable or remove yourself. Ask another admin.',
   last_admin: 'The organisation needs at least one active admin.',

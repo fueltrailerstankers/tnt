@@ -25,6 +25,7 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
   const { error } = await searchParams;
   const member = await getMember();
   const invited = member?.status === 'invited';
+  const temporary = member?.status === 'active' && member.mustChangePassword === true;
   const blocked = !member || member.status === 'disabled';
 
   return (
@@ -33,7 +34,7 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
         <div className="-mx-8 -mt-8 mb-2 flex items-center rounded-t-lg bg-side px-8 py-4">
           <Logo variant="on-dark" height={40} />
         </div>
-        <h1 className="text-h1">{invited ? 'Set your password' : 'Change your password'}</h1>
+        <h1 className="text-h1">{invited ? 'Set your password' : temporary ? 'Choose a new password' : 'Change your password'}</h1>
         {blocked ? (
           <>
             <p role="alert" className="rounded-sm bg-status-red-bg p-3 text-body font-semibold text-status-red-fg">
@@ -44,8 +45,9 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
         ) : (
           <form action={setPassword} className="space-y-4">
             {invited ? <p className="text-body text-fg-muted">Welcome. Choose a password to finish setting up your account.</p> : null}
+            {temporary ? <p className="text-body text-fg-muted">You signed in with a temporary password. Choose your own to continue.</p> : null}
             {error ? <p role="alert" className="rounded-sm bg-status-red-bg p-3 text-body font-semibold text-status-red-fg">{ERRORS[error] ?? ERRORS.auth}</p> : null}
-            {!invited ? (
+            {!invited && !temporary ? (
               <div>
                 <Label htmlFor="current">Current password</Label>
                 <Input id="current" name="current" type="password" required autoComplete="current-password" />
@@ -60,8 +62,8 @@ export default async function PasswordPage({ searchParams }: { searchParams: Pro
               <Label htmlFor="confirm">Repeat new password</Label>
               <Input id="confirm" name="confirm" type="password" required minLength={10} maxLength={200} autoComplete="new-password" />
             </div>
-            <button className={buttonClass('primary', 52, 'w-full')}>{invited ? 'Set password and continue' : 'Change password'}</button>
-            {!invited ? <Link href="/admin/account" className="block text-center underline">Back to my account</Link> : null}
+            <button className={buttonClass('primary', 52, 'w-full')}>{invited || temporary ? 'Set password and continue' : 'Change password'}</button>
+            {!invited && !temporary ? <Link href="/admin/account" className="block text-center underline">Back to my account</Link> : null}
           </form>
         )}
       </div>

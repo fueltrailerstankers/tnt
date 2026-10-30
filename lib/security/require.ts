@@ -19,7 +19,7 @@ export const getMember = cache(async (): Promise<Member | null> => {
   if (!auth.user) return null;
   const { data } = await supabase
     .from('memberships')
-    .select('id, org_id, role, branch, access, status, last_seen_at')
+    .select('id, org_id, role, branch, access, status, last_seen_at, must_change_password')
     .eq('user_id', auth.user.id)
     .order('created_at', { ascending: true })
     .limit(1)
@@ -34,6 +34,7 @@ export const getMember = cache(async (): Promise<Member | null> => {
     branch: data.branch,
     access: clampAccess(data.role, data.access as Record<string, unknown> | null),
     status,
+    mustChangePassword: data.must_change_password === true,
   };
 });
 
@@ -55,6 +56,8 @@ async function touchLastSeen(membershipId: string, last: string | null): Promise
 export async function requirePerm(permission: Permission): Promise<Member> {
   const member = await getMember();
   if (!member) redirect('/login');
+  // A temporary password (Add user) must be changed before anything else.
+  if (member.mustChangePassword && member.status === 'active') redirect('/admin/account/password');
   if (!can(member, permission)) forbidden();
   return member;
 }

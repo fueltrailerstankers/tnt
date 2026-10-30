@@ -5,10 +5,10 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createLink, sendInvite, setBanned } from '@/lib/users/auth-admin';
+import { createAccount, createLink, sendInvite, setBanned } from '@/lib/users/auth-admin';
 import {
-  accessChanges, accessFromForm, changeError, EditInput, enabledStatus, InviteInput, resolveAccess,
-  type InviteState, type LinkResult,
+  accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, InviteInput, resolveAccess,
+  type AddState, type InviteState, type LinkResult,
 } from '@/lib/users/rules';
 import { audit, loadMember, otherActiveAdmins } from '@/lib/users/service';
 
@@ -82,6 +82,37 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
   if (link) await audit(member.orgId, member.userId, 'user.invite_link', userId);
   revalidatePath('/admin/settings/users');
   return { status: 'done', userId, link, sent };
+}
+
+/**
+ * Add user: creates a confirmed account with a temporary password (typed, at least 12 characters, or generated and
+ * shown once) and an active membership that must change the password on first sign-in. Existing accounts are
+ * refused (invite them instead). Audited without the email or password.
+ */
+export async function addUser(_prev: AddState, fd: FormData): Promise<AddState> {
+  const member = await requirePerm('users.manage');
+  const parsed = AddInput.safeParse({
+    email: str(fd, 'email'), name: str(fd, 'name'), role: str(fd, 'role'), branch: str(fd, 'branch') ?? null,
+    password: str(fd, 'password') || undefined, generate: fd.get('generate') === 'on',
+  });
+  if (!parsed.success) return { status: 'error', error: parsed.error.issues.some((i) => i.path[0] === 'password') ? 'password' : 'input' };
+  if (!(await validBranch(member.orgId, parsed.data.branch))) return { status: 'error', error: 'input' };
+  const { email, name, role, branch, generate } = parsed.data;
+  if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only' };
+  const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
+  const password = generate ? generatePassword() : parsed.data.password!;
+  const admin = createAdminClient();
+  const made = await createAccount(admin, email, password, name);
+  if ('error' in made) return { status: 'error', error: made.error === 'exists' ? 'account_exists' : 'auth' };
+  await admin.from('profiles').upsert({ id: made.userId, email, full_name: name }, { onConflict: 'id', ignoreDuplicates: true });
+  const { error } = await admin.from('memberships').insert({
+    org_id: member.orgId, user_id: made.userId, role, access, status: 'active', must_change_password: true,
+    invited_by: member.userId, invited_at: new Date().toISOString(), display_name: name, branch,
+  });
+  if (error) return { status: 'error', error: 'auth' };
+  await audit(member.orgId, member.userId, 'user.add', made.userId, { preset, access, generated: generate });
+  revalidatePath('/admin/settings/users');
+  return { status: 'done', userId: made.userId, password: generate ? password : undefined };
 }
 
 export async function saveUser(userId: string, fd: FormData): Promise<void> {

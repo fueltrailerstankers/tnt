@@ -181,6 +181,8 @@ export interface Member {
   access?: AccessMap;
   /** getMember() always fills it; when absent, a Member built from a role counts as active. */
   status?: MemberStatus;
+  /** Added with a temporary password and not changed yet: the app only lets them change it (requirePerm redirects). */
+  mustChangePassword?: boolean;
 }
 
 /** The member's effective levels (clamped to the role ceiling; admin is all write). */

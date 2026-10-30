@@ -58,7 +58,9 @@ alter table public.memberships
   add column invited_at timestamptz,
   add column accepted_at timestamptz,
   add column disabled_at timestamptz,
-  add column last_seen_at timestamptz;
+  add column last_seen_at timestamptz,
+  -- Added with a temporary password (Add user): the app sends them to /admin/account/password until they change it.
+  add column must_change_password boolean not null default false;
 
 -- Fills and normalises access and preset on every write, so the stored map is always the effective one and a
 -- membership inserted with only a role (create-admin, older code) gets that role's preset.

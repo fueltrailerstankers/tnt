@@ -21,7 +21,8 @@ export async function setPassword(fd: FormData): Promise<void> {
   const parsed = PasswordInput.safeParse({ password: fd.get('password'), confirm: fd.get('confirm') });
   if (!parsed.success) redirect(`${ACCEPT_PATH}?error=${parsed.error.issues[0]?.path[0] === 'confirm' ? 'mismatch' : 'short'}`);
 
-  if (member.status === 'active') {
+  // A temporary password (Add user) was just used to sign in: no need to type it again.
+  if (member.status === 'active' && !member.mustChangePassword) {
     const current = fd.get('current');
     const ok = typeof current === 'string' && current.length > 0 && current.length <= 200 && auth.user.email
       ? !(await supabase.auth.signInWithPassword({ email: auth.user.email, password: current })).error
@@ -35,6 +36,11 @@ export async function setPassword(fd: FormData): Promise<void> {
     await createAdminClient().from('memberships').update({ status: 'active', accepted_at: new Date().toISOString() })
       .eq('org_id', member.orgId).eq('user_id', member.userId).eq('status', 'invited');
     await audit(member.orgId, member.userId, 'user.accept', member.userId);
+    redirect('/admin');
+  }
+  if (member.mustChangePassword) {
+    await createAdminClient().from('memberships').update({ must_change_password: false }).eq('org_id', member.orgId).eq('user_id', member.userId);
+    await audit(member.orgId, member.userId, 'auth.password', member.userId, { first: true });
     redirect('/admin');
   }
   await audit(member.orgId, member.userId, 'auth.password', member.userId);

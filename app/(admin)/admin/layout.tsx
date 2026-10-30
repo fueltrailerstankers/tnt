@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const member = await getMember();
-  // Signed in from an invite link but no password yet: finish accepting first (that page is outside this layout).
-  if (member?.status === 'invited') redirect(ACCEPT_PATH);
+  // Signed in from an invite link but no password yet, or still on a temporary password (Add user): set one first
+  // (that page is outside this layout).
+  if (member?.status === 'invited' || (member?.status === 'active' && member.mustChangePassword)) redirect(ACCEPT_PATH);
   if (!member || !can(member, 'admin.access')) {
     // Signed in (middleware guarantees it) but without a membership, disabled, or with no area at all.
     const message = member?.status === 'disabled'
