@@ -61,4 +61,6 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Stock deals exist only for DEALs dated on/after app_settings `stock.deals_from`; unset = none. "Rebuild deals" = `enqueueDealsBackfill`.
 - Deals and Dispatch pages read through the caller's RLS (`lib/stock/lookup.ts`) and write only through the stock RPCs called as the signed-in user after `requirePerm` (the RPCs write the audit rows). Copy lives in `lib/stock/deals-view.ts` / `lib/stock/dispatch.ts`; error copy in `lib/stock/errors.ts`.
 - Dispatch success redirects to `/admin/stock/units?q=VIN&saved=dispatch|move`; `savedNotice()` gives the confirmation text.
+- Outbox handlers get an optional `{ deadline }` (from `drain()`); long jobs cap their budget to it. `tests/unit/fake-supabase.ts` is an in-memory supabase-js stand-in for unit-testing jobs and stores (logs every query's filters).
+- The e2e stub answers 416 (PGRST103) for a counted range past the last row, as PostgREST does.
 - e2e `tests/e2e/stock-dispatch.spec.ts` switches the admin's membership to `factory` for the phone test and restores it in `finally`.
