@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import { z } from 'zod';
 import { getMember } from '@/lib/security/require';
 import { safeNext } from '@/lib/security/safe-next';
@@ -21,7 +22,9 @@ export async function signIn(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   // Same message for every failure so the form does not reveal which accounts exist.
   if (error || !data.user) {
-    await auditSignInFailed(parsed.data.email);
+    // After the response: the audit's account lookup must not make known and unknown emails answer at different speeds.
+    const email = parsed.data.email;
+    after(() => auditSignInFailed(email));
     redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
   }
   await auditSignIn(data.user.id, 'password');

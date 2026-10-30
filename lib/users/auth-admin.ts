@@ -29,20 +29,15 @@ export async function sendInvite(admin: SupabaseClient, email: string, name: str
 }
 
 /**
- * A copyable sign-in link for an invited person, without sending email: an invite link for a new or not yet
- * confirmed account, a magic link for an account that already exists (e.g. a member of another org).
+ * A copyable invite link, without sending email, for a NEW account only. An account that already exists answers
+ * 'exists' and never gets a link: a sign-in link for someone else's account would hand it to the inviter.
  */
 export async function createLink(admin: SupabaseClient, email: string, name: string): Promise<{ userId: string; link: string } | AuthFail> {
-  const options = { data: { full_name: name }, redirectTo: inviteRedirect() };
-  let type: 'invite' | 'magiclink' = 'invite';
-  let res = await admin.auth.admin.generateLink({ type, email, options });
-  if (res.error && isExists(res.error)) {
-    type = 'magiclink';
-    res = await admin.auth.admin.generateLink({ type, email, options: { redirectTo: options.redirectTo } });
-  }
+  const res = await admin.auth.admin.generateLink({ type: 'invite', email, options: { data: { full_name: name }, redirectTo: inviteRedirect() } });
+  if (res.error) return { error: isExists(res.error) ? 'exists' : 'auth' };
   const token = res.data?.properties?.hashed_token;
-  if (res.error || !res.data?.user || !token) return { error: 'auth' };
-  return { userId: res.data.user.id, link: confirmLink(appEnv().APP_URL, token, type) };
+  if (!res.data?.user || !token) return { error: 'auth' };
+  return { userId: res.data.user.id, link: confirmLink(appEnv().APP_URL, token) };
 }
 
 /** Creates a confirmed account with a temporary password (Add user). No email is sent. */

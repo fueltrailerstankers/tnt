@@ -321,3 +321,56 @@ describe('stock RPC gate follows the access map', () => {
     await expect(as(db, 'authenticated', PROBE, () => db.query(`select * from public.stock_dismiss_deal($1, $2, 'x')`, [ORG, deal]))).rejects.toThrow(/FORBIDDEN/);
   });
 });
+
+describe('security review fixes (0021)', () => {
+  it('L1: a member still on a temporary password reads nothing and cannot call the stock RPCs', async () => {
+    await setProbe({ forms: 'write', stock: 'write', settings: 'read' });
+    await db.query(`update public.memberships set must_change_password = true where org_id = $1 and user_id = $2`, [ORG, PROBE]);
+    try {
+      expect(await as(db, 'authenticated', PROBE, async () => (await db.query(`select public.has_access($1, 'forms', 'read') as ok, public.is_org_member($1) as m`, [ORG])).rows[0]))
+        .toEqual({ ok: false, m: false });
+      expect(await count(PROBE, `select count(*) as n from public.entries where org_id = $1`, [ORG])).toBe(0);
+      // Their own membership row stays readable (the app needs it to send them to the password page).
+      expect(await count(PROBE, `select count(*) as n from public.memberships where user_id = $1`, [PROBE])).toBe(1);
+      await expect(as(db, 'authenticated', PROBE, () => db.query(`select * from public.stock_dispatch_unit($1, 'M7TEMPPWVIN000001', '3000D', 'JHB')`, [ORG]))).rejects.toThrow(/FORBIDDEN/);
+    } finally {
+      await db.query(`update public.memberships set must_change_password = false where org_id = $1 and user_id = $2`, [ORG, PROBE]);
+    }
+  });
+
+  it('L2: app_settings need Settings read; stock.* keys also Stock read, xero.action.* keys Integrations read', async () => {
+    await db.query(`insert into public.app_settings(org_id, key, value) values ($1, 'stock.deals_from', '"2026-01-01"'), ($1, 'xero.action.rfi_invoice', '"off"'), ($1, 'leads.invoice_match_from', '"2026-01-01"') on conflict do nothing`, [ORG]);
+    const keys = (user: string) => as(db, 'authenticated', user, async () =>
+      (await db.query(`select key from public.app_settings where org_id = $1 order by key`, [ORG])).rows.map((r) => r.key as string));
+    await setProbe({ home: 'read', forms: 'write', leads: 'write' });
+    expect(await keys(PROBE)).toEqual([]);
+    await setProbe({ stock: 'read' });
+    expect(await keys(PROBE)).toEqual(['stock.deals_from']);
+    await setProbe({ integrations: 'read' });
+    expect(await keys(PROBE)).toEqual(['xero.action.rfi_invoice']);
+    await setProbe({ settings: 'read' });
+    expect(await keys(PROBE)).toEqual(['leads.invoice_match_from', 'stock.deals_from', 'xero.action.rfi_invoice']);
+  });
+
+  it('the 0016/0017/0019 stock RPCs survive 0021 (only the role gate is redefined)', async () => {
+    const fns = (await db.query(`select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname in ('stock_move_unit', 'stock_correct_unit', 'stock_apply_invoice', 'stock_remove_untouched_deal') order by 1`)).rows.map((r) => r.f as string);
+    expect(fns.some((f) => f.startsWith('stock_move_unit(') && f.includes('p_expected_updated_at'))).toBe(true);
+    expect(fns.some((f) => f.startsWith('stock_correct_unit(') && f.includes('p_expected_updated_at'))).toBe(true);
+    expect(fns.some((f) => f.startsWith('stock_apply_invoice(') && f.includes('p_source_updated'))).toBe(true);
+    expect(fns.some((f) => f.startsWith('stock_remove_untouched_deal('))).toBe(true);
+
+    // Expected-version check (0017) still runs after the 0021 gate: a stale timestamp is refused for an admin.
+    const unit = (await db.query(`select id from public.stock_units where org_id = $1 limit 1`, [ORG])).rows[0].id;
+    await expect(as(db, 'authenticated', ADMIN, () => db.query(`select * from public.stock_correct_unit($1, $2, '{"notes":"x"}'::jsonb, '2000-01-01T00:00:00Z')`, [ORG, unit])))
+      .rejects.toThrow(/UNIT_CHANGED/);
+    // The gate in front of it follows the access map: staff with Stock read is refused before the version check.
+    await setProbe({ stock: 'read' });
+    await expect(as(db, 'authenticated', PROBE, () => db.query(`select * from public.stock_move_unit($1, $2, 'CPT', 'x', null, null, '2000-01-01T00:00:00Z')`, [ORG, unit])))
+      .rejects.toThrow(/FORBIDDEN/);
+    // Manual invoice (0019 seven-argument version): admin-only, inactive or non-admin refused.
+    await setProbe({ stock: 'write', invoices: 'read' });
+    await expect(as(db, 'authenticated', PROBE, () => db.query(`select public.stock_apply_invoice($1, 'INV-M7-9', null, 'M7TESTVIN00000001', 'sold', 'manual', null)`, [ORG])))
+      .rejects.toThrow(/FORBIDDEN/);
+  });
+});

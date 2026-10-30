@@ -6,6 +6,7 @@ import {
   AREA_LABELS, AREAS, clampAccess, LEVEL_LABELS, LEVELS, PRESET_ACCESS, presetOf, ROLE_CEILING, ROLE_LABELS, ROLES,
   type AccessMap, type Area, type Level, type Role,
 } from '@/lib/security/can';
+import { ADMIN_GRANTED_WRITE } from '@/lib/users/rules';
 
 const HINTS: Partial<Record<Area, string>> = {
   tasks: 'Tasks open entries, so they also need Forms read.',
@@ -68,7 +69,9 @@ export function AccessMatrix({ initialRole, initialAccess, lockedReason, allowAd
               <div className="inline-flex rounded-pill border border-border bg-surface-2 p-0.5">
                 {LEVELS.map((l: Level) => {
                   const on = access[a] === l;
-                  const disabled = locked || role === 'admin' || (capped && l !== 'none');
+                  // Write on Users, Integrations and Settings is granted by admins only (it can be kept or lowered).
+                  const adminGrant = !allowAdmin && l === 'write' && ADMIN_GRANTED_WRITE.includes(a) && initialAccess[a] !== 'write';
+                  const disabled = locked || role === 'admin' || (capped && l !== 'none') || adminGrant;
                   return (
                     <label
                       key={l}

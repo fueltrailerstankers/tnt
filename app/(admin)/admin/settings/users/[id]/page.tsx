@@ -75,7 +75,7 @@ export default async function UserDetail({ params, searchParams }: { params: Pro
           <h2 className="text-h2">Manage</h2>
           <div className="flex flex-wrap gap-2">
             <Link href={`/admin/settings/users/${target.userId}/edit`} className={buttonClass('primary', 44)}>Edit access</Link>
-            {target.status === 'invited' ? (
+            {target.status === 'invited' && target.inviteNewAccount ? (
               <form action={resendInvite.bind(null, target.userId)}><button className={buttonClass('secondary', 44)}>Resend invite</button></form>
             ) : null}
             {!self && target.status !== 'disabled' ? (
@@ -85,7 +85,8 @@ export default async function UserDetail({ params, searchParams }: { params: Pro
               <form action={enableUser.bind(null, target.userId)}><button className={buttonClass('secondary', 44)}>Enable</button></form>
             ) : null}
           </div>
-          {target.status === 'invited' ? <InviteLinkButton userId={target.userId} /> : null}
+          {target.status === 'invited' && target.inviteNewAccount ? <InviteLinkButton userId={target.userId} /> : null}
+          {target.status === 'invited' && !target.inviteNewAccount ? <p className="text-fg-muted">This person already had an account: they accept by signing in with their own password. No invite link is made for existing accounts.</p> : null}
           {!self ? (
             <details className="rounded-sm border border-border p-3">
               <summary className="cursor-pointer font-semibold">Remove from organisation</summary>

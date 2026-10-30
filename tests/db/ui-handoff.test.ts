@@ -181,6 +181,8 @@ describe('saved_views', () => {
     expect(before).toBe(1);
     await db.query('begin');
     try {
+      // 0021: the org must keep an active admin, so another member takes over first (rolled back).
+      await db.query(`update public.memberships set role = 'admin' where org_id = $1 and user_id = $2`, [ORG_A, STAFF_A]);
       await db.query(`delete from public.memberships where org_id = $1 and user_id = $2`, [ORG_A, ADMIN_A]);
       await db.query(`set local role authenticated`);
       await db.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: ADMIN_A, role: 'authenticated' })]);

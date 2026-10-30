@@ -21,13 +21,18 @@ export interface MemberView {
   lastSeenAt: string | null;
   lastSignInAt: string | null;
   createdAt: string;
+  /** The invite created a brand-new account (only those get invite emails and links). */
+  inviteNewAccount: boolean;
+  inviteVerifiedAt: string | null;
+  mustChangePassword: boolean;
 }
 
-const COLUMNS = 'user_id, role, preset, access, status, display_name, branch, invited_at, accepted_at, disabled_at, last_seen_at, created_at';
+const COLUMNS = 'user_id, role, preset, access, status, display_name, branch, invited_at, accepted_at, disabled_at, last_seen_at, created_at, invite_new_account, invite_verified_at, must_change_password';
 
 interface Row {
   user_id: string; role: string; preset: string; access: Record<string, unknown> | null; status: string; display_name: string | null;
   branch: string | null; invited_at: string | null; accepted_at: string | null; disabled_at: string | null; last_seen_at: string | null; created_at: string;
+  invite_new_account: boolean | null; invite_verified_at: string | null; must_change_password: boolean | null;
 }
 interface Profile { id: string; full_name: string | null; email: string | null }
 
@@ -39,6 +44,7 @@ function view(r: Row, p: Profile | undefined, lastSignInAt: string | null): Memb
     userId: r.user_id, role: r.role, preset: r.preset, access: clampAccess(r.role, r.access), status: statusOf(r.status),
     name: r.display_name || p?.full_name || p?.email || 'Member', email: p?.email ?? null, branch: r.branch,
     invitedAt: r.invited_at, acceptedAt: r.accepted_at, disabledAt: r.disabled_at, lastSeenAt: r.last_seen_at, lastSignInAt, createdAt: r.created_at,
+    inviteNewAccount: r.invite_new_account === true, inviteVerifiedAt: r.invite_verified_at, mustChangePassword: r.must_change_password === true,
   };
 }
 
@@ -93,6 +99,12 @@ export async function memberNames(orgId: string): Promise<Map<string, string>> {
   const full = new Map(((profiles ?? []) as Array<{ id: string; full_name: string | null }>).map((p) => [p.id, p.full_name]));
   return new Map(((rows ?? []) as Array<{ user_id: string; display_name: string | null }>)
     .map((r) => [r.user_id, r.display_name || full.get(r.user_id) || 'Member']));
+}
+
+/** The user's memberships in other orgs (service role): ban and link decisions must not reach across orgs. */
+export async function otherMemberships(orgId: string, userId: string): Promise<Array<{ org_id: string; status: string }>> {
+  const { data } = await createAdminClient().from('memberships').select('org_id, status').eq('user_id', userId).neq('org_id', orgId);
+  return (data ?? []) as Array<{ org_id: string; status: string }>;
 }
 
 /** Appends an audit row. Ids and codes only: never emails, names, links or tokens. */

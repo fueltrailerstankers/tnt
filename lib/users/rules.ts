@@ -71,6 +71,27 @@ export interface MemberState { userId: string; role: Role; access: AccessMap; st
 
 export type GuardError = 'self' | 'last_admin' | 'admin_only';
 
+/** Areas whose Write only an admin may grant: they control users, the org's settings and the Xero integration. */
+export const ADMIN_GRANTED_WRITE: readonly Area[] = ['users', 'integrations', 'settings'];
+
+/** True when a non-admin would grant Write on an admin-granted area the member did not already have. */
+export function grantsAdminOnlyWrite(actorRole: Role, before: AccessMap | null, next: AccessMap): boolean {
+  return actorRole !== 'admin' && ADMIN_GRANTED_WRITE.some((a) => next[a] === 'write' && before?.[a] !== 'write');
+}
+
+/** How long after the invite link is verified a new account may set its first password without a current one. */
+export const INVITE_ACCEPT_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * How an invited member accepts: 'new' (set a first password, no current one) only for an invite that created a
+ * brand-new account and whose link was verified within the window; otherwise 'existing' (prove the account with
+ * its current password; the password is not changed).
+ */
+export function acceptMode(m: { inviteNewAccount: boolean; inviteVerifiedAt: string | null }, now = Date.now()): 'new' | 'existing' {
+  const at = m.inviteVerifiedAt ? Date.parse(m.inviteVerifiedAt) : NaN;
+  return m.inviteNewAccount && Number.isFinite(at) && now - at >= 0 && now - at <= INVITE_ACCEPT_WINDOW_MS ? 'new' : 'existing';
+}
+
 const isActiveAdmin = (m: Pick<MemberState, 'role' | 'status'>) => m.role === 'admin' && m.status === 'active';
 
 /**
@@ -84,11 +105,20 @@ const isActiveAdmin = (m: Pick<MemberState, 'role' | 'status'>) => m.role === 'a
 export function changeError(actor: { userId: string; role: Role }, before: MemberState, next: MemberState | null, otherActiveAdmins: number): GuardError | null {
   const actorId = actor.userId;
   if (actor.role !== 'admin' && (before.role === 'admin' || next?.role === 'admin')) return 'admin_only';
+  if (next && grantsAdminOnlyWrite(actor.role, before.access, next.access)) return 'admin_only';
   if (before.userId === actorId) {
     if (!next || next.role !== before.role || next.status !== before.status || !sameAccess(next.access, before.access)) return 'self';
   }
   if (isActiveAdmin(before) && (!next || !isActiveAdmin(next)) && otherActiveAdmins < 1) return 'last_admin';
   return null;
+}
+
+/**
+ * Whether an account-wide Auth ban may change. 'disable': ban only when no other org has the person active.
+ * 'lift' (enable or remove): unban only when no other org keeps them disabled.
+ */
+export function banDecision(kind: 'disable' | 'lift', others: ReadonlyArray<{ status: string }>): boolean {
+  return kind === 'disable' ? !others.some((o) => o.status === 'active') : !others.some((o) => o.status === 'disabled');
 }
 
 /** Status after Enable: active once the invite was accepted, else back to invited. */
@@ -117,15 +147,16 @@ export const ACCEPT_PATH = '/admin/account/password';
  * A link straight to /auth/confirm from a generateLink() hashed token, so a copied link does not depend on the Auth
  * server's redirect allow-list or email template. Never logged or stored.
  */
-export function confirmLink(appUrl: string, hashedToken: string, type: 'invite' | 'magiclink'): string {
+export function confirmLink(appUrl: string, hashedToken: string): string {
   const u = new URL('/auth/confirm', appUrl);
   u.searchParams.set('token_hash', hashedToken);
-  u.searchParams.set('type', type);
+  u.searchParams.set('type', 'invite');
   u.searchParams.set('next', ACCEPT_PATH);
   return u.toString();
 }
 
-export const OTP_TYPES = ['invite', 'magiclink', 'recovery', 'email', 'signup'] as const;
+/** Only invite links are accepted (no magic links: an inviter must never be able to sign in as someone else). */
+export const OTP_TYPES = ['invite'] as const;
 export type OtpType = (typeof OTP_TYPES)[number];
 export const ConfirmQuery = z.object({
   token_hash: z.string().min(6).max(200).regex(/^[A-Za-z0-9_-]+$/),
@@ -140,7 +171,9 @@ export const USER_ERRORS: Record<string, string> = {
   exists: 'That person is already a member of this organisation.',
   self: 'You cannot change your own access, disable or remove yourself. Ask another admin.',
   last_admin: 'The organisation needs at least one active admin.',
-  admin_only: 'Only an admin can invite, change, disable or remove an admin.',
+  admin_only: 'Only an admin can invite, change, disable or remove an admin, or give Write on Users, Integrations or Settings.',
+  existing_account: 'This person already has an account: no invite link is made for it. They sign in with their own password and accept the invitation.',
+  account_unlinked: 'That email already has an account that is not linked to this app. Ask an admin to check it in Supabase Auth.',
   auth: 'The sign-in service refused the request. Try again, or use Copy invite link.',
   email: 'The invite email could not be sent. Use Copy invite link instead.',
   not_found: 'That member was not found.',

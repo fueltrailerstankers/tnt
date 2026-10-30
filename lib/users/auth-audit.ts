@@ -1,5 +1,7 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import { appEnv } from '@/lib/env';
+import { rateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { audit } from './service';
 
@@ -30,8 +32,19 @@ export async function auditSignOut(orgId: string, userId: string): Promise<void>
   }
 }
 
+/** At most this many failed-sign-in rows per account (or unknown email) per window, and per server instance overall. */
+export const FAILED_PER_ACCOUNT = 5;
+export const FAILED_OVERALL = 100;
+const WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Records a failed sign-in. Rate limited (a password-guessing run cannot flood the log). Call it after the response
+ * (next/server after()) so neither the lookup nor the insert shows in the sign-in timing.
+ */
 export async function auditSignInFailed(email: string): Promise<void> {
   try {
+    const key = createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
+    if (!rateLimit(`signin-failed:${key}`, FAILED_PER_ACCOUNT, WINDOW_MS) || !rateLimit('signin-failed:all', FAILED_OVERALL, WINDOW_MS)) return;
     const { data: p } = await createAdminClient().from('profiles').select('id').eq('email', email.trim().toLowerCase()).maybeSingle();
     const userId = (p?.id as string | undefined) ?? null;
     const org = userId ? await orgOf(userId) : null;

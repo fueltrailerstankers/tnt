@@ -7,10 +7,10 @@ import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createAccount, createLink, sendInvite, setBanned } from '@/lib/users/auth-admin';
 import {
-  accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, InviteInput, resolveAccess,
+  accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, banDecision, grantsAdminOnlyWrite, InviteInput, resolveAccess,
   type AddState, type InviteState, type LinkResult,
 } from '@/lib/users/rules';
-import { audit, loadMember, otherActiveAdmins } from '@/lib/users/service';
+import { audit, loadMember, otherActiveAdmins, otherMemberships } from '@/lib/users/service';
 
 // Users & access server actions. Each one: requirePerm('users.manage') first, Zod validation, then the service-role
 // client with every query filtered by member.orgId. Audit rows carry ids and codes only (never emails, names or
@@ -41,13 +41,29 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
   const { email, name, role, branch, method } = parsed.data;
   if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only', values: echo(fd) };
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
+  if (grantsAdminOnlyWrite(member.role, null, access)) return { status: 'error', error: 'admin_only', values: echo(fd) };
   const admin = createAdminClient();
+  const fail = (error: string): InviteState => ({ status: 'error', error, values: echo(fd) });
+  const memberships = async (userId: string) =>
+    ((await admin.from('memberships').select('org_id').eq('user_id', userId)).data ?? []) as Array<{ org_id: string }>;
+  const addMembership = async (userId: string, newAccount: boolean) => (await admin.from('memberships').insert({
+    org_id: member.orgId, user_id: userId, role, access, status: 'invited', invited_by: member.userId,
+    invited_at: new Date().toISOString(), display_name: name, branch, invite_new_account: newAccount,
+  })).error;
 
-  const isMember = async (userId: string) =>
-    Boolean((await admin.from('memberships').select('user_id').eq('org_id', member.orgId).eq('user_id', userId).maybeSingle()).data);
+  // An account the app already knows (a member here or elsewhere, a pending invite, a removed member): never make a
+  // link or email for it. They sign in with their own password and accept the invitation (acceptMode 'existing').
   const { data: known } = await admin.from('profiles').select('id').eq('email', email).maybeSingle();
-  if (known && (await isMember(known.id as string))) return { status: 'error', error: 'exists', values: echo(fd) };
+  if (known) {
+    const knownId = known.id as string;
+    if ((await memberships(knownId)).some((m) => m.org_id === member.orgId)) return fail('exists');
+    if (await addMembership(knownId, false)) return fail('auth');
+    await audit(member.orgId, member.userId, 'user.invite', knownId, { preset, access, method: 'existing' });
+    revalidatePath('/admin/settings/users');
+    return { status: 'done', userId: knownId, sent: 'existing' };
+  }
 
+  // A new account: invite email, or a link for the inviter to pass on. Neither is ever made for an existing account.
   let userId: string;
   let link: string | undefined;
   let sent: InviteState['sent'];
@@ -57,28 +73,24 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
       userId = r.userId;
       sent = 'email';
     } else {
-      if (r.error === 'auth') return { status: 'error', error: 'auth', values: echo(fd) };
-      // No email delivery, or the account already exists: hand the admin a link to pass on instead.
-      const l = await createLink(admin, email, name);
-      if ('error' in l) return { status: 'error', error: r.error === 'email' ? 'email' : 'auth', values: echo(fd) };
+      if (r.error === 'exists') return fail('account_unlinked');
+      if (r.error === 'auth') return fail('auth');
+      const l = await createLink(admin, email, name); // email delivery failed: hand over a link instead
+      if ('error' in l) return fail(l.error === 'exists' ? 'account_unlinked' : 'email');
       ({ userId, link } = l);
-      sent = r.error === 'email' ? 'email_failed' : 'existing';
+      sent = 'email_failed';
     }
   } else {
     const l = await createLink(admin, email, name);
-    if ('error' in l) return { status: 'error', error: l.error, values: echo(fd) };
+    if ('error' in l) return fail(l.error === 'exists' ? 'account_unlinked' : 'auth');
     ({ userId, link } = l);
     sent = 'link';
   }
-  if (await isMember(userId)) return { status: 'error', error: 'exists', values: echo(fd) };
+  // Defence in depth: an account that turns out to have a membership anywhere is not new; drop the link.
+  if ((await memberships(userId)).length) return fail('account_unlinked');
 
-  // A new account gets a profile; an existing one keeps its own (the per-org name is the membership's display_name).
   await admin.from('profiles').upsert({ id: userId, email, full_name: name }, { onConflict: 'id', ignoreDuplicates: true });
-  const { error } = await admin.from('memberships').insert({
-    org_id: member.orgId, user_id: userId, role, access, status: 'invited', invited_by: member.userId,
-    invited_at: new Date().toISOString(), display_name: name, branch,
-  });
-  if (error) return { status: 'error', error: 'auth', values: echo(fd) };
+  if (await addMembership(userId, true)) return fail('auth');
   await audit(member.orgId, member.userId, 'user.invite', userId, { preset, access, method: sent });
   if (link) await audit(member.orgId, member.userId, 'user.invite_link', userId);
   revalidatePath('/admin/settings/users');
@@ -101,6 +113,7 @@ export async function addUser(_prev: AddState, fd: FormData): Promise<AddState> 
   const { email, name, role, branch, generate } = parsed.data;
   if (role === 'admin' && member.role !== 'admin') return { status: 'error', error: 'admin_only', values: echo(fd) };
   const { access, preset } = resolveAccess(role, accessFromForm((k) => fd.get(k)));
+  if (grantsAdminOnlyWrite(member.role, null, access)) return { status: 'error', error: 'admin_only', values: echo(fd) };
   const password = generate ? generatePassword() : parsed.data.password!;
   const admin = createAdminClient();
   const made = await createAccount(admin, email, password, name);
@@ -144,6 +157,8 @@ export async function resendInvite(userId: string): Promise<void> {
   if (!target) redirect('/admin/settings/users?error=not_found');
   if (target.status !== 'invited' || !target.email) redirect(userUrl(target.userId, '?error=state'));
   if (target.role === 'admin' && member.role !== 'admin') redirect(userUrl(target.userId, '?error=admin_only'));
+  // Only a brand-new account gets invite emails (an existing account accepts with its own password).
+  if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) redirect(userUrl(target.userId, '?error=existing_account'));
   const r = await sendInvite(createAdminClient(), target.email, target.name);
   if (!('userId' in r)) redirect(userUrl(target.userId, `?error=${r.error === 'exists' ? 'state' : 'email'}`));
   await audit(member.orgId, member.userId, 'user.invite_resend', target.userId);
@@ -157,6 +172,8 @@ export async function inviteLinkFor(userId: string): Promise<LinkResult> {
   if (!target) return { error: 'not_found' };
   if (target.status !== 'invited' || !target.email) return { error: 'state' };
   if (target.role === 'admin' && member.role !== 'admin') return { error: 'admin_only' };
+  // Never a link for an account that exists elsewhere: it would let the inviter sign in as that person.
+  if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) return { error: 'existing_account' };
   const l = await createLink(createAdminClient(), target.email, target.name);
   if ('error' in l || l.userId !== target.userId) return { error: 'auth' };
   await audit(member.orgId, member.userId, 'user.invite_link', target.userId);
@@ -173,8 +190,10 @@ export async function disableUser(userId: string): Promise<void> {
   const { error } = await createAdminClient().from('memberships').update({ status: 'disabled', disabled_at: new Date().toISOString() })
     .eq('org_id', member.orgId).eq('user_id', target.userId);
   if (error) redirect(userUrl(target.userId, `?error=${/LAST_ADMIN/.test(error.message) ? 'last_admin' : 'state'}`));
-  // Banned in Auth too, so refresh tokens stop working; the app already refuses the disabled membership.
-  const banned = await setBanned(createAdminClient(), target.userId, true);
+  // The app refuses the disabled membership on the next request. The Auth ban (refresh tokens stop) is account-wide,
+  // so it applies only when no other org has the person active.
+  const others = await otherMemberships(member.orgId, target.userId);
+  const banned = banDecision('disable', others) ? await setBanned(createAdminClient(), target.userId, true) : false;
   await audit(member.orgId, member.userId, 'user.disable', target.userId, { auth_banned: banned });
   revalidatePath('/admin/settings/users');
   redirect(userUrl(target.userId, '?saved=disabled'));
@@ -189,7 +208,8 @@ export async function enableUser(userId: string): Promise<void> {
   if (err) redirect(userUrl(target.userId, `?error=${err}`));
   await createAdminClient().from('memberships').update({ status: enabledStatus(target.acceptedAt), disabled_at: null })
     .eq('org_id', member.orgId).eq('user_id', target.userId);
-  const unbanned = await setBanned(createAdminClient(), target.userId, false);
+  // Lift the Auth ban only when no other org keeps them disabled (that org's ban must stay).
+  const unbanned = banDecision('lift', await otherMemberships(member.orgId, target.userId)) ? await setBanned(createAdminClient(), target.userId, false) : false;
   await audit(member.orgId, member.userId, 'user.enable', target.userId, { auth_unbanned: unbanned });
   revalidatePath('/admin/settings/users');
   redirect(userUrl(target.userId, '?saved=enabled'));
@@ -206,7 +226,7 @@ export async function removeUser(userId: string, fd: FormData): Promise<void> {
   const { error } = await createAdminClient().from('memberships').delete().eq('org_id', member.orgId).eq('user_id', target.userId);
   if (error) redirect(userUrl(target.userId, `?error=${/LAST_ADMIN/.test(error.message) ? 'last_admin' : 'state'}`));
   // Without a membership the account has no access; lift a ban from Disable so a later invite works normally.
-  if (target.status === 'disabled') await setBanned(createAdminClient(), target.userId, false);
+  if (target.status === 'disabled' && banDecision('lift', await otherMemberships(member.orgId, target.userId))) await setBanned(createAdminClient(), target.userId, false);
   await audit(member.orgId, member.userId, 'user.remove', target.userId, { preset: target.preset, status: target.status });
   revalidatePath('/admin/settings/users');
   redirect('/admin/settings/users?removed=1');

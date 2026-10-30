@@ -191,13 +191,17 @@ export function accessOf(member: Pick<Member, 'role' | 'access'>): AccessMap {
 }
 
 /** Read level or better for the area (and an active membership). */
+/** Active, on their own password, with a known role. */
+const usable = (member: Member | null | undefined): member is Member =>
+  !!member && (member.status ?? 'active') === 'active' && !member.mustChangePassword && isRole(member.role);
+
 export function canArea(member: Member | null | undefined, area: Area, level: Exclude<Level, 'none'> = 'read'): boolean {
-  if (!member || (member.status ?? 'active') !== 'active' || !isRole(member.role)) return false;
+  if (!usable(member)) return false;
   return atLeast(accessOf(member)[area], level);
 }
 
 export function can(member: Member | null | undefined, permission: Permission): boolean {
-  if (!member || (member.status ?? 'active') !== 'active' || !isRole(member.role)) return false;
+  if (!usable(member)) return false;
   const rule = RULES[permission];
   if (!rule) return false;
   if (member.role === 'admin') return true;

@@ -167,6 +167,11 @@ describe('can: status', () => {
     });
   }
 
+  it('L1: a member still on a temporary password gets nothing until they change it', () => {
+    for (const role of ROLES) expect(PERMISSIONS.filter((p) => can(member(role, { mustChangePassword: true }), p)), role).toEqual([]);
+    expect(canArea(member('admin', { mustChangePassword: true }), 'home')).toBe(false);
+  });
+
   it('an unknown status is refused', () => {
     expect(can(member('admin', { status: 'banned' as MemberStatus }), 'admin.access')).toBe(false);
   });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { areaOf, areaOrFilter, describe as describeRow, filterQuery, hrefFor, parseFilters, toCsv, type AuditRow } from '@/lib/activity/describe';
 import { AREAS, PRESET_ACCESS, type AccessMap } from '@/lib/security/can';
 import {
-  AddInput, accessChanges, accessFromForm, changeError, generatePassword, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
+  AddInput, acceptMode, accessChanges, accessFromForm, banDecision, changeError, generatePassword, grantsAdminOnlyWrite, INVITE_ACCEPT_WINDOW_MS, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
   resolveAccess, type MemberState,
 } from '@/lib/users/rules';
 
@@ -51,12 +51,14 @@ describe('inputs', () => {
   });
 
   it('confirm links go to our /auth/confirm, then the set-password page', () => {
-    const u = new URL(confirmLink('https://app.example.invalid', 'abc123_-', 'invite'));
+    const u = new URL(confirmLink('https://app.example.invalid', 'abc123_-'));
     expect(u.origin + u.pathname).toBe('https://app.example.invalid/auth/confirm');
     expect(Object.fromEntries(u.searchParams)).toEqual({ token_hash: 'abc123_-', type: 'invite', next: '/admin/account/password' });
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123_-', type: 'invite' }).success).toBe(true);
     expect(ConfirmQuery.safeParse({ token_hash: 'a b<script>', type: 'invite' }).success).toBe(false);
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type: 'phone_change' }).success).toBe(false);
+    // L4: invite links only; magic, recovery and signup links are refused.
+    for (const type of ['magiclink', 'recovery', 'email', 'signup']) expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type }).success, type).toBe(false);
   });
 });
 
@@ -81,6 +83,41 @@ describe('add user', () => {
     const row = { id: 1, created_at: '2026-10-01T10:00:00Z', actor_user: 'u-1', action: 'user.add', entity: 'user', entity_id: 'u-2', meta: { preset: 'staff' } };
     expect(describeRow(row, names).text).toBe('Pat Admin added Nia New as Staff with a temporary password');
     expect(describeRow({ ...row, actor_user: 'u-2', action: 'auth.password', meta: { first: true } }, names).text).toBe('Nia New replaced their temporary password');
+  });
+});
+
+describe('security review fixes', () => {
+  it('C1: only a brand-new account invite, verified within the hour, sets a first password without the current one', () => {
+    const now = Date.parse('2026-10-30T12:00:00Z');
+    const at = (ms: number) => new Date(now - ms).toISOString();
+    expect(acceptMode({ inviteNewAccount: true, inviteVerifiedAt: at(60_000) }, now)).toBe('new');
+    expect(acceptMode({ inviteNewAccount: true, inviteVerifiedAt: at(INVITE_ACCEPT_WINDOW_MS + 1) }, now)).toBe('existing');
+    expect(acceptMode({ inviteNewAccount: true, inviteVerifiedAt: null }, now)).toBe('existing');
+    expect(acceptMode({ inviteNewAccount: false, inviteVerifiedAt: at(1000) }, now)).toBe('existing');
+    expect(acceptMode({ inviteNewAccount: true, inviteVerifiedAt: new Date(now + 60_000).toISOString() }, now)).toBe('existing');
+  });
+
+  it('M1: a ban is account-wide, so it follows the other orgs', () => {
+    expect(banDecision('disable', [])).toBe(true);
+    expect(banDecision('disable', [{ status: 'active' }])).toBe(false);
+    expect(banDecision('disable', [{ status: 'disabled' }, { status: 'invited' }])).toBe(true);
+    expect(banDecision('lift', [])).toBe(true);
+    expect(banDecision('lift', [{ status: 'disabled' }])).toBe(false);
+    expect(banDecision('lift', [{ status: 'active' }])).toBe(true);
+  });
+
+  it('M2: only an admin grants Write on Users, Integrations or Settings', () => {
+    const staff = PRESET_ACCESS.staff;
+    for (const area of ['users', 'integrations', 'settings'] as const) {
+      const next = { ...staff, [area]: 'write' as const };
+      expect(grantsAdminOnlyWrite('staff', staff, next), area).toBe(true);
+      expect(grantsAdminOnlyWrite('staff', null, next), area).toBe(true);
+      expect(grantsAdminOnlyWrite('admin', staff, next), area).toBe(false);
+      // Keeping or lowering an existing grant is fine.
+      expect(grantsAdminOnlyWrite('staff', next, next), area).toBe(false);
+      expect(changeError(MANAGER, state('u-5', 'staff'), { ...state('u-5', 'staff'), access: next }, 1), area).toBe('admin_only');
+    }
+    expect(grantsAdminOnlyWrite('staff', staff, { ...staff, users: 'read', leads: 'write' })).toBe(false);
   });
 });
 
@@ -110,7 +147,8 @@ describe('guards', () => {
     expect(changeError(MANAGER, other, { ...other, status: 'disabled' }, 2)).toBe('admin_only');
     expect(changeError(MANAGER, other, null, 2)).toBe('admin_only');
     expect(changeError(MANAGER, staff, { ...staff, role: 'admin', access: PRESET_ACCESS.admin }, 2)).toBe('admin_only');
-    expect(changeError(MANAGER, staff, { ...staff, access: { ...staff.access, users: 'write' } }, 2)).toBeNull();
+    expect(changeError(MANAGER, staff, { ...staff, access: { ...staff.access, users: 'read' } }, 2)).toBeNull();
+    expect(changeError(MANAGER, staff, { ...staff, access: { ...staff.access, users: 'write' } }, 2)).toBe('admin_only');
     expect(changeError(ADMIN_ACTOR, staff, { ...staff, role: 'admin', access: PRESET_ACCESS.admin }, 2)).toBeNull();
   });
 

@@ -13,7 +13,7 @@ import { CopyText } from './CopyText';
 const SENT: Record<NonNullable<InviteState['sent']>, string> = {
   email: 'Invite email sent. The person sets a password from the email, then signs in.',
   email_failed: 'The invite email could not be sent. Send this link to the person instead:',
-  existing: 'This person already has an account, so no invite email was sent. Send this sign-in link instead:',
+  existing: 'This person already has an account, so no email or link is made for it. Tell them to sign in with their own password: they will be asked to accept the invitation.',
   link: 'Invite created. Send this link to the person; it opens the set-password page:',
 };
 

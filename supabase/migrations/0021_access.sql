@@ -61,7 +61,12 @@ alter table public.memberships
   add column disabled_at timestamptz,
   add column last_seen_at timestamptz,
   -- Added with a temporary password (Add user): the app sends them to /admin/account/password until they change it.
-  add column must_change_password boolean not null default false;
+  add column must_change_password boolean not null default false,
+  -- Invites: true only when the invite created a brand-new account (no other membership, no profile before). Only
+  -- such an invite may be accepted by setting a password without the current one, and only soon after the invite
+  -- link was verified (invite_verified_at, set by /auth/confirm). Existing accounts accept with their own password.
+  add column invite_new_account boolean not null default false,
+  add column invite_verified_at timestamptz;
 
 -- Fills and normalises access and preset on every write, so the stored map is always the effective one and a
 -- membership inserted with only a role (create-admin, older code) gets that role's preset.
@@ -120,18 +125,20 @@ create trigger memberships_last_admin before update or delete on public.membersh
 create or replace function public.is_org_member(p_org uuid) returns boolean
 language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.memberships m
-                  where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active') $$;
+                  where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active' and not m.must_change_password) $$;
 
 create or replace function public.has_org_role(p_org uuid, p_roles public.app_role[]) returns boolean
 language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.memberships m
-                  where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active' and m.role = any (p_roles)) $$;
+                  where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active' and not m.must_change_password
+                    and m.role = any (p_roles)) $$;
 
 create or replace function public.shares_org_as_admin(p_user uuid) returns boolean
 language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.memberships mine
                   join public.memberships theirs on theirs.org_id = mine.org_id
-                  where mine.user_id = auth.uid() and mine.role = 'admin' and mine.status = 'active' and theirs.user_id = p_user) $$;
+                  where mine.user_id = auth.uid() and mine.role = 'admin' and mine.status = 'active' and not mine.must_change_password
+                    and theirs.user_id = p_user) $$;
 
 -- True when the caller is an active member of the org with at least p_level ('read' | 'write') for p_area.
 -- Admins pass for every area.
@@ -139,7 +146,7 @@ create or replace function public.has_access(p_org uuid, p_area text, p_level te
 language sql stable security definer set search_path = '' as $$
   select p_level in ('read', 'write') and p_area = any (public.access_areas()) and exists (
     select 1 from public.memberships m
-    where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active'
+    where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active' and not m.must_change_password
       and (m.role = 'admin'
            or case p_level when 'read' then coalesce(m.access ->> p_area, 'none') in ('read', 'write')
                            when 'write' then coalesce(m.access ->> p_area, 'none') = 'write'
@@ -167,7 +174,10 @@ begin
   if auth.uid() is null then perform public.stock_raise('FORBIDDEN'); end if;
   select m.role, m.status, m.access ->> 'stock' into v_role, v_status, v_stock
   from public.memberships m where m.org_id = p_org and m.user_id = auth.uid();
-  if v_role is null or v_status is distinct from 'active' then perform public.stock_raise('FORBIDDEN'); end if;
+  if v_role is null or v_status is distinct from 'active'
+     or exists (select 1 from public.memberships m where m.org_id = p_org and m.user_id = auth.uid() and m.must_change_password) then
+    perform public.stock_raise('FORBIDDEN');
+  end if;
   if v_role = 'admin' then return v_role; end if;
   if not (p_roles && array['staff', 'reviewer', 'inspector', 'factory']::public.app_role[])
      or coalesce(v_stock, 'none') <> 'write' then
@@ -205,6 +215,13 @@ create policy recipients_select on public.notification_recipients for select to 
   using (public.has_access(org_id, 'settings', 'read'));
 create policy recipients_write on public.notification_recipients for all to authenticated
   using (public.has_access(org_id, 'settings', 'write')) with check (public.has_access(org_id, 'settings', 'write'));
+-- Settings are read with Settings read; stock.* keys also with Stock read (stock pages read them with the caller's
+-- client) and xero.action.* keys with Integrations read. Nobody else reads app_settings through the API.
+drop policy settings_select on public.app_settings;
+create policy settings_select on public.app_settings for select to authenticated
+  using (public.has_access(org_id, 'settings', 'read')
+         or (key like 'stock.%' and public.has_access(org_id, 'stock', 'read'))
+         or (key like 'xero.action.%' and public.has_access(org_id, 'integrations', 'read')));
 drop policy settings_admin on public.app_settings;
 create policy settings_admin on public.app_settings for all to authenticated
   using (public.has_access(org_id, 'settings', 'write')) with check (public.has_access(org_id, 'settings', 'write'));
