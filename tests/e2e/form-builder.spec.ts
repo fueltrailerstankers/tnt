@@ -41,7 +41,7 @@ test('form builder: create, publish, submit, edit with guards, export/import, hi
   await page.getByLabel('Form name').fill(NAME);
   await page.getByLabel('Public link on').check();
   await page.getByRole('button', { name: 'Create form' }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/forms/${SLUG}/design\\?created=1$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/forms/${SLUG}/design\\?created=1$`), { timeout: 90_000 }); // first compile of the designer
   await expect(page.getByText('Form created. Add fields, then Publish.')).toBeVisible();
 
   // --- every palette type -------------------------------------------------------------------------
@@ -150,7 +150,7 @@ test('form builder: create, publish, submit, edit with guards, export/import, hi
   await page.getByLabel('Form name').fill(`Imported ${RUN}`);
   await page.locator('#nf-file').setInputFiles({ name: 'form.json', mimeType: 'application/json', buffer: json });
   await page.getByRole('button', { name: 'Create form' }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/forms/imported-${RUN}/design\\?created=1$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/forms/imported-${RUN}/design\\?created=1$`), { timeout: 30_000 });
   await expect(page.getByTestId('item-QuantityTwo')).toBeVisible();
   await expect(page.getByTestId('canvas').locator('li')).toHaveCount(palette.length + 1);
 
@@ -164,7 +164,7 @@ test('form builder: create, publish, submit, edit with guards, export/import, hi
   await expect(page.getByTestId('item-Text')).toBeVisible();
 
   const audit = await sql<{ action: string }>(
-    `select action from audit_log where entity_id in (select id from forms where slug in ($1, $2)) order by created_at`, [SLUG, `imported-${RUN}`]);
+    `select action from audit_log where entity_id in (select id::text from forms where slug in ($1, $2)) order by created_at`, [SLUG, `imported-${RUN}`]);
   expect(audit.map((a) => a.action)).toEqual(expect.arrayContaining(['form.create', 'form.publish', 'form.import', 'form.restore_draft', 'form.export']));
 
   // --- staff without forms.manage cannot reach the builder (the server refuses) ------------------------

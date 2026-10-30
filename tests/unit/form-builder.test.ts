@@ -185,3 +185,44 @@ describe('specs: blank, duplicate, import, publish rules', () => {
     expect(fieldsWithData(S, [], { encrypted: true, hasEntries: true }).size).toBe(inputFields(S).length);
   });
 });
+
+describe('kit forms in the builder', () => {
+  it('every kit form passes the publish rules unchanged (so it can be edited under the same guards)', () => {
+    for (const s of SLUGS) {
+      const k = kitSpec(s);
+      expect(specProblems(k, s).problems, s).toEqual([]);
+      expect(changeProblems(k, k, { withData: new Set(inputFields(k).map((f) => f.name)), hasEntries: true, encrypted: !!k.settings.encryptEntries })).toEqual([]);
+    }
+  });
+});
+
+describe('entry PDF options and the customer copy', () => {
+  it('document #1 off removes the Entry PDF template; blanks/title/logo options are honoured', async () => {
+    const { pdfHash } = await import('./kit-snapshot');
+    const base = { ...S, documents: [{ number: 1, mode: 'view' as const, output: 'pdf' as const }] };
+    const noBlanks = { ...S, documents: [{ number: 1, mode: 'view' as const, output: 'pdf' as const, includeBlankFields: false, includeTitle: false, includeLogo: false }] };
+    expect(await pdfHash(base, { Title: 'x' })).not.toBe(await pdfHash(noBlanks, { Title: 'x' }));
+  });
+
+  it('the customer copy (publicSpec + publicData) leaves internalOnly fields out', async () => {
+    const { publicData, publicSpec } = await import('@/lib/spec/values');
+    const { createElement } = await import('react');
+    const { renderToBuffer } = await import('@react-pdf/renderer');
+    const { EntryPdf } = await import('@/lib/pdf/EntryPdf');
+    const { inflateSync } = await import('node:zlib');
+    const text = async (spec: FormSpec, data: Record<string, unknown>) => {
+      const b = await renderToBuffer(createElement(EntryPdf, { spec, title: 'T', entry: { number: 1, status: 'Submitted', createdAt: '2026-10-29T08:00:00Z', updatedAt: '2026-10-29T08:00:00Z' }, data, files: {}, signatures: {}, timezone: 'UTC', generatedAt: '2026-10-29T08:00:00Z' }) as Parameters<typeof renderToBuffer>[0]);
+      let out = '';
+      for (const m of b.toString('latin1').matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+        try { for (const h of inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)) out += Buffer.from(h[1], 'hex').toString('latin1'); } catch { /* not a content stream */ }
+      }
+      return out;
+    };
+    const data = { Title: 'Synthetic', InternalNote: 'staff secret note' };
+    expect(await text(S, data)).toContain('staff secret note');
+    const pub = await text(publicSpec(S), publicData(S, data));
+    expect(pub).toContain('Synthetic');
+    expect(pub).not.toContain('staff secret note');
+    expect(pub).not.toContain('Internal note');
+  });
+});
