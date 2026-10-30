@@ -516,7 +516,6 @@ function ImportQuoteButton({ run, quoteField, onFilled }: { run: (no: string) =>
   );
 }
 
-
 /** Legal and info text. A short all-bold line is a heading; long paragraphs read at normal weight. */
 export function ContentView({ blocks, scroll, onReadToEnd, testId }: { blocks: Block[]; scroll: boolean; onReadToEnd?: () => void; testId?: string }) {
   const ref = useRef<HTMLDivElement>(null);
