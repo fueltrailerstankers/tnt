@@ -150,7 +150,7 @@ export const PRESENTATIONS: Record<string, FormPresentation> = {
         title: 'Waiver and receipt',
         requireSigned: ['Signature2', 'Signature3'],
         sections: [
-          { title: 'Polyurethane tanks waiver', rows: [[['content@6', 24]], [['Signature2', 24, 'Customer signature 3 of 4']]] },
+          { title: 'Waiver for polyurethane tanks', rows: [[['content@6', 24]], [['Signature2', 24, 'Customer signature 3 of 4']]] },
           { title: 'Proof of receipt', rows: [[['content@8', 24]], [['Signature3', 24, 'Customer signature 4 of 4']]] },
         ],
       },

@@ -160,14 +160,13 @@ export function FormRenderer(props: FormRendererProps) {
         ) : null}
         {state.message ? <Alert tone="error">{state.message}</Alert> : null}
         {errorList.length ? (
-          <Alert tone="error" title={`Check ${errorList.length} field${errorList.length === 1 ? '' : 's'}`}>
-            <ul className="space-y-0.5">
-              {errorList.map(([name, msg]) => (
+          <Alert tone="error" title={`Fix ${errorList.length} field${errorList.length === 1 ? '' : 's'} to continue`}>
+            <ul className="flex flex-wrap gap-x-3 gap-y-1">
+              {errorList.map(([name]) => (
                 <li key={name}>
-                  <button type="button" onClick={() => jumpTo(name)} className="text-left underline underline-offset-2 hover:no-underline">
+                  <button type="button" onClick={() => jumpTo(name)} className="text-left font-medium underline underline-offset-2 hover:no-underline">
                     {labels[name] ?? name}
                   </button>
-                  : {msg}
                 </li>
               ))}
             </ul>

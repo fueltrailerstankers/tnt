@@ -34,7 +34,7 @@ export function Stepper({ steps, current, onSelect, label = 'Form steps' }: { st
         return (
           <li key={i}>
             {state === 'done' && onSelect ? (
-              <button type="button" onClick={() => onSelect(i)} className={`${cls} hover:bg-surface-2`} aria-label={`Back to step ${i + 1}: ${s.label}`}>
+              <button type="button" onClick={() => onSelect(i)} className={`${cls} hover:bg-surface-2`} aria-label={`Step ${i + 1}, ${s.label} (done, open)`}>
                 {body}
               </button>
             ) : (
