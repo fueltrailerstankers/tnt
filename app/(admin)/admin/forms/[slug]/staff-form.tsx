@@ -18,6 +18,9 @@ export function StaffForm(props: {
   lookupOptions: LookupOption[] | null;
   lookupPanel: Array<[string, string]>;
   version: string | null;
+  /** Org timezone and currency for the M8 datetime and currency fields. */
+  timeZone: string;
+  currency: string;
 }) {
   const env = publicEnv();
   const slug = props.form.slug;
@@ -35,6 +38,8 @@ export function StaffForm(props: {
       lookupPanel={props.lookupPanel}
       quotes={quoteFieldOf(props.form.spec) ? { mode: 'search', search: searchQuotesStaff.bind(null, slug) } : undefined}
       hidden={props.version ? { __version: props.version } : {}}
+      timeZone={props.timeZone}
+      currency={props.currency}
     />
   );
 }

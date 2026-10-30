@@ -4,6 +4,8 @@ import { publicEnv } from '@/lib/env';
 import { loadEntryById } from '@/lib/forms/entries';
 import { customerPanel } from '@/lib/forms/lookup';
 import { rendererFiles } from '@/lib/forms/view';
+import { loadOrg } from '@/lib/forms/org';
+import { publicData } from '@/lib/spec/values';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveRoleLink } from '@/lib/workflow/links';
 import { allowedActions, roleByName } from '@/lib/workflow/rules';
@@ -44,6 +46,7 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   const lookupId = lookup && lookup.type === 'lookup' ? (entry.data[lookup.name] as string | undefined) : undefined;
   const panel = lookup && lookup.type === 'lookup' && lookupId ? await customerPanel(db, form.orgId, lookup.lookup.sourceForm, lookupId, true) : [];
   const env = publicEnv();
+  const org = await loadOrg(db, form.orgId);
 
   return (
     <>
@@ -54,7 +57,7 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
       </p>
       <FormRenderer
         spec={form.spec}
-        initial={entry.data}
+        initial={publicData(form.spec, entry.data)}
         files={files}
         signatures={signatures}
         actions={actions}
@@ -64,6 +67,9 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
         lookup={lookup ? { mode: 'exact', find: findLookupLink.bind(null, token) } : undefined}
         lookupPanel={panel}
         hidden={{ __version: entry.updatedAt }}
+        audience="public"
+        timeZone={org.timezone}
+        currency={org.currency}
       />
     </>
   );

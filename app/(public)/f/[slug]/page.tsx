@@ -32,7 +32,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
       <h1 className="mb-4 text-h1">{spec.name}</h1>
       <FormRenderer
         spec={spec}
-        initial={defaultData(spec, { today: todayIn(org.timezone) })}
+        initial={defaultData(spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency })}
         files={{}}
         signatures={{}}
         actions={actions}
@@ -42,6 +42,9 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         lookup={hasLookup ? { mode: 'exact', find: findLookupPublic.bind(null, slug) } : undefined}
         quotes={quoteFieldOf(spec) ? { mode: 'check', check: checkQuotePublic.bind(null, slug) } : undefined}
         honeypot
+        audience="public"
+        timeZone={org.timezone}
+        currency={org.currency}
       />
     </>
   );

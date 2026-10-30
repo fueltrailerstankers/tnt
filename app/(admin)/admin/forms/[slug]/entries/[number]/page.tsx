@@ -71,6 +71,7 @@ export default async function EntryPage({
           <StaffForm
             form={form} number={entry.number} initial={entry.data} files={files} signatures={signatures}
             actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt}
+            timeZone={org.timezone} currency={org.currency}
           />
         </div>
 
