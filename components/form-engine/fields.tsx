@@ -102,7 +102,7 @@ export function YesNoInput(p: Common & { style?: 'radio' | 'toggle'; value: unkn
               id={p.id} type="checkbox" role="switch" name={`f.${p.name}`} value="yes" defaultChecked={p.value === true} disabled={p.locked}
               className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" {...attrs}
             />
-            <span aria-hidden="true" className="ml-0.5 size-5 rounded-pill bg-surface shadow-card transition peer-checked:translate-x-5" />
+            <span aria-hidden="true" className="pointer-events-none ml-0.5 size-5 rounded-pill bg-surface shadow-card transition peer-checked:translate-x-5" />
           </span>
           <span>
             {p.label}
