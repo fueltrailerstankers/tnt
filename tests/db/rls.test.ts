@@ -17,9 +17,11 @@ const ORG_READABLE = [
   'lead_sources', 'routing_rules', 'leads', 'lead_events',
   'xero_action_runs', // M3: org admins only
   'stock_locations', 'stock_models', 'stock_deals', 'stock_units', 'stock_invoice_exceptions', 'stock_deal_dismissals', // M6
+  'import_runs', // Cognito import: org admins only
 ];
 // Service-role-only tables: no client may read them at all.
-const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states'];
+const SERVICE_ONLY = ['integration_events', 'outbox_jobs', 'job_runs', 'external_refs', 'action_claims', 'xero_connections', 'xero_oauth_states',
+  'cognito_api_keys'];
 
 let db: Client;
 let entryA: string;
@@ -69,6 +71,9 @@ beforeAll(async () => {
   await db.query(`insert into public.stock_deal_dismissals(org_id, deal_id, reason) values ($1, $2, 'Synthetic reason')`, [ORG_A, deal.rows[0].id]);
   const unit = await db.query(`insert into public.stock_units(org_id, vin, model_part, location_id) values ($1, 'RLSTESTVIN0000001', '3000D', 'JHB') returning id`, [ORG_A]);
   await db.query(`insert into public.stock_invoice_exceptions(org_id, invoice_number, reason, unit_id) values ($1, 'INV-RLS-1', 'voided', $2)`, [ORG_A, unit.rows[0].id]);
+  // Cognito import: an encrypted key (synthetic bytes) and a run with counts only.
+  await db.query(`insert into public.cognito_api_keys(org_id, key_enc, last4) values ($1, '\\x01', 'abcd')`, [ORG_A]);
+  await db.query(`insert into public.import_runs(org_id, form_slug, mode, status) values ($1, 'store-room', 'dry_run', 'done')`, [ORG_A]);
 });
 
 afterAll(async () => { await db.end(); });
