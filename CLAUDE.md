@@ -64,3 +64,11 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Public forms verify Cloudflare Turnstile in `submitPublic` when `TURNSTILE_SECRET_KEY` is set (fails closed); production must set it and `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 - `/e/<token>`: `inspectRoleLink` + pure `linkStatus` give expired/revoked/unknown pages; `resolveRoleLink` (all reads and saves) accepts only `ok`.
 - The throwaway Postgres for tests must be UTF-8 (`pg_createcluster ... --encoding=UTF8 --locale=C.UTF-8`); SQL_ASCII breaks the M6 VIN tests.
+
+## Repo notes (M8)
+- Field types and options: `lib/spec/types.ts` (zod, all optional). Show-when: `parseShowWhen` (lib/spec/expressions) + `lib/spec/visibility.ts`; the browser and `runAction` run the same `readFormData` -> `prepareSave` (readOnly/internalOnly locks, hidden fields dropped) -> `validateEntry(..., { skip })`. `checkPost` is the client check.
+- Kit forms must render, read, validate, export and print as before: `tests/unit/kit-forms-unchanged.test.ts` against `tests/fixtures/kit-forms/baseline.json` (only `aria-required` may differ). Regenerate only for an intended kit change.
+- A heading is a `section` without `children` (the kit checklist keeps `children`); headings become section cards in `lib/spec/presentation.ts`. Builder forms use `settings.layout: 'exact'` (no row packing) and `cognitoFormId: 0`.
+- Builder: pure rules in `lib/forms/builder/*` (names, layout, palette, workflow, spec guards); writes in `service.ts` (service role after `adminForm(slug, 'forms.manage')`). Publish = parseSpec + `specProblems` + `changeProblems` (fields with data from `form_data_keys`). `form_versions` is append-only.
+- Reserved form slugs: `RESERVED_FORM_SLUGS` in `lib/spec/types.ts` (parseSpec refuses them). Add any new fixed `/admin/forms/<segment>` there.
+- allowedWhen also accepts `status in ('A', 'B')`. Emails to entry addresses (`[Field]`) attach `publicDocument` (no internalOnly fields).
