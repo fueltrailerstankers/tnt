@@ -40,6 +40,7 @@ export function CorrectRecordForm({ unit, models, locations }: { unit: UnitRow; 
   return (
     <form key={unit.updated_at} onSubmit={onSubmit} className="space-y-4" aria-describedby="correct-result" data-testid="correct-form">
       <input type="hidden" name="unit" value={unit.id} />
+      <input type="hidden" name="updated_at" value={unit.updated_at} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="c-vin" required>VIN</Label>
@@ -143,6 +144,7 @@ function TransferFields({ unit, locations, state, pending, onSubmit }: {
   return (
     <form onSubmit={onSubmit} className="space-y-4" aria-describedby="transfer-result" data-testid="transfer-form">
       <input type="hidden" name="unit" value={unit.id} />
+      <input type="hidden" name="updated_at" value={unit.updated_at} />
       <p className="text-body">From <span className="font-semibold">{from?.name ?? unit.location_id}</span></p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { Input, Select } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { ALL_BRANCHES, STATUS_FILTER_LABEL, STATUS_FILTERS } from '@/lib/stock/register';
+import { ALL_BRANCHES, STATUS_FILTER_LABEL, STATUS_FILTERS, statusFilterOf, unitsHref } from '@/lib/stock/register';
 
 const BASE = '/admin/stock/units';
 
@@ -41,9 +41,9 @@ export function RegisterFilters({ q, model, location, status, locations }: Props
     const next = { ...cur.current, ...over };
     cur.current = next;
     setSel(next);
-    const u = new URLSearchParams();
-    for (const [k, v] of Object.entries(next)) if (v) u.set(k, v);
-    start(() => router.replace(u.size ? `${BASE}?${u}` : BASE, { scroll: false }));
+    // unitsHref builds the query with toString(); the size property of URLSearchParams is missing before Safari 17.
+    const href = unitsHref({ q: next.q, model: next.model, location: next.location, status: statusFilterOf(next.status) });
+    start(() => router.replace(href, { scroll: false }));
   }, [router]);
 
   // Debounced search.

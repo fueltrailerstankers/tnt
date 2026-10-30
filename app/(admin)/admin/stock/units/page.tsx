@@ -3,7 +3,7 @@ import { StockHeader } from '@/components/stock/StockHeader';
 import { UnitStatusChip } from '@/components/stock/UnitStatusChip';
 import { Icon } from '@/components/ui/Icon';
 import { buttonClass, tableClass, tableWrapClass, theadClass } from '@/components/ui/styles';
-import { parseRegisterQuery, REGISTER_PAGE, registerHref, registerQueryString } from '@/lib/stock/register';
+import { EXPORT_MAX_ROWS, exportTooManyMessage, parseRegisterQuery, REGISTER_PAGE, registerHref, registerQueryString } from '@/lib/stock/register';
 import { loadLocations, loadModels, selectUnits } from '@/lib/stock/register-query';
 import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
@@ -18,11 +18,19 @@ export default async function UnitRegister({ searchParams }: { searchParams: Pro
   const member = await requirePerm('stock.read');
   const sp = await searchParams;
   const db = await createClient();
-  const [locations, models] = await Promise.all([loadLocations(db, member.orgId), loadModels(db, member.orgId)]);
-  const rq = parseRegisterQuery(sp, locations.map((l) => l.id));
+  const [locs, mods] = await Promise.all([loadLocations(db, member.orgId), loadModels(db, member.orgId)]);
+  const locations = locs.data;
+  const models = mods.data;
+  const rq = parseRegisterQuery(sp, locations.map((l) => l.id), models.map((m) => m.part_number));
   const from = (rq.page - 1) * REGISTER_PAGE;
-  const { rows, count, error } = await selectUnits(db, member.orgId, rq, locations, { from, to: from + REGISTER_PAGE - 1, count: true });
+  // Without the locations and models the filters cannot be read: show the error instead of an unfiltered list.
+  const setupFailed = locs.error || mods.error;
+  const { rows, count, error: unitsError } = setupFailed
+    ? { rows: [], count: 0, error: true }
+    : await selectUnits(db, member.orgId, rq, locations, { from, to: from + REGISTER_PAGE - 1, count: true });
+  const error = setupFailed || unitsError;
   const total = count ?? 0;
+  const tooMany = total > EXPORT_MAX_ROWS;
   const pages = Math.max(1, Math.ceil(total / REGISTER_PAGE));
   const locName = new Map(locations.map((l) => [l.id, l.name]));
   const desc = new Map(models.map((m) => [m.part_number, m.description]));
@@ -36,11 +44,13 @@ export default async function UnitRegister({ searchParams }: { searchParams: Pro
         eyebrow="Every unit, one record"
         title="Unit register"
         subtitle="Search current stock and sold history by VIN or sequence."
-        action={can(member, 'stock.export') ? (
+        action={!can(member, 'stock.export') || error ? null : tooMany ? (
+          <span className="max-w-64 text-small text-fg-muted" data-testid="export-too-many">{exportTooManyMessage(total)}</span>
+        ) : (
           <a href={`/admin/stock/units/export${exportQs ? `?${exportQs}` : ''}`} className={buttonClass('secondary', 36)} download>
             <Icon name="download" size={16} />Export CSV
           </a>
-        ) : null}
+        )}
       />
 
       <RegisterFilters q={rq.q} model={rq.model} location={rq.location} status={rq.status} locations={locations.map((l) => ({ id: l.id, name: l.name }))} />

@@ -28,15 +28,19 @@ export default async function UnitRecord({ params, searchParams }: {
   if (!UUID.test(id)) notFound();
   const sp = await searchParams;
   const db = await createClient();
-  const [locations, models, unit, org] = await Promise.all([
+  const [locs, mods, unit, org] = await Promise.all([
     loadLocations(db, member.orgId), loadModels(db, member.orgId), loadUnit(db, member.orgId, id), loadOrg(db, member.orgId),
   ]);
   if (!unit) notFound();
-  const back = registerHref(parseRegisterQuery(sp, locations.map((l) => l.id)));
+  const locations = locs.data;
+  const models = mods.data;
+  // The edit forms need both lists (destinations, models); without them they are not offered.
+  const listsFailed = locs.error || mods.error;
+  const back = registerHref(parseRegisterQuery(sp, locations.map((l) => l.id), models.map((m) => m.part_number)));
   const loc = locations.find((l) => l.id === unit.location_id);
   const model = models.find((m) => m.part_number === unit.model_part);
   const tz = org.timezone;
-  const manage = can(member, 'stock.manage');
+  const manage = can(member, 'stock.manage') && !listsFailed;
   const accessories = unit.accessories ?? [];
   const invoice = unit.invoice_number
     ? unit.xero_invoice_id && can(member, 'xero.read')
@@ -52,6 +56,8 @@ export default async function UnitRecord({ params, searchParams }: {
         subtitle={model?.description}
         action={<Link href={back} className={buttonClass('secondary', 36)}>Close</Link>}
       />
+
+      {listsFailed ? <p role="alert" className="rounded-sm bg-status-red-bg p-3 text-body text-status-red-fg">Stock locations or models could not be loaded. Try again.</p> : null}
 
       <div className={`${cardClass} p-4`}>
         <dl className="grid gap-x-6 sm:grid-cols-2" data-testid="unit-record">

@@ -38,17 +38,18 @@ export interface RegisterQuery {
 
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
-const MODEL_RE = /^[A-Z0-9][A-Z0-9_./-]{0,19}$/;
-
-/** Reads the register query from the URL. Unknown locations, statuses and malformed models are dropped. */
-export function parseRegisterQuery(sp: Params, locationIds: readonly string[]): RegisterQuery {
+/**
+ * Reads the register query from the URL. Unknown locations, statuses and models are dropped: the model must be one
+ * of the org's part numbers, so free text (an ID number, a name) never reaches a query or the export audit row.
+ */
+export function parseRegisterQuery(sp: Params, locationIds: readonly string[], modelParts: readonly string[]): RegisterQuery {
   const model = partKey(one(sp.model));
   const loc = one(sp.location).trim();
   const locUpper = loc.toUpperCase();
   const status = one(sp.status);
   return {
     q: searchTerm(sp.q),
-    model: MODEL_RE.test(model) ? model : null,
+    model: model && modelParts.includes(model) ? model : null,
     location: loc === ALL_BRANCHES ? ALL_BRANCHES : locationIds.includes(locUpper) ? locUpper : null,
     status: (STATUS_FILTERS as readonly string[]).includes(status) ? (status as StatusFilter) : null,
     page: pageOf(sp.page),
@@ -102,6 +103,11 @@ export function registerOrFilter(s: Extract<RegisterSearch, { kind: 'text' }>): 
   const parts = [`vin_norm.ilike.*${s.vin}*`, `invoice_number.ilike.*${s.text}*`, `model_part.ilike.*${s.text}*`];
   if (s.sequence !== null) parts.push(`sequence.eq.${s.sequence}`);
   return parts.join(',');
+}
+
+/** Status filter from a select value (unknown -> null). */
+export function statusFilterOf(v: string | null | undefined): StatusFilter | null {
+  return v && (STATUS_FILTERS as readonly string[]).includes(v) ? (v as StatusFilter) : null;
 }
 
 /** Status values a status filter selects. */
@@ -171,6 +177,19 @@ export function unitsCsvTable(
   ];
 }
 
+/** Newest first, as the register lists units (created_at, then id, both descending). */
+export function sortNewestFirst<T extends Pick<UnitRow, 'created_at' | 'id'>>(rows: readonly T[]): T[] {
+  const desc = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
+  // Instant first; then the text (same column format, so it orders the microseconds Date.parse drops); then the id.
+  return [...rows].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || desc(a.created_at, b.created_at) || desc(a.id, b.id));
+}
+
+/** Refusal text when the filtered set is over the export cap: the file is never cut short silently. */
+export function exportTooManyMessage(count: number, max = EXPORT_MAX_ROWS): string {
+  const n = (v: number) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `Too many units to export (${n(count)}). Narrow the filters to ${n(max)} units or fewer.`;
+}
+
 /**
  * The 'stock.export' audit row: row count and filter codes only. The search text is never stored (it may be
  * anything a user typed); model part numbers, location ids and status values are codes.
@@ -197,8 +216,12 @@ const isRealDate = (s: string) => {
 const digits = (max: number) => z.string().trim().regex(new RegExp(`^\\d{0,${max}}$`));
 const flag = z.enum(['1']).optional();
 
+/** The unit's updated_at as the form was rendered: a save refuses when the unit has changed since (isStale). */
+const version = z.string().trim().min(1).max(64);
+
 export const CorrectInput = z.object({
   unit: z.guid(),
+  updated_at: version,
   vin: z.string().max(80),
   model: z.string().trim().min(1).max(20),
   location: z.string().trim().min(1).max(20),
@@ -206,7 +229,8 @@ export const CorrectInput = z.object({
   invoice: z.string().trim().max(50),
   dispatch_date: z.string().trim().refine((s) => s === '' || isRealDate(s)),
   accessories: z.array(z.string().max(200)).max(10),
-  notes: z.string().max(2000),
+  /** Length checked after CRLF -> LF, as stored (the textarea's maxLength counts a line break once). */
+  notes: z.string().max(4000).refine((s) => normalizeNewlines(s).length <= 2000),
   deal_year: digits(4),
   deal_number: digits(9),
   /** Unit without a deal: link it to the deal year/number (clears that deal). */
@@ -218,6 +242,7 @@ export type CorrectInput = z.infer<typeof CorrectInput>;
 
 export const TransferInput = z.object({
   unit: z.guid(),
+  updated_at: version,
   location: z.string().trim().min(1).max(20),
   reason: z.string().trim().max(200),
   deal_year: digits(4),
@@ -231,14 +256,16 @@ export function invalidField(path: readonly PropertyKey[]): string {
   const map: Record<string, string> = {
     vin: 'vin', model: 'model', location: 'location', status: 'status', invoice: 'invoice_number',
     dispatch_date: 'dispatch_date', accessories: 'accessories', notes: 'notes', reason: 'reason',
-    deal_year: 'deal', deal_number: 'deal', link_deal: 'deal', unlink_deal: 'deal',
+    deal_year: 'deal', deal_number: 'deal', link_deal: 'deal', unlink_deal: 'deal', updated_at: 'fields',
   };
   return map[k] ?? 'fields';
 }
 
 const num = (s: string) => (s === '' ? null : Number(s));
+/** Browsers post textarea line breaks as CRLF; the record keeps LF. */
+export const normalizeNewlines = (s: string) => s.replace(/\r\n?/g, '\n');
 const clean = (s: string) => {
-  const t = s.trim();
+  const t = normalizeNewlines(s).trim();
   return t === '' ? null : t;
 };
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -266,7 +293,7 @@ export function correctionFields(u: UnitRow, input: CorrectInput): CorrectionRes
   const acc = input.accessories.map((a) => a.trim()).filter(Boolean);
   if (!sameList(acc, u.accessories ?? [])) f.accessories = acc;
   const notes = clean(input.notes);
-  if (notes !== (u.notes ?? null)) f.notes = notes;
+  if (notes !== clean(u.notes ?? '')) f.notes = notes;
 
   const year = num(input.deal_year);
   const number = num(input.deal_number);
@@ -284,6 +311,18 @@ export function correctionFields(u: UnitRow, input: CorrectInput): CorrectionRes
     if (number !== u.sequence) f.sequence = number;
   }
   return { fields: f };
+}
+
+export const STALE_MESSAGE = 'This unit changed since you opened it. Reload and check.';
+
+/**
+ * Whether the unit changed after the form was rendered (another admin, a dispatch or the invoice job). The form posts
+ * the updated_at it was rendered with; correctionFields compares against the current row, so saving a stale form
+ * would silently put back the status, invoice or location someone else just changed.
+ */
+export function isStale(u: Pick<UnitRow, 'updated_at'>, renderedUpdatedAt: string): boolean {
+  // Both values come from the same PostgREST column, so the text is identical unless the row was written since.
+  return u.updated_at !== renderedUpdatedAt.trim();
 }
 
 /** Arguments for stock_move_unit (deal only when both parts are given). Null when only one part is given. */

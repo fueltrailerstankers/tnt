@@ -21,11 +21,14 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const inStockOnly = one(sp.instock) === '1';
   const db = await createClient();
-  const [locations, { data: cellData, error }] = await Promise.all([
+  const [locs, { data: cellData, error: cellError }] = await Promise.all([
     loadLocations(db, member.orgId),
     db.from('stock_matrix').select('part_number, description, sort_order, active, location_id, qty, reserved').eq('org_id', member.orgId),
   ]);
-  const cells = (cellData ?? []) as MatrixCellRow[];
+  const locations = locs.data;
+  // Without the locations every count would read as zero: show the error rather than a wrong picture.
+  const error = locs.error || !!cellError;
+  const cells = error ? [] : ((cellData ?? []) as MatrixCellRow[]);
   const kpis = stockKpis(cells, locations);
   const matrix = buildMatrix(cells, locations, { inStockOnly });
   const factory = locations.find((l) => l.is_factory)?.id ?? null;

@@ -7,11 +7,14 @@ import {
   ALL_BRANCHES, changedSummary, correctionFields, CorrectInput, CSV_HEADER, dealLabel, EMPTY_REGISTER_QUERY, exportAuditRow, invalidField,
   parseRegisterQuery, parseRegisterSearch, registerHref, registerOrFilter, registerQueryString, statusesFor, transferArgs,
   TransferInput, unitsCsvTable, unitsHref, type UnitRow,
+  EXPORT_MAX_ROWS, exportTooManyMessage, isStale, normalizeNewlines, sortNewestFirst, STALE_MESSAGE, statusFilterOf,
 } from '@/lib/stock/register';
 import { currentStockTab, STOCK_TABS, stockTabs } from '@/lib/stock/tabs';
 import { NAV, visibleNav } from '@/lib/ui/nav';
 
 const LOCS = ['FACTORY', 'JHB', 'CPT', 'DBN'];
+const MODELS = ['3000D', 'CTLL1', 'BOX02'];
+const V = '2026-03-01T08:00:00.123456+00:00';
 const UNIT_ID = '6f1c1e9e-8a39-4b9b-9a3e-1f6d2f1b7c11';
 const member = (role: Member['role']): Member => ({ userId: 'u', orgId: 'o', role, branch: null });
 
@@ -23,7 +26,7 @@ const unit = (over: Partial<UnitRow> = {}): UnitRow => ({
 });
 
 const input = (u: UnitRow, over: Partial<CorrectInput> = {}): CorrectInput => ({
-  unit: u.id, vin: u.vin, model: u.model_part, location: u.location_id, status: u.status, invoice: u.invoice_number ?? '',
+  unit: u.id, updated_at: u.updated_at, vin: u.vin, model: u.model_part, location: u.location_id, status: u.status, invoice: u.invoice_number ?? '',
   dispatch_date: u.dispatch_date ?? '', accessories: [...(u.accessories ?? []), ...Array(10 - (u.accessories ?? []).length).fill('')],
   notes: u.notes ?? '', deal_year: u.deal_year ? String(u.deal_year) : '', deal_number: u.sequence ? String(u.sequence) : '',
   ...over,
@@ -31,19 +34,19 @@ const input = (u: UnitRow, over: Partial<CorrectInput> = {}): CorrectInput => ({
 
 describe('register query', () => {
   it('reads filters from the URL and drops unknown values', () => {
-    expect(parseRegisterQuery({ q: ' ab,c ', model: ' 3000d ', location: 'jhb', status: 'sold', page: '3' }, LOCS))
+    expect(parseRegisterQuery({ q: ' ab,c ', model: ' 3000d ', location: 'jhb', status: 'sold', page: '3' }, LOCS, MODELS))
       .toEqual({ q: 'ab c', model: '3000D', location: 'JHB', status: 'sold', page: 3 });
-    expect(parseRegisterQuery({ location: 'branches', status: 'in_stock' }, LOCS)).toMatchObject({ location: ALL_BRANCHES, status: 'in_stock' });
-    expect(parseRegisterQuery({ location: 'MARS', status: 'lost', model: 'drop table;', page: '-1' }, LOCS))
+    expect(parseRegisterQuery({ location: 'branches', status: 'in_stock' }, LOCS, MODELS)).toMatchObject({ location: ALL_BRANCHES, status: 'in_stock' });
+    expect(parseRegisterQuery({ location: 'MARS', status: 'lost', model: 'drop table;', page: '-1' }, LOCS, MODELS))
       .toEqual({ q: null, model: null, location: null, status: null, page: 1 });
-    expect(parseRegisterQuery({ q: ['first', 'second'] }, LOCS).q).toBe('first');
+    expect(parseRegisterQuery({ q: ['first', 'second'] }, LOCS, MODELS).q).toBe('first');
   });
   it('builds links without defaults and round-trips', () => {
-    const rq = parseRegisterQuery({ q: 'ABC', location: 'branches', status: 'in_stock', page: '2' }, LOCS);
+    const rq = parseRegisterQuery({ q: 'ABC', location: 'branches', status: 'in_stock', page: '2' }, LOCS, MODELS);
     expect(registerQueryString(rq)).toBe('q=ABC&location=branches&status=in_stock&page=2');
     expect(registerHref(rq, { page: 1 })).toBe('/admin/stock/units?q=ABC&location=branches&status=in_stock');
     expect(registerHref(EMPTY_REGISTER_QUERY)).toBe('/admin/stock/units');
-    expect(parseRegisterQuery(Object.fromEntries(new URLSearchParams(registerQueryString(rq))), LOCS)).toEqual(rq);
+    expect(parseRegisterQuery(Object.fromEntries(new URLSearchParams(registerQueryString(rq))), LOCS, MODELS)).toEqual(rq);
   });
   it('overview cells link to the register filtered by model, location and in-stock status', () => {
     expect(unitsHref({ model: '3000D', location: 'JHB', status: 'in_stock' })).toBe('/admin/stock/units?model=3000D&location=JHB&status=in_stock');
@@ -75,7 +78,7 @@ describe('register search', () => {
     expect(parseRegisterSearch('0')).toMatchObject({ sequence: null });
   });
   it('produces or() values without PostgREST separators (searchTerm strips them first)', () => {
-    const rq = parseRegisterQuery({ q: 'a,b(c)*d"e\'f\\g:h' }, LOCS);
+    const rq = parseRegisterQuery({ q: 'a,b(c)*d"e\'f\\g:h' }, LOCS, MODELS);
     const s = parseRegisterSearch(rq.q);
     expect(s.kind).toBe('text');
     const f = registerOrFilter(s as Extract<typeof s, { kind: 'text' }>);
@@ -106,7 +109,7 @@ describe('CSV export table', () => {
     expect(dealLabel({ deal_year: 2026, sequence: null })).toBe('—');
   });
   it('audits an export with the row count and filter codes, never the search text', () => {
-    const rq = parseRegisterQuery({ q: 'SECRET TEXT', model: '3000d', location: 'jhb', status: 'sold' }, LOCS);
+    const rq = parseRegisterQuery({ q: 'SECRET TEXT', model: '3000d', location: 'jhb', status: 'sold' }, LOCS, MODELS);
     const row = exportAuditRow({ orgId: 'o', userId: 'u' }, rq, 3);
     expect(row).toEqual({
       org_id: 'o', actor_user: 'u', action: 'stock.export', entity: 'stock_units', entity_id: null,
@@ -175,12 +178,113 @@ describe('Correct record and Transfer input', () => {
     expect(invalidField([])).toBe('fields');
   });
   it('builds stock_move_unit arguments', () => {
-    const t = TransferInput.parse({ unit: UNIT_ID, location: ' cpt ', reason: ' Swap stock ', deal_year: '', deal_number: '' });
+    const t = TransferInput.parse({ unit: UNIT_ID, updated_at: V, location: ' cpt ', reason: ' Swap stock ', deal_year: '', deal_number: '' });
     expect(transferArgs('org', t)).toEqual({ p_org: 'org', p_unit: UNIT_ID, p_location: 'CPT', p_reason: 'Swap stock', p_deal_year: null, p_deal_number: null });
-    const d = TransferInput.parse({ unit: UNIT_ID, location: 'JHB', reason: '', deal_year: '2026', deal_number: '260' });
+    const d = TransferInput.parse({ unit: UNIT_ID, updated_at: V, location: 'JHB', reason: '', deal_year: '2026', deal_number: '260' });
     expect(transferArgs('org', d)).toMatchObject({ p_reason: null, p_deal_year: 2026, p_deal_number: 260 });
-    expect(transferArgs('org', TransferInput.parse({ unit: UNIT_ID, location: 'JHB', reason: '', deal_year: '2026', deal_number: '' }))).toBeNull();
-    expect(TransferInput.safeParse({ unit: UNIT_ID, location: 'JHB', reason: 'r'.repeat(201), deal_year: '', deal_number: '' }).success).toBe(false);
+    expect(transferArgs('org', TransferInput.parse({ unit: UNIT_ID, updated_at: V, location: 'JHB', reason: '', deal_year: '2026', deal_number: '' }))).toBeNull();
+    expect(TransferInput.safeParse({ unit: UNIT_ID, updated_at: V, location: 'JHB', reason: 'r'.repeat(201), deal_year: '', deal_number: '' }).success).toBe(false);
+    // The rendered version is required: a form without it cannot be checked for concurrent changes.
+    expect(TransferInput.safeParse({ unit: UNIT_ID, location: 'JHB', reason: 'r', deal_year: '', deal_number: '' }).success).toBe(false);
+    expect(CorrectInput.safeParse({ ...input(unit()), updated_at: '' }).success).toBe(false);
+  });
+});
+
+describe('concurrent changes (review item 1)', () => {
+  it('a form rendered from an older row is stale; the same version is not', () => {
+    const u = unit({ updated_at: '2026-03-01T08:00:00.123456+00:00' });
+    expect(isStale(u, '2026-03-01T08:00:00.123456+00:00')).toBe(false);
+    expect(isStale(u, ' 2026-03-01T08:00:00.123456+00:00 ')).toBe(false);
+    // Another write in the same millisecond still counts as a change (microseconds differ).
+    expect(isStale(u, '2026-03-01T08:00:00.123455+00:00')).toBe(true);
+    expect(isStale(u, '2026-02-28T08:00:00+00:00')).toBe(true);
+    expect(STALE_MESSAGE).toBe('This unit changed since you opened it. Reload and check.');
+  });
+  it('without the check a notes-only save over a newer row would revert status, invoice and location', () => {
+    // What the review found: the form posts every field, so diffing against the current row undoes other changes.
+    const opened = unit({ status: 'available', invoice_number: null, location_id: 'JHB' });
+    const now = unit({ status: 'reserved', invoice_number: 'INV-9', location_id: 'CPT', updated_at: '2026-03-02T09:00:00Z' });
+    const posted = input(opened, { notes: 'Only a note' });
+    expect(Object.keys((correctionFields(now, posted) as { fields: object }).fields)).toEqual(['location_id', 'status', 'invoice_number', 'notes']);
+    expect(isStale(now, posted.updated_at)).toBe(true);
+  });
+  it('both admin actions refuse a stale form before calling the RPC', () => {
+    const src = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/stock/units/actions.ts'), 'utf8');
+    expect(src.match(/if \(isStale\(unit, parsed\.data\.updated_at\)\) return \{ error: STALE_MESSAGE \};/g)).toHaveLength(2);
+    for (const fn of ['correctUnit', 'transferUnit']) {
+      const body = src.slice(src.indexOf(`export async function ${fn}`));
+      expect(body.indexOf('isStale(')).toBeLessThan(body.indexOf('db.rpc('));
+    }
+    const forms = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/stock/units/[id]/unit-forms.tsx'), 'utf8');
+    expect(forms.match(/<input type="hidden" name="updated_at" value=\{unit\.updated_at\} \/>/g)).toHaveLength(2);
+  });
+});
+
+describe('notes line breaks (review item 6)', () => {
+  it('CRLF from a textarea is stored and compared as LF', () => {
+    const u = unit({ notes: 'Line one\nLine two' });
+    expect(correctionFields(u, input(u, { notes: 'Line one\r\nLine two' }))).toEqual({ fields: {} });
+    expect(correctionFields(unit(), input(unit(), { notes: 'A\r\nB\rC' }))).toEqual({ fields: { notes: 'A\nB\nC' } });
+    expect(normalizeNewlines('a\r\nb\rc\nd')).toBe('a\nb\nc\nd');
+  });
+  it('the 2000-character limit counts a line break once, as the textarea and the database do', () => {
+    const lines = Array(1000).fill('x').join('\r\n');   // 1999 characters stored, 2998 as posted
+    expect(normalizeNewlines(lines)).toHaveLength(1999);
+    expect(CorrectInput.safeParse({ ...input(unit()), notes: lines }).success).toBe(true);
+    expect(CorrectInput.safeParse({ ...input(unit()), notes: `${lines}\r\nyy` }).success).toBe(false);
+  });
+});
+
+describe('Safari before 17 (review item 2)', () => {
+  it('register links do not depend on URLSearchParams.size', () => {
+    const desc = Object.getOwnPropertyDescriptor(URLSearchParams.prototype, 'size');
+    Object.defineProperty(URLSearchParams.prototype, 'size', { configurable: true, get: () => undefined });
+    try {
+      expect(unitsHref({ q: 'ABC', status: statusFilterOf('sold') })).toBe('/admin/stock/units?q=ABC&status=sold');
+      expect(unitsHref({ q: null, model: null, location: null, status: statusFilterOf('') })).toBe('/admin/stock/units');
+      expect(statusFilterOf('lost')).toBeNull();
+    } finally {
+      if (desc) Object.defineProperty(URLSearchParams.prototype, 'size', desc);
+    }
+  });
+  it('new stock code never reads .size of a URLSearchParams', () => {
+    const roots = ['app/(admin)/admin/stock', 'components/stock', 'lib/stock'].map((d) => path.resolve(__dirname, '../..', d));
+    const walk = (d: string): string[] => readdirSync(d).flatMap((n) => {
+      const f = path.join(d, n);
+      return statSync(f).isDirectory() ? walk(f) : /\.tsx?$/.test(n) ? [f] : [];
+    });
+    const files = roots.flatMap((d) => walk(d));
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8');
+      // `x.size` where x is a URLSearchParams: any `.size` read that is not a JSX prop or a Set/Map we own.
+      expect(src, f).not.toMatch(/URLSearchParams\([^)]*\)\.size|\b(u|params|sp|search|qs|usp)\.size\b/);
+    }
+    const filters = readFileSync(path.resolve(__dirname, '../../app/(admin)/admin/stock/units/register-filters.tsx'), 'utf8');
+    expect(filters).toContain('unitsHref(');
+    expect(filters).not.toContain('new URLSearchParams');
+  });
+});
+
+describe('export (review items 3 and 4)', () => {
+  it('drops a model that is not a known part number (no free text such as an ID number reaches the audit row)', () => {
+    const rq = parseRegisterQuery({ model: '8001015009087' }, LOCS, MODELS);
+    expect(rq.model).toBeNull();
+    expect(exportAuditRow({ orgId: 'o', userId: 'u' }, rq, 0).meta.model).toBeNull();
+    expect(parseRegisterQuery({ model: ' ctll1 ' }, LOCS, MODELS).model).toBe('CTLL1');
+    expect(parseRegisterQuery({ model: 'CTLL1' }, LOCS, []).model).toBeNull();
+  });
+  it('sorts newest first, ordering the microseconds Date.parse drops, then by id', () => {
+    const rows = [
+      { id: 'a', created_at: '2026-03-01T08:00:00.1234+00:00' },
+      { id: 'b', created_at: '2026-03-01T08:00:00.12345+00:00' },
+      { id: 'c', created_at: '2026-03-02T08:00:00+00:00' },
+      { id: 'd', created_at: '2026-03-01T08:00:00.1234+00:00' },
+    ];
+    expect(sortNewestFirst(rows).map((r) => r.id)).toEqual(['c', 'b', 'd', 'a']);
+  });
+  it('explains a refusal over the cap', () => {
+    expect(EXPORT_MAX_ROWS).toBe(10_000);
+    expect(exportTooManyMessage(12345)).toBe('Too many units to export (12,345). Narrow the filters to 10,000 units or fewer.');
   });
 });
 

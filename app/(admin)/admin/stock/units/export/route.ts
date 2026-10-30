@@ -1,12 +1,15 @@
 import { toCsv } from '@/lib/admin/grid';
 import { ForbiddenError } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
-import { EXPORT_CHUNK, EXPORT_MAX_ROWS, exportAuditRow, parseRegisterQuery, unitsCsvTable, type UnitRow } from '@/lib/stock/register';
-import { loadLocations, loadModels, selectUnits } from '@/lib/stock/register-query';
+import { exportAuditRow, exportTooManyMessage, parseRegisterQuery, unitsCsvTable } from '@/lib/stock/register';
+import { loadLocations, loadModels, readExport } from '@/lib/stock/register-query';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+const text = (body: string, status: number) =>
+  new Response(body, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
 
 /**
  * CSV of the register's current filter (stock plan 7.3). Needs stock.export. Reads through the caller's RLS, then
@@ -21,16 +24,17 @@ export async function GET(req: Request) {
     throw e;
   }
   const db = await createClient();
-  const [locations, models] = await Promise.all([loadLocations(db, member.orgId), loadModels(db, member.orgId)]);
-  const rq = parseRegisterQuery(Object.fromEntries(new URL(req.url).searchParams.entries()), locations.map((l) => l.id));
+  const [locs, mods] = await Promise.all([loadLocations(db, member.orgId), loadModels(db, member.orgId)]);
+  // Without them the location and model filters would be dropped silently: refuse instead of exporting more.
+  if (locs.error || mods.error) return text('Units could not be loaded. Try again.', 502);
+  const locations = locs.data;
+  const models = mods.data;
+  const rq = parseRegisterQuery(Object.fromEntries(new URL(req.url).searchParams.entries()), locations.map((l) => l.id), models.map((m) => m.part_number));
 
-  const rows: UnitRow[] = [];
-  for (let from = 0; from < EXPORT_MAX_ROWS; from += EXPORT_CHUNK) {
-    const chunk = await selectUnits(db, member.orgId, rq, locations, { from, to: Math.min(from + EXPORT_CHUNK, EXPORT_MAX_ROWS) - 1 });
-    if (chunk.error) return new Response('Units could not be loaded. Try again.', { status: 502 });
-    rows.push(...chunk.rows);
-    if (chunk.rows.length < EXPORT_CHUNK) break;
-  }
+  const read = await readExport(db, member.orgId, rq, locations);
+  if (read.kind === 'error') return text('Units could not be loaded. Try again.', 502);
+  if (read.kind === 'too_many') return text(exportTooManyMessage(read.count), 422);
+  const rows = read.rows;
 
   const desc = new Map(models.map((m) => [m.part_number, m.description]));
   const loc = new Map(locations.map((l) => [l.id, l.name]));
@@ -39,7 +43,7 @@ export async function GET(req: Request) {
   // audit_log has no client insert policy: the service role writes the row, after the permission check.
   // No audit row, no export.
   const { error: auditError } = await createAdminClient().from('audit_log').insert(exportAuditRow(member, rq, rows.length));
-  if (auditError) return new Response('The export could not be recorded. Try again.', { status: 502 });
+  if (auditError) return text('The export could not be recorded. Try again.', 502);
 
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(csv, {

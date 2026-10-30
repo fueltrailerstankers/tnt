@@ -24,7 +24,7 @@ export const NAV: readonly NavDef[] = [
   { key: 'deals', label: 'Deals', href: '/admin/deal-files', icon: 'deals', perm: 'xero.read', built: true, tab: true },
   { key: 'quotes', label: 'Quotes', href: '/admin/xero/quotes', icon: 'quotes', perm: 'xero.read', built: true },
   { key: 'invoices', label: 'Invoices', href: '/admin/xero/invoices', icon: 'invoices', perm: 'xero.read', built: true },
-  { key: 'stock', label: 'Stock', href: '/admin/stock', icon: 'stock', perm: 'stock.read', built: true },
+  { key: 'stock', label: 'Stock', href: '/admin/stock', icon: 'stock', perm: 'stock.read', built: true, tab: true },
   { key: 'documents', label: 'Documents', href: '/admin/documents', icon: 'documents', perm: 'entries.read', built: false },
   { key: 'leads', label: 'Leads', href: '/admin/leads', icon: 'leads', perm: 'leads.read', built: true, tab: true, badge: 'leads' },
   { key: 'integrations', label: 'Integrations', href: '/admin/integrations/xero', icon: 'integrations', perm: 'xero.read', built: true },
@@ -51,6 +51,26 @@ export function activeKey(pathname: string, defs: readonly Pick<NavDef, 'key' | 
     if (hit && (!best || d.href.length > best.len)) best = { key: d.key, len: d.href.length };
   }
   return best?.key ?? null;
+}
+
+/** The phone bottom bar holds at most this many items. */
+export const MAX_PHONE_TABS = 5;
+
+/**
+ * Which tab items win when more than MAX_PHONE_TABS qualify (earlier wins). Stock is last, so office roles keep
+ * their bar (Home, Tasks, Forms, Deals, Leads) and reach Stock from the menu; factory staff (Home, Stock) and
+ * reviewers (5 items) still get it. Unlisted tab items rank after these.
+ */
+export const TAB_PRIORITY: readonly string[] = ['home', 'tasks', 'forms', 'deals', 'leads', 'stock'];
+
+/** Keys of the items shown in the phone bottom bar (displayed in NAV order). */
+export function phoneTabKeys(items: readonly Pick<NavDef, 'key' | 'tab'>[], max = MAX_PHONE_TABS): Set<string> {
+  const rank = (k: string) => {
+    const i = TAB_PRIORITY.indexOf(k);
+    return i < 0 ? TAB_PRIORITY.length : i;
+  };
+  const tabs = items.filter((i) => i.tab).map((i, order) => ({ key: i.key, rank: rank(i.key), order }));
+  return new Set(tabs.sort((a, b) => a.rank - b.rank || a.order - b.order).slice(0, max).map((t) => t.key));
 }
 
 /** Badge text: empty for zero, capped at 99+. */

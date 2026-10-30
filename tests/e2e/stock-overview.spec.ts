@@ -191,6 +191,11 @@ test('register: URL-synced search, filters, deal search, CSV export of the filte
   await main.getByRole('link', { name: 'Clear' }).click();
   await expect(page).toHaveURL(/\/admin\/stock\/units$/);
   await expect(main.getByPlaceholder('Search VIN, sequence, model or invoice…')).toHaveValue('');
+
+  // A model that is not a part number (here an ID-number-like string) is dropped: no filter, not in the export link.
+  await page.goto(`/admin/stock/units?q=${PREFIX}&model=8001015009087`);
+  await expect(page.getByTestId('unit-count')).toHaveText('5 units');
+  await expect(main.getByRole('link', { name: 'Export CSV' })).toHaveAttribute('href', `/admin/stock/units/export?q=${PREFIX}`);
 });
 
 test('unit record: every field; admin Correct record and Transfer with mapped errors, audited', async ({ page }) => {
@@ -279,6 +284,63 @@ test('factory unit: move to a branch with its deal clears the deal; Correct reco
     .toEqual([{ deal_id: null, deal_year: null, sequence: null }]);
 });
 
+test('a form opened before someone else changed the unit is refused, not saved over it; notes keep line breaks once', async ({ page }) => {
+  const idC = await unitId(VIN.c);
+  await signIn(page, '/admin/stock/units');
+  await page.goto(`/admin/stock/units/${idC}`);
+  const record = page.getByTestId('unit-record');
+  await expect(record).toContainText('Cape Town');
+  const correct = (await openSection(page, 'Correct record')).getByTestId('correct-form');
+  const transfer = (await openSection(page, 'Transfer branch')).getByTestId('transfer-form');
+
+  // Meanwhile another admin moves the unit (any write bumps updated_at).
+  await sql(`update public.stock_units set location_id = 'DBN', transfer_reason = 'Moved elsewhere meanwhile' where id = $1`, [idC]);
+
+  await correct.getByLabel('Notes').fill('Note typed on the old form');
+  await correct.getByRole('button', { name: 'Save correction' }).click();
+  await expect(correct.getByRole('alert')).toHaveText('This unit changed since you opened it. Reload and check.');
+  await transfer.getByLabel('Destination').selectOption('JHB');
+  await transfer.getByLabel('Reason').fill('Old form transfer');
+  await transfer.getByRole('button', { name: 'Transfer unit' }).click();
+  await expect(transfer.getByRole('alert')).toHaveText('This unit changed since you opened it. Reload and check.');
+  expect(await sql(`select location_id, status, invoice_number, notes from public.stock_units where id = $1`, [idC]))
+    .toEqual([{ location_id: 'DBN', status: 'reserved', invoice_number: INV_C, notes: null }]);
+
+  // After a reload the form is current: a notes-only edit keeps the other admin's location.
+  await page.reload();
+  await expect(record).toContainText('Durban');
+  const fresh = (await openSection(page, 'Correct record')).getByTestId('correct-form');
+  await fresh.getByLabel('Notes').fill('Line one\nLine two');
+  await fresh.getByRole('button', { name: 'Save correction' }).click();
+  await expect(fresh.getByRole('status')).toHaveText('Record corrected: notes.');
+  expect(await sql(`select location_id, notes from public.stock_units where id = $1`, [idC]))
+    .toEqual([{ location_id: 'DBN', notes: 'Line one\nLine two' }]);
+  // Saving the same text again changes nothing (the browser posts CRLF; the record keeps LF).
+  await page.getByTestId('correct-form').getByRole('button', { name: 'Save correction' }).click();
+  await expect(page.getByTestId('correct-form').getByRole('status')).toHaveText('No changes to save.');
+});
+
+test('an export over the 10,000-unit cap is refused with the reason, never cut short', async ({ page }) => {
+  const cap = `CAP${run}`;
+  await sql(`insert into public.stock_units (org_id, vin, model_part, location_id)
+             select $1, $2 || lpad(g::text, 6, '0'), 'CTLL3', 'FACTORY' from generate_series(1, 10001) g`, [ORG, cap]);
+  try {
+    await signIn(page, '/admin/stock/units');
+    await page.goto(`/admin/stock/units?q=${cap}`);
+    await expect(page.getByTestId('unit-count')).toHaveText('10001 units');
+    const main = page.getByRole('main');
+    await expect(main.getByRole('link', { name: 'Export CSV' })).toHaveCount(0);
+    await expect(page.getByTestId('export-too-many')).toHaveText('Too many units to export (10,001). Narrow the filters to 10,000 units or fewer.');
+    const before = (await sql(`select count(*)::int as n from public.audit_log where org_id = $1 and action = 'stock.export'`, [ORG]))[0].n;
+    const res = await page.request.get(`/admin/stock/units/export?q=${cap}`);
+    expect(res.status()).toBe(422);
+    expect(await res.text()).toBe('Too many units to export (10,001). Narrow the filters to 10,000 units or fewer.');
+    expect((await sql(`select count(*)::int as n from public.audit_log where org_id = $1 and action = 'stock.export'`, [ORG]))[0].n).toBe(before);
+  } finally {
+    await sql(`delete from public.stock_units where org_id = $1 and vin_norm like $2`, [ORG, `${cap}%`]);
+  }
+});
+
 test('factory member: stock tabs by permission, no export, no admin forms', async ({ page }) => {
   // Sanity: the stub seeds this member with the factory role.
   expect(await sql(`select m.role from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1 and m.org_id = $2`, [FACTORY.email, ORG]))
@@ -304,6 +366,13 @@ test('factory member: stock tabs by permission, no export, no admin forms', asyn
   await expect(page.getByTestId('unit-record')).toContainText('Jockey wheel');
   await expect(main.getByText('Correct record')).toHaveCount(0);
   await expect(main.getByText('Transfer branch')).toHaveCount(0);
+
+  // The shell search sends a VIN to the unit register (factory staff cannot open deal files).
+  const search = page.getByRole('searchbox', { name: 'Search by quote no, VIN or invoice no' }).first();
+  await search.fill(VIN.b);
+  await search.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/admin/stock/units\\?q=${VIN.b}$`));
+  await expect(page.getByTestId('unit-count')).toHaveText('1 unit');
 });
 
 test.describe('phone (390)', () => {
@@ -327,5 +396,19 @@ test.describe('phone (390)', () => {
     await expect(page.getByTestId('unit-record')).toContainText(VIN.b);
     await expect(page.getByRole('main').locator('summary', { hasText: 'Correct record' })).toBeVisible();
     expect(await noPageScroll(page)).toBe(true);
+
+    // Admin bottom bar stays at 5 items (Stock is in the menu).
+    await expect(page.getByRole('navigation', { name: 'Quick links' }).getByRole('link')).toHaveText(['Home', 'Tasks', 'Forms', 'Deals', 'Leads']);
+  });
+
+  test('factory staff get Home and Stock in the bottom bar', async ({ page }) => {
+    await page.goto(`/login?next=${encodeURIComponent('/admin/stock')}`);
+    await page.getByLabel('Email').fill(FACTORY.email);
+    await page.getByLabel('Password').fill(FACTORY.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/admin\/stock$/);
+    const bar = page.getByRole('navigation', { name: 'Quick links' });
+    await expect(bar.getByRole('link')).toHaveText(['Home', 'Stock']);
+    await expect(bar.getByRole('link', { name: 'Stock' })).toHaveAttribute('aria-current', 'page');
   });
 });
