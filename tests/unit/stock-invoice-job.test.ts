@@ -161,6 +161,14 @@ describe('stock.invoices job (review fixes)', () => {
     expect(f.tables.stock_invoice_exceptions.map((e) => [e.xero_invoice_id, e.reason])).toEqual([[ID(1), 'vin_on_several_invoices'], [ID(2), 'vin_on_several_invoices']]);
   });
 
+  it('item 6: an old live invoice (before the invoice start date) naming the VIN is history, not a conflict', async () => {
+    f = fakeDb({ app_settings: settings(), stock_units: [unit(1)], xero_invoices: [
+      inv(1, { reference: 'TESTVIN00000000001' }), inv(2, { reference: 'TESTVIN00000000001', status: 'PAID', amount_due: 0, updated_utc: '2025-06-01T00:00:00.000Z' }),
+    ] });
+    await processStockInvoices(f.db, ORG, ids(1));
+    expect(f.tables.stock_units[0]).toMatchObject({ status: 'reserved', invoice_number: 'INV-1' });
+  });
+
   it('a unit linked to another invoice: exception, no change', async () => {
     f = fakeDb({ app_settings: settings(), stock_units: [unit(1, { status: 'reserved', invoice_number: 'INV-9', xero_invoice_id: ID(9) })],
       xero_invoices: [inv(3, { reference: 'TESTVIN00000000001', status: 'PAID', amount_due: 0 })] });

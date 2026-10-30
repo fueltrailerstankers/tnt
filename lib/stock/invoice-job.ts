@@ -103,16 +103,19 @@ export async function recordedExceptions(db: SupabaseClient, orgId: string, xero
  * Other live invoices naming the VIN, from the mirror (reference contains it; the pure check confirms the match).
  * Used for 'apply' outcomes only: one invoice covers one unit.
  */
-export async function invoicesNamingVin(db: SupabaseClient, orgId: string, self: MirrorInvoiceRow, vin: string): Promise<MirrorInvoiceRow[]> {
+export async function invoicesNamingVin(db: SupabaseClient, orgId: string, self: MirrorInvoiceRow, vin: string, since: string): Promise<MirrorInvoiceRow[]> {
   const rows = await must(db.from('xero_invoices').select(MIRROR_INVOICE_COLUMNS)
-    .eq('org_id', orgId).ilike('reference', `*${vin.replace(/[*%_,()\\]/g, '')}*`).limit(50), 'invoices');
+    .eq('org_id', orgId).gte('updated_utc', since).ilike('reference', `*${vin.replace(/[*%_,()\\]/g, '')}*`).limit(50), 'invoices');
   return otherInvoicesNamingVin(self, vin, rows as MirrorInvoiceRow[]);
 }
 
-/** An 'apply' outcome becomes 'vin_on_several_invoices' when another live invoice names the same VIN. */
-export async function withVinConflict(db: SupabaseClient, orgId: string, row: MirrorInvoiceRow, o: InvoiceOutcome): Promise<InvoiceOutcome> {
+/**
+ * An 'apply' outcome becomes 'vin_on_several_invoices' when another live invoice changed since the invoice start date
+ * names the same VIN (older invoices are history, like everywhere else in the rules).
+ */
+export async function withVinConflict(db: SupabaseClient, orgId: string, row: MirrorInvoiceRow, o: InvoiceOutcome, since: string): Promise<InvoiceOutcome> {
   if (o.kind !== 'apply') return o;
-  const others = await invoicesNamingVin(db, orgId, row, o.vin);
+  const others = await invoicesNamingVin(db, orgId, row, o.vin, since);
   return others.length ? { kind: 'exception', reason: 'vin_on_several_invoices', unitId: o.unitId, vin: o.vin } : o;
 }
 
@@ -234,7 +237,7 @@ async function runBatch(ctx: RunCtx, rows: MirrorInvoiceRow[], deadline: number)
       row = fresh;
       outcome = evaluateInvoice(row, codes.get(row.invoice_id) ?? [], units, modelParts);
     }
-    outcome = await withVinConflict(ctx.db, ctx.orgId, row, outcome);
+    outcome = await withVinConflict(ctx.db, ctx.orgId, row, outcome, ctx.since);
     if (outcome.kind === 'exception' && recordedState(recorded.get(exceptionKey(row.invoice_id, outcome.reason)), row.updated_utc)) continue;
     const p = outcome.kind === 'noop' ? (linkOnly ? outcome.status : null) : rpcOutcome(outcome);
     if (!p) continue;

@@ -61,8 +61,9 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
   let recent: Array<{ row: Row; view: ReturnType<typeof outcomeView>; vin: string | null; unitId: string | null }> = [];
   let scanned = 0;
   if (settings.invoicesFrom) {
+    const since = invoicesFromInstant(settings.invoicesFrom, tz);
     const { data: inv } = await db.from('xero_invoices').select(`${MIRROR_INVOICE_COLUMNS}, total, currency_code`)
-      .eq('org_id', member.orgId).gte('updated_utc', invoicesFromInstant(settings.invoicesFrom, tz))
+      .eq('org_id', member.orgId).gte('updated_utc', since)
       .order('updated_utc', { ascending: false }).limit(SCAN);
     const rows = (inv ?? []) as Row[];
     scanned = rows.length;
@@ -75,7 +76,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
         .filter((x) => x.o.kind !== 'ignore').slice(0, SHOWN);
       recent = await Promise.all(listed.map(async ({ row, o: first }) => {
         // Same as the job: an invoice that would apply while another live invoice names the VIN is a conflict.
-        const o = await withVinConflict(db, member.orgId, row, first);
+        const o = await withVinConflict(db, member.orgId, row, first, since);
         const state = o.kind === 'exception' ? recordedState(recorded.get(exceptionKey(row.invoice_id, o.reason)), row.updated_utc) : null;
         return { row, view: outcomeView(o, settings.rules, state), vin: o.kind === 'ignore' ? null : o.vin, unitId: o.kind === 'ignore' ? null : o.unitId };
       }));
