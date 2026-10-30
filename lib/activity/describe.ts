@@ -138,7 +138,7 @@ export function hrefFor(row: Pick<AuditRow, 'entity' | 'entity_id' | 'meta'>): s
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 export const ActivityFilters = z.object({
-  user: z.string().uuid().optional(),
+  user: z.guid().optional(),
   area: z.enum(AREAS).optional(),
   action: z.string().trim().regex(/^[a-z_.-]{1,60}$/).optional(),
   from: day,

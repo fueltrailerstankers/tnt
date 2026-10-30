@@ -17,7 +17,7 @@ export const metadata = { title: 'Edit user · Trailers & Tankers' };
 export default async function EditUser({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const member = await requirePerm('users.manage');
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) notFound();
+  if (!z.guid().safeParse(id).success) notFound();
   const sp = await searchParams;
   const target = await loadMember(await createClient(), member.orgId, id);
   if (!target) notFound();

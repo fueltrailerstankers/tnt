@@ -24,7 +24,7 @@ const AUDIT_COLS = 'id, created_at, actor_user, action, entity, entity_id, meta'
 export default async function UserDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; sent?: string; error?: string }> }) {
   const member = await requirePerm('users.read');
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) notFound();
+  if (!z.guid().safeParse(id).success) notFound();
   const sp = await searchParams;
   const db = await createClient();
   const [target, org] = await Promise.all([loadMember(db, member.orgId, id), loadOrg(db, member.orgId)]);

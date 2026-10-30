@@ -14,7 +14,7 @@ const notFound = () => new Response('Not found', { status: 404, headers: { 'Cach
 export async function GET(_req: Request, { params }: { params: Promise<{ entity: string; id: string }> }) {
   const member = await requirePerm('audit.read');
   const { entity, id } = await params;
-  if (!z.string().uuid().safeParse(id).success) return notFound();
+  if (!z.guid().safeParse(id).success) return notFound();
   const db = await createClient();
   if (entity === 'entry') {
     const { data: e } = await db.from('entries').select('form_id, number').eq('org_id', member.orgId).eq('id', id).maybeSingle();

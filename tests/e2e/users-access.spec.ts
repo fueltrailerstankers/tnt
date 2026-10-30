@@ -20,7 +20,7 @@ const rest = (request: APIRequestContext, tok: string, path: string) =>
 
 async function setPassword(page: Page, password: string) {
   await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible();
-  await page.getByLabel('New password').fill(password);
+  await page.getByLabel('New password', { exact: true }).fill(password);
   await page.getByLabel('Repeat new password').fill(password);
   await page.getByRole('button', { name: 'Set password and continue' }).click();
   await expect(page).toHaveURL(/\/admin$/);
@@ -175,7 +175,7 @@ test.describe.serial('users, access levels and activity log', () => {
     const again = await (await browser.newContext()).newPage();
     await again.goto(`/auth/confirm?token_hash=${mails[0].token_hash}&type=invite`);
     await expect(again).toHaveURL(/\/login\?error=link$/);
-    await expect(again.getByRole('alert')).toContainText('invalid or has expired');
+    await expect(again.getByRole('main').getByRole('alert')).toContainText('invalid or has expired');
 
     await mp.goto('/admin/settings');
     await expect(mp).toHaveURL(/\/admin\/settings\/users$/);
@@ -184,7 +184,7 @@ test.describe.serial('users, access levels and activity log', () => {
     // Not the admin: Disable refused, Admin preset not offered.
     await mp.goto(`/admin/settings/users/${ADMIN_ID}`);
     await mp.getByRole('button', { name: 'Disable' }).click();
-    await expect(mp.getByRole('alert')).toContainText('Only an admin can invite, change, disable or remove an admin.');
+    await expect(mp.getByRole('main').getByRole('alert')).toContainText('Only an admin can invite, change, disable or remove an admin.');
     expect((await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [ADMIN_ID]))[0].status).toBe('active');
     await mp.goto('/admin/settings/users/invite');
     await expect(mp.getByLabel('Preset').locator('option')).toHaveText(['Staff', 'Reviewer', 'Inspector', 'Factory']);
@@ -213,7 +213,7 @@ test.describe.serial('users, access levels and activity log', () => {
 
     await signIn(page, `/admin/settings/users/${readerId}`);
     await page.getByRole('main').getByRole('button', { name: 'Disable' }).click();
-    await expect(page.getByRole('status')).toContainText('Disabled');
+    await expect(page.getByRole('main').getByRole('status')).toContainText('Disabled');
 
     await rp.reload();
     await expect(rp.getByRole('heading', { name: 'No access' })).toBeVisible();
@@ -223,7 +223,7 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(await token(request, READER.email, READER.password)).toBeNull();
 
     await page.getByRole('main').getByRole('button', { name: 'Enable' }).click();
-    await expect(page.getByRole('status')).toContainText('Enabled');
+    await expect(page.getByRole('main').getByRole('status')).toContainText('Enabled');
     await rp.goto('/admin/forms');
     await expect(rp.getByRole('main').getByRole('heading', { name: 'Forms' })).toBeVisible();
     await ctx.close();
@@ -241,7 +241,8 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(failed[0].actor_user).toBeNull();
     expect(failed[0].meta).not.toContain(READER.email);
 
-    await signIn(page, `/admin/settings/activity?area=users`);
+    await signIn(page, '/admin/settings/activity');
+    await page.goto('/admin/settings/activity?area=users');
     const list = page.getByTestId('activity-rows');
     for (const text of [
       `Test Admin invited ${READER.name}`, `Test Admin created an invite link for ${READER.name}`, `${READER.name} accepted the invite and set a password`,

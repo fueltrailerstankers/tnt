@@ -31,7 +31,7 @@ const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 const appSchema = z.object({
   APP_URL: z.string().url().default('http://localhost:3000'),
   /** Org that owns the public /f/<slug> links. One org today. */
-  PUBLIC_ORG_ID: z.string().uuid().default(DEFAULT_ORG_ID),
+  PUBLIC_ORG_ID: z.guid().default(DEFAULT_ORG_ID),
   RESEND_API_KEY: z.string().optional(),
   MAIL_FROM: z.string().optional(),
 });
