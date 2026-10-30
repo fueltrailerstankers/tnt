@@ -94,7 +94,7 @@ class Query implements PromiseLike<{ data: unknown; error: { code: string; messa
     let out: Row[];
     if (this.op === 'insert') {
       const defaults = f.opts.defaults?.[this.table] ?? {};
-      const made = this.rows.map((r) => {
+      const made = this.rows.map((r): Row => {
         const d = Object.fromEntries(Object.entries(defaults).map(([k, v]) => [k, typeof v === 'function' ? (v as () => unknown)() : v]));
         return { id: fakeId(), ...d, ...structuredClone(r) };
       });
