@@ -59,3 +59,24 @@ export async function neverSignedIn(admin: SupabaseClient, userId: string): Prom
   if (error || !data.user) return false;
   return !data.user.email_confirmed_at && !data.user.last_sign_in_at;
 }
+
+/**
+ * Add user for an email whose Auth account is only a leftover (never signed in, no membership anywhere: e.g. from a
+ * cancelled invite). Gives it the typed password and confirms it, so no second account is needed. Fails closed.
+ */
+export async function adoptLeftover(admin: SupabaseClient, userId: string, password: string, name: string): Promise<boolean> {
+  const { error } = await admin.auth.admin.updateUserById(userId, { password, email_confirm: true, user_metadata: { full_name: name } });
+  return !error;
+}
+
+/** The Auth account id for an email (service role). Scans the first pages of accounts: this is a small internal user base. */
+export async function authUserIdByEmail(admin: SupabaseClient, email: string): Promise<string | null> {
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) return null;
+    const hit = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (hit) return hit.id;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}

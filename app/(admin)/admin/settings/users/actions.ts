@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createAccount, createLink, neverSignedIn, sendInvite, setBanned } from '@/lib/users/auth-admin';
+import { adoptLeftover, authUserIdByEmail, createAccount, createLink, neverSignedIn, sendInvite, setBanned } from '@/lib/users/auth-admin';
 import {
   accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, banDecision, grantsAdminOnlyWrite, InviteInput, resolveAccess,
   type AddState, type InviteState, type LinkResult,
@@ -121,8 +121,18 @@ export async function addUser(_prev: AddState, fd: FormData): Promise<AddState> 
   if (grantsAdminOnlyWrite(member.role, null, access)) return { status: 'error', error: 'admin_only', values: echo(fd) };
   const password = generate ? generatePassword() : parsed.data.password!;
   const admin = createAdminClient();
-  const made = await createAccount(admin, email, password, name);
-  if ('error' in made) return { status: 'error', error: made.error === 'exists' ? 'account_exists' : 'auth', values: echo(fd) };
+  let made = await createAccount(admin, email, password, name);
+  if ('error' in made && made.error === 'exists') {
+    // A leftover from a cancelled invite (no membership anywhere, never signed in) is reused; a real account is refused.
+    const knownId = (await authUserIdByEmail(admin, email)) ?? undefined; // works even if the profile row was deleted
+    const leftover = knownId
+      && !((await admin.from('memberships').select('org_id').eq('user_id', knownId)).data ?? []).length
+      && await neverSignedIn(admin, knownId)
+      && await adoptLeftover(admin, knownId, password, name);
+    if (!knownId || !leftover) return { status: 'error', error: 'account_exists', values: echo(fd) };
+    made = { userId: knownId };
+  }
+  if ('error' in made) return { status: 'error', error: 'auth', values: echo(fd) };
   await admin.from('profiles').upsert({ id: made.userId, email, full_name: name }, { onConflict: 'id', ignoreDuplicates: true });
   const { error } = await admin.from('memberships').insert({
     org_id: member.orgId, user_id: made.userId, role, access, status: 'active', must_change_password: true,
@@ -168,7 +178,8 @@ export async function resendInvite(userId: string, fd?: FormData): Promise<void>
   // Only a brand-new account gets invite emails (an existing account accepts with its own password).
   if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) redirect(back('?error=existing_account'));
   const r = await sendInvite(createAdminClient(), target.email, target.name);
-  if (!('userId' in r)) redirect(back(`?error=${r.error === 'exists' ? 'state' : 'email'}`));
+  // A failed email goes to the member's page, where Copy invite link is, whichever page asked.
+  if (!('userId' in r)) redirect(r.error === 'exists' ? back('?error=state') : userUrl(target.userId, '?error=email'));
   await audit(member.orgId, member.userId, 'user.invite_resend', target.userId);
   redirect(back('?sent=1'));
 }

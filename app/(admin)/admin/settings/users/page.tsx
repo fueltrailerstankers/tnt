@@ -41,7 +41,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
       </div>
 
       <div className={tableWrapClass}>
-        <table className={`${tableClass} min-w-[860px]`}>
+        <table className={`${tableClass} min-w-[1000px]`}>
           <thead className={theadClass}>
             <tr>
               <th className="p-2.5">Name</th>
@@ -64,7 +64,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
               return (
               <tr key={m.userId} className="border-t border-border" data-testid={`user-row-${m.userId}`}>
                 <td className="p-2.5"><Link href={`/admin/settings/users/${m.userId}`} className="font-semibold underline">{m.name}</Link>{m.userId === member.userId ? <span className="ml-1 text-fg-muted">(you)</span> : null}</td>
-                <td className="p-2.5 break-all">{m.email ?? '-'}</td>
+                <td className="min-w-56 p-2.5 break-all">{m.email ?? '-'}</td>
                 <td className="p-2.5">{PRESET_LABEL(m.preset)}</td>
                 <td className="p-2.5"><StatusChip status={STATUS_LABEL[m.status]} color={STATUS_COLOR[m.status]} size="sm" /></td>
                 <td className="p-2.5 whitespace-nowrap" data-testid={`invite-${m.userId}`}>
@@ -75,7 +75,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
                 <td className="p-2.5 whitespace-nowrap">{m.lastSeenAt ? formatDateTime(m.lastSeenAt, tz) : '-'}</td>
                 {manage ? (
                   <td className="p-2.5">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 whitespace-nowrap">
                       {canResend ? <ResendInviteButton userId={m.userId} name={m.name} /> : null}
                       {canRemove ? <RemoveUserButton userId={m.userId} name={m.name} pendingInvite={pending} /> : null}
                     </div>
