@@ -114,3 +114,9 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Activity rendering and area mapping: `lib/activity/describe.ts`. Add a phrase there for new audit actions.
 - Add user (temporary password): `memberships.must_change_password`; `requirePerm()` and the admin layout redirect such members to `/admin/account/password` until they change it.
 - mini-supabase: Auth admin endpoints (invite, createUser, generate_link, users/:id ban, verify, user update) and `GET /__stub/mail?to=` for invite emails "sent".
+## Repo notes (UI handoff, entry detail)
+- Entry page `app/(admin)/admin/forms/[slug]/entries/[number]`: pure rail rules in `lib/entry-view/*` (status path, Store Room flow `MANUAL_FINAL`, `railActions`, protected fields, timeline, files, PDF versions, `belowMinimum`), cards in `components/entry/*`. On phones the status card (and actions) renders above the form.
+- Rail action buttons submit the entry form with their spec action (same post as the form's own button, which keeps the spec text, e.g. `MarkReviewed`); plain save actions (Update/Action) stay with the form.
+- Protected fields (`email` + `protected`) never reach the page: the form gets `formSpecForPage` (field hidden) and data without them, saves go through `saveEntryKeepingProtected` (stored value kept), recipients equal to a protected value are masked, and only admins Reveal (`entry.reveal` audit row with field keys).
+- Opening an encrypted entry (page or PDF) writes `entry.decrypt` (ids only); the page refuses to render if the row cannot be written.
+- Delete is a TypedConfirmModal (phrase = entry number) calling the shared `deleteEntry`; e2e: `tests/e2e/entry-detail.spec.ts`.
