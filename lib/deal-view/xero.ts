@@ -29,6 +29,7 @@ export interface PanelInvoiceRow {
   currency_code: string | null;
   total: AmountInput;
   amount_due: AmountInput;
+  due_date: string | null;
   fully_paid_on: string | null;
 }
 
