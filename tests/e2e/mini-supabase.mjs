@@ -145,6 +145,10 @@ async function authAdmin(req, url, raw) {
     return { ...userJson(u), action_link: `http://stub/auth/v1/verify?token=${token_hash}&type=${b.type}`, email_otp: '000000', hashed_token: token_hash,
       redirect_to: url.searchParams.get('redirect_to') ?? b.redirect_to ?? null, verification_type: b.type };
   }
+  if (url.pathname === '/auth/v1/admin/users' && req.method === 'GET') {
+    serviceOnly(req);
+    return { users: USERS.map(userJson), aud: 'authenticated' };
+  }
   if (url.pathname === '/auth/v1/admin/users' && req.method === 'POST') {
     serviceOnly(req);
     if (findByEmail(b.email)) throw EXISTS();

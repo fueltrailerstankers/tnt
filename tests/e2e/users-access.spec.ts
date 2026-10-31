@@ -378,6 +378,31 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(again).toEqual({ status: 'invited', invite_new_account: true });
   });
 
+  test('Add user reuses the leftover account of a cancelled invite', async ({ page }) => {
+    const L = { name: `Lef Tover ${run}`, email: `leftover-${run}@example.invalid` };
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(L.name);
+    await main.getByLabel('Email').fill(L.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [L.email]);
+    await page.goto(`/admin/settings/users/${row.user_id}`);
+    await main.getByText('Cancel invite', { exact: true }).first().click();
+    await main.getByLabel(/cancel the invite for/i).check();
+    await main.getByRole('button', { name: 'Cancel invite' }).click();
+    await expect(page).toHaveURL(/removed=invite/);
+
+    await page.goto('/admin/settings/users/add');
+    await main.getByLabel('Name').fill(L.name);
+    await main.getByLabel('Email').fill(L.email);
+    await main.getByRole('button', { name: /add user/i }).last().click();
+    await expect(main.getByRole('status')).toBeVisible();
+    // Even when the profile row was deleted by hand, the Auth account is found by email.
+    const [m] = await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [row.user_id]);
+    expect(m.status).toBe('active');
+  });
+
   test('every user and access change, sign-in and export is in the activity log with the actor', async ({ page }) => {
     // A failed sign-in for the reader's account: recorded without the email.
     await page.goto('/login');

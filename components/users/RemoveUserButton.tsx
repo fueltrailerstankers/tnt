@@ -17,7 +17,7 @@ export function RemoveUserButton({ userId, name, pendingInvite = false }: { user
       }}
     >
       <input type="hidden" name="confirm" value="remove" />
-      <button className={buttonClass('destructive-outline', 44)} aria-label={`${label} ${name}`}>{label}</button>
+      <button className={buttonClass('destructive-outline', 36, 'whitespace-nowrap')} aria-label={`${label} ${name}`}>{label}</button>
     </form>
   );
 }
@@ -27,7 +27,7 @@ export function ResendInviteButton({ userId, name }: { userId: string; name: str
   return (
     <form action={resendInvite.bind(null, userId)}>
       <input type="hidden" name="from" value="list" />
-      <button className={buttonClass('secondary', 44)} aria-label={`Resend invite to ${name}`}>Resend invite</button>
+      <button className={buttonClass('secondary', 36, 'whitespace-nowrap')} aria-label={`Resend invite to ${name}`}>Resend invite</button>
     </form>
   );
 }
