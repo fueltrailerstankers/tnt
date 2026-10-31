@@ -132,7 +132,7 @@ export function PipelineBoard({ leads, total, members, sourceNames, me, manage, 
         {total > leads.length ? <p className="m-0 text-[12px] text-fg-muted">Showing the newest {leads.length} of {total} leads.</p> : null}
       </div>
 
-      <div className="grid auto-cols-[minmax(264px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2 [contain:inline-size]" data-testid="pipeline-board">
+      <div className="grid auto-cols-[minmax(264px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2 relative [contain:inline-size]" data-testid="pipeline-board">
         {columns.map((c) => {
           const headId = `stage-${c.stage}`;
           return (

@@ -230,12 +230,15 @@ for (const [w, h] of [[1440, 1000], [390, 844]] as const) {
       };
       await open(page, `/admin/leads?view=all&q=${tag}`);
       await audit('inbox');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w);
       await page.goto(`/admin/leads/${L.fleet}?q=${tag}`);
       await audit('lead');
       await shot(page, `lead-${w}-${scheme}`);
       await page.goto('/admin/leads/pipeline');
       await page.getByRole('main').getByRole('searchbox', { name: 'Search leads' }).fill(tag);
       await audit('pipeline');
+      // The board scrolls inside its own box: no horizontal page scroll.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w);
       await shot(page, `pipeline-${w}-${scheme}`);
       await page.getByTestId('pipeline-card').filter({ hasText: `Test Fleet Pty ${tag}` }).click();
       await expect(page.getByRole('dialog')).toBeVisible();
