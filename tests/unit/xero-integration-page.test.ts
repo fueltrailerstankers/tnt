@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { differenceCount, differencesLabel, diffLines, normalisePath, parseMakeRecording, requestLines, sides } from '@/lib/settings/request-diff';
 import {
-  accessTokenMeter, actionStats, entityRows, failureItems, pickDryRun, rateMeters, refreshTokenMeter,
+  accessTokenMeter, actionStats, entityRows, failureItems, liveBlockedReason, pickDryRun, rateMeters, refreshTokenMeter,
 } from '@/lib/settings/xero-page';
 
 const NOW = '2026-10-29T12:30:00Z'; // 14:30 SAST
@@ -96,6 +96,19 @@ describe('write actions', () => {
     expect(pickDryRun(rows, 'rfi.create_invoice', 'c')?.id).toBe('b'); // a live run is never shown as a dry run
     expect(pickDryRun(rows, 'rfi.create_invoice', 'd')?.id).toBe('b'); // another action's run is ignored
     expect(pickDryRun(rows, 'release.on_paid')).toBeNull();
+  });
+});
+
+describe('live availability', () => {
+  it('matches checkSwitch: plan only, connection, write scopes; no Xero writes needs neither', () => {
+    const write = { status: 'connected', scopes: ['accounting.transactions', 'accounting.contacts', 'accounting.attachments'] };
+    expect(liveBlockedReason('invoice.merge_attachments', write)).toMatch(/only plans/);
+    expect(liveBlockedReason('rfi.create_invoice', null)).toBe('connect Xero first.');
+    expect(liveBlockedReason('rfi.create_invoice', { status: 'disconnected', scopes: write.scopes })).toBe('connect Xero first.');
+    expect(liveBlockedReason('delivery.update_invoice', { status: 'connected', scopes: ['accounting.transactions.read'] })).toMatch(/write scopes/);
+    expect(liveBlockedReason('rfi.create_invoice', write)).toBeNull();
+    expect(liveBlockedReason('release.on_paid', null)).toBeNull();
+    expect(liveBlockedReason('deal.import_quote', null)).toBeNull();
   });
 });
 
