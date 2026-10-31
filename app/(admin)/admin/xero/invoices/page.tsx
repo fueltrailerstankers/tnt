@@ -98,7 +98,7 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
                       href={mirrorHref('invoices', s, { id: r.invoice_id })}
                       scroll={false}
                       aria-current={r.invoice_id === s.id ? 'true' : undefined}
-                      className="font-mono text-small font-semibold text-accent-text no-underline hover:underline"
+                      className="whitespace-nowrap font-mono text-small font-semibold text-accent-text no-underline hover:underline"
                     >
                       {r.invoice_number || '(no number)'}
                     </Link>

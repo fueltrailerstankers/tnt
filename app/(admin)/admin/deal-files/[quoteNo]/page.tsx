@@ -111,7 +111,7 @@ export default async function DealFilePage({ params }: { params: Promise<{ quote
           <h1 id="deal-h" className="m-0 break-words text-[26px] font-semibold leading-8 tracking-[-0.3px]">{file.customer_name || `Deal ${label}`}</h1>
           <span data-testid="deal-status"><StatusChip status={journey.headline.label} color={journey.headline.tone} /></span>
         </div>
-        <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(min(170px,100%),1fr))] gap-x-5 gap-y-3.5">
+        <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(min(160px,100%),1fr))] gap-x-5 gap-y-3.5">
           {facts.map((f) => (
             <div key={f.k} className="flex min-w-0 flex-col gap-[3px]">
               <dt className="text-label uppercase text-fg-muted">{f.k}</dt>

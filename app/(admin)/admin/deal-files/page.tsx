@@ -74,7 +74,7 @@ export default async function DealFiles({ searchParams }: { searchParams: Promis
                 return (
                   <TR key={r.id}>
                     <TD>
-                      <Link href={`/admin/deal-files/${encodeURIComponent(r.quote_no)}`} className="font-mono text-small font-semibold text-accent-text no-underline hover:underline">
+                      <Link href={`/admin/deal-files/${encodeURIComponent(r.quote_no)}`} className="whitespace-nowrap font-mono text-small font-semibold text-accent-text no-underline hover:underline">
                         {quoteLabel(r.quote_no)}
                       </Link>
                     </TD>

@@ -80,7 +80,7 @@ export default async function Quotes({ searchParams }: { searchParams: Promise<R
                       href={mirrorHref('quotes', s, { id: r.quote_id })}
                       scroll={false}
                       aria-current={r.quote_id === s.id ? 'true' : undefined}
-                      className="font-mono text-small font-semibold text-accent-text no-underline hover:underline"
+                      className="whitespace-nowrap font-mono text-small font-semibold text-accent-text no-underline hover:underline"
                     >
                       {r.quote_number || '(no number)'}
                     </Link>
