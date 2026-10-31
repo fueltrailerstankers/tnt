@@ -45,7 +45,7 @@ export async function submitPublic(slug: string, _prev: SubmitState, fd: FormDat
   const actionName = String(fd.get('__action') ?? '');
   const res = await runAction({ db: ctx.db, form: ctx.form, entry: null, actionName, actor: { kind: 'public' }, fd });
   if (!res.ok) return { message: res.message, errors: res.errors, at: Date.now() };
-  redirect(`/f/${slug}/thanks?a=${encodeURIComponent(actionName)}`);
+  redirect(`/f/${slug}/thanks?a=${encodeURIComponent(actionName)}&n=${res.number}`);
 }
 
 export async function requestUploadPublic(slug: string, field: string, files: Array<{ name: string; size: number; type: string }>): Promise<{ tickets?: UploadTicket[]; error?: string }> {
