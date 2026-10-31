@@ -206,15 +206,19 @@ export class HttpCognitoSource implements CognitoSource {
       if (res.ok) return res;
       await res.body?.cancel().catch(() => undefined);
       if (res.status === 404 && allow404) return null;
-      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+      if (res.status === 429 || res.status >= 500) {
         const ra = Number(res.headers.get('retry-after'));
         const wait = Number.isFinite(ra) && ra > 0 ? Math.min(ra, 120) * 1000 : Math.min(2 ** attempt * 500, 30_000) + Math.random() * 250;
-        // Never sleep past the step: hand the wait to the job (it retries the run later, visibly).
-        if (this.o.deadline !== undefined && Date.now() + wait >= this.o.deadline) {
-          throw new SourceDeadlineError(res.status === 429 ? 'cognito_rate_limited' : 'cognito_unavailable', Math.round(wait));
+        const code = res.status === 429 ? 'cognito_rate_limited' : 'cognito_unavailable';
+        // In a job (deadline set), never sleep past the step and never fail the run on a busy Cognito: hand the wait
+        // to the job, which retries the run later with growing waits (retryWaitMs) up to MAX_WAIT_ATTEMPTS.
+        if (this.o.deadline !== undefined && (attempt >= retries || Date.now() + wait >= this.o.deadline)) {
+          throw new SourceDeadlineError(code, Math.round(wait));
         }
-        await this.sleep(wait);
-        continue;
+        if (attempt < retries) {
+          await this.sleep(wait);
+          continue;
+        }
       }
       if (res.status === 401 || res.status === 403) throw new CognitoApiError(res.status, `${what} (check COGNITO_API_KEY and its scopes)`);
       throw new CognitoApiError(res.status, what);
