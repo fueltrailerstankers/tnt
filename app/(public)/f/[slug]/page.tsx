@@ -60,6 +60,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         audience="public"
         timeZone={org.timezone}
         currency={org.currency}
+        draftScope={{ kind: 'new' }}
       />
     </>
   );

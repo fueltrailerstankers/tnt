@@ -52,7 +52,7 @@ export function OrgForm({ values, zones, manage }: { values: OrgFormValues; zone
           <select id="org-fx-source" name="fxSource" {...bind('fxSource')} aria-describedby="org-fx-source-help" className={select} {...err('fxSource')}>
             {FX_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          <p id="org-fx-source-help" className="m-0 text-[12px] text-fg-muted">A daily feed is not connected yet.</p>
+          <p id="org-fx-source-help" className="m-0 text-[12px] text-fg-muted">The USD per 1 ZAR rate is kept as typed unless the daily feed below is on.</p>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-fx-rate" className={labelClass}>USD per 1 ZAR</label>

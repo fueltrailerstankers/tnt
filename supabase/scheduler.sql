@@ -32,6 +32,8 @@ select cron.schedule('xero-sync-quick', '*/15 5-20 * * *', $$select public.call_
 select cron.schedule('xero-sync-full', '30 22 * * *', $$select public.call_job('xero-sync', '{"mode":"full"}')$$);
 -- Drain the outbox (webhook fetches, deal-file rebuilds) every 5 minutes.
 select cron.schedule('outbox-drain', '*/5 * * * *', $$select public.call_job('outbox')$$);
+-- ZAR -> USD rate once a day at 06:17 SAST (does nothing unless FX_RATE_URL is set and an org has fx.auto = 'on').
+select cron.schedule('fx-refresh', '17 4 * * *', $$select public.call_job('fx-refresh')$$);
 
 -- Optional, only while a Cognito import runs from the app (/admin/forms/import): one import step every minute
 -- instead of every 5 minutes. Remove it when the import is finished.

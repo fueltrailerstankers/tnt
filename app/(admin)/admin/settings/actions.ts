@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { FX_SETTING_KEY, fxInputValue } from '@/lib/settings/fx';
+import { FX_AUTO_KEY, FX_SOURCE_KEY, FX_UPDATED_AT_KEY, fxAutoOn, parseFxAutoForm } from '@/lib/settings/fx-feed';
 import { orgChanges, parseOrgForm, type OrgFieldErrors } from '@/lib/settings/org';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -39,10 +40,12 @@ export async function saveOrg(_prev: OrgState, fd: FormData): Promise<OrgState> 
     if (error) return { error: 'The settings could not be saved.' };
   }
   if (fxChanged) {
+    const at = new Date().toISOString();
+    const row = (key: string, value: string) => ({ org_id: member.orgId, key, value, updated_by: member.userId, updated_at: at });
     const { error } = v.fxRate === null
-      ? await db.from('app_settings').delete().eq('org_id', member.orgId).eq('key', FX_SETTING_KEY)
+      ? await db.from('app_settings').delete().eq('org_id', member.orgId).in('key', [FX_SETTING_KEY, FX_UPDATED_AT_KEY, FX_SOURCE_KEY])
       : await db.from('app_settings').upsert(
-        { org_id: member.orgId, key: FX_SETTING_KEY, value: v.fxRate, updated_by: member.userId, updated_at: new Date().toISOString() },
+        [row(FX_SETTING_KEY, v.fxRate), row(FX_UPDATED_AT_KEY, at), row(FX_SOURCE_KEY, 'manual')],
         { onConflict: 'org_id,key' },
       );
     if (error) return { error: 'The rate could not be saved.' };
@@ -59,5 +62,32 @@ export async function saveOrg(_prev: OrgState, fd: FormData): Promise<OrgState> 
     });
   }
   revalidatePath('/admin', 'layout');
+  return { ok: true };
+}
+
+export type FxAutoState = { ok?: boolean; error?: string };
+
+/**
+ * Settings > Organisation: the daily feed toggle (app_settings 'fx.auto' = 'on' | 'off'). Only 'on' lets the
+ * fx.refresh job replace the rate; off keeps the manual rate as typed. settings.manage only; caller's client (RLS
+ * Settings write); audited as settings.fx_auto with from/to.
+ */
+export async function saveFxAuto(_prev: FxAutoState, fd: FormData): Promise<FxAutoState> {
+  const member = await requirePerm('settings.manage');
+  const to = parseFxAutoForm(fd.get('fxAuto'));
+  const db = await createClient();
+  const { data: before, error: readError } = await db.from('app_settings').select('value').eq('org_id', member.orgId).eq('key', FX_AUTO_KEY).maybeSingle();
+  if (readError) return { error: 'The setting could not be read. Reload and try again.' };
+  const from = fxAutoOn(before?.value) ? 'on' : 'off';
+  if (from === to) return { ok: true };
+  const { error } = await db.from('app_settings').upsert(
+    { org_id: member.orgId, key: FX_AUTO_KEY, value: to, updated_by: member.userId, updated_at: new Date().toISOString() },
+    { onConflict: 'org_id,key' },
+  );
+  if (error) return { error: 'The setting could not be saved.' };
+  await createAdminClient().from('audit_log').insert({
+    org_id: member.orgId, actor_user: member.userId, action: 'settings.fx_auto', entity: 'app_setting', entity_id: FX_AUTO_KEY, meta: { from, to },
+  });
+  revalidatePath('/admin/settings');
   return { ok: true };
 }

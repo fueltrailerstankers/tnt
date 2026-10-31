@@ -1,12 +1,12 @@
 // In-memory stand-in for the supabase-js query builder, for unit tests of server code that takes a SupabaseClient
-// (jobs, stores). Supports only what that code uses: select/insert/update/delete, eq/gt/lte/in/is/or filters
-// (incl. json `col->>key`), order, limit, maybeSingle/single and rpc handlers. Every call is logged with its filters
+// (jobs, stores). Supports only what that code uses: select/insert/update/delete/upsert (with onConflict), eq/gt/lte/in/is/or
+// filters (incl. json `col->>key`), order, limit, maybeSingle/single and rpc handlers. Every call is logged with its filters
 // so tests can assert how a query was scoped (e.g. always by org). Anything else throws, so a new pattern fails loudly.
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type Row = Record<string, unknown>;
 export interface Filter { col: string; op: 'eq' | 'gt' | 'lte' | 'in' | 'is' | 'or'; val: unknown }
-export interface Logged { table: string; op: 'select' | 'insert' | 'update' | 'delete' | 'rpc'; filters: Filter[]; rows?: Row[]; args?: Row }
+export interface Logged { table: string; op: 'select' | 'insert' | 'update' | 'delete' | 'upsert' | 'rpc'; filters: Filter[]; rows?: Row[]; args?: Row }
 
 export interface FakeOptions {
   /** Unique column sets per table (a row with a null in the set is not checked, as in Postgres). */
@@ -58,6 +58,7 @@ class Query implements PromiseLike<{ data: unknown; error: { code: string; messa
   private returning = false;
   private patch: Row = {};
   private rows: Row[] = [];
+  private conflict: string[] = [];
   private sort: { col: string; asc: boolean } | null = null;
   private max: number | null = null;
   private mode: 'many' | 'maybe' | 'single' = 'many';
@@ -67,6 +68,13 @@ class Query implements PromiseLike<{ data: unknown; error: { code: string; messa
   select() { if (this.op !== 'select') this.returning = true; return this; }
   insert(rows: Row | Row[]) { this.op = 'insert'; this.rows = Array.isArray(rows) ? rows : [rows]; return this; }
   update(patch: Row) { this.op = 'update'; this.patch = patch; return this; }
+  upsert(rows: Row | Row[], o?: { onConflict?: string }) {
+    if (!o?.onConflict) throw new Error('fake: upsert needs onConflict');
+    this.op = 'upsert';
+    this.rows = Array.isArray(rows) ? rows : [rows];
+    this.conflict = o.onConflict.split(',').map((c) => c.trim());
+    return this;
+  }
   delete() { this.op = 'delete'; return this; }
   eq(col: string, val: unknown) { this.filters.push({ col, op: 'eq', val }); return this; }
   gt(col: string, val: unknown) { this.filters.push({ col, op: 'gt', val }); return this; }
@@ -89,10 +97,19 @@ class Query implements PromiseLike<{ data: unknown; error: { code: string; messa
   private run(): { data: unknown; error: { code: string; message: string } | null } {
     const f = this.fake;
     const all = (f.tables[this.table] ??= []);
-    f.log.push({ table: this.table, op: this.op, filters: this.filters, rows: this.op === 'insert' ? this.rows : undefined });
+    f.log.push({ table: this.table, op: this.op, filters: this.filters, rows: this.op === 'insert' || this.op === 'upsert' ? this.rows : undefined });
     const hit = (r: Row) => this.filters.every((x) => matches(r, x));
     let out: Row[];
-    if (this.op === 'insert') {
+    if (this.op === 'upsert') {
+      out = this.rows.map((r) => {
+        const existing = all.find((x) => this.conflict.every((c) => String(x[c]) === String(r[c])));
+        if (existing) return Object.assign(existing, structuredClone(r));
+        const made = { id: fakeId(), ...structuredClone(r) };
+        all.push(made);
+        return made;
+      });
+      f.opts.onWrite?.(this.table, 'upsert');
+    } else if (this.op === 'insert') {
       const defaults = f.opts.defaults?.[this.table] ?? {};
       const made = this.rows.map((r): Row => {
         const d = Object.fromEntries(Object.entries(defaults).map(([k, v]) => [k, typeof v === 'function' ? (v as () => unknown)() : v]));

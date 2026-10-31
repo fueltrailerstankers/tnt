@@ -36,7 +36,7 @@ export const FILTER_AREAS = AREAS.filter((a) => AREA_ACTIONS[a]);
 /** Suggestions for the action filter (any action can be typed). */
 export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
-  'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
+  'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org', 'settings.fx', 'settings.fx_auto',
   'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'deal.pack_download', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
   'xero.action.mode', 'integration.replay', 'job.retry', 'lead.create', 'lead.assign', 'lead.status', 'lead.merge', 'lead.not_duplicate', 'lead.branch',
   'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
@@ -79,6 +79,8 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'admin.provisioned': text = `Admin account ${target ?? ''} set up from the command line`.replace(/\s+/g, ' ').trim(); break;
     case 'audit.export': text = said(`exported the activity log${typeof m.rows === 'number' ? ` (${m.rows} rows)` : ''}`); break;
     case 'settings.org': text = said('changed the organisation settings'); break;
+    case 'settings.fx': text = m.source === 'feed' ? `The daily feed set the ZAR to USD rate${str(m.to) ? ` to ${str(m.to)}` : ''}` : said(`${str(m.to) ? `set the ZAR to USD rate to ${str(m.to)}` : 'removed the ZAR to USD rate'}`); break;
+    case 'settings.fx_auto': text = said(`turned the daily ZAR to USD feed ${m.to === 'on' ? 'on' : 'off'}`); break;
     case 'form.public_link': text = said(`turned a form's public link ${m.active ? 'on' : 'off'}`); break;
     case 'entry.status': text = said(`changed an entry's status${str(m.from) && str(m.to) ? ` from ${str(m.from)} to ${str(m.to)}` : ''}`); break;
     case 'entry.delete': text = said(`deleted entry${str(m.number) ? ` #${str(m.number)}` : ''}${str(m.form) ? ` of ${str(m.form)}` : ''}`); break;
