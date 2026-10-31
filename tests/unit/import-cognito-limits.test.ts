@@ -131,6 +131,12 @@ describe('M1: step deadline', () => {
     const { f: once } = fake(() => (n++ ? new Response('[]', { headers: { 'content-type': 'application/json' } }) : new Response('{}', { status: 429, headers: { 'retry-after': '1' } })));
     await new HttpCognitoSource({ apiKey: 'k', fetch: once, sleep, deadline: Date.now() + 10_000 }).listForms();
     expect(sleep).toHaveBeenCalledWith(1000);
+    // Short waits that keep coming back: once the retries are used up, a job hands the wait to the run
+    // (cognito_rate_limited, retried later) instead of failing it with a plain HTTP 429.
+    const { f: always } = fake(() => new Response('{}', { status: 429, headers: { 'retry-after': '1' } }));
+    const busy = await new HttpCognitoSource({ apiKey: 'k', fetch: always, sleep, retries: 2, deadline: Date.now() + 30_000 }).listForms().catch((e: unknown) => e);
+    expect(busy).toBeInstanceOf(SourceDeadlineError);
+    expect(busy).toMatchObject({ code: 'cognito_rate_limited', retryAfterMs: 1000 });
   });
 
   it('a step deadline during a download aborts the step: the entry is neither failed nor passed, no checkpoint covers it', async () => {
