@@ -119,7 +119,8 @@ let runsBefore = 0;
 
 test('quotes: read-only table with chips and ZAR; the row opens a drawer that Back and Escape close', async ({ page }) => {
   runsBefore = await actionRuns();
-  await signIn(page, `/admin/xero/quotes?q=${QUOTE.number}`);
+  await signIn(page);
+  await page.goto(`/admin/xero/quotes?q=${QUOTE.number}`);
   const main = page.getByRole('main');
   await expect(main.getByRole('heading', { level: 1, name: 'Quotes' })).toBeVisible();
   await expect(main).toContainText('Read-only mirror of Xero');
@@ -170,7 +171,8 @@ test('quotes: read-only table with chips and ZAR; the row opens a drawer that Ba
 test('quotes: the ≈ USD line comes from app_settings fx.zar_usd only', async ({ page }) => {
   await sql(`insert into app_settings(org_id, key, value) values ($1, $2, $3::jsonb) on conflict (org_id, key) do update set value = excluded.value`, [ORG, FX_KEY, JSON.stringify('0.05')]);
   try {
-    await signIn(page, `/admin/xero/quotes?id=${QUOTE.id}`);
+    await signIn(page);
+  await page.goto(`/admin/xero/quotes?id=${QUOTE.id}`);
     const totals = page.getByRole('dialog', { name: QUOTE.number }).getByTestId('mirror-totals');
     await expect(totals).toContainText('≈ USD');
     await expect(totals).toContainText('$24,337.50');
@@ -184,7 +186,8 @@ test('quotes: the ≈ USD line comes from app_settings fx.zar_usd only', async (
 });
 
 test('invoices: overdue chip and filter, drawer with payments and attachments, deep link opens the drawer', async ({ page }) => {
-  await signIn(page, `/admin/xero/invoices?q=${run}`);
+  await signIn(page);
+  await page.goto(`/admin/xero/invoices?q=${run}`);
   const table = page.getByTestId('invoices-table');
   await expect(table.getByRole('row').filter({ hasText: PAID.number })).toContainText('Paid');
   await expect(table.getByRole('row').filter({ hasText: OVERDUE.number })).toContainText('Overdue');
@@ -216,7 +219,8 @@ test('invoices: overdue chip and filter, drawer with payments and attachments, d
 });
 
 test('deal file: header, journey, Xero panel and documents', async ({ page }) => {
-  await signIn(page, `/admin/deal-files?q=${QUOTE.number}`);
+  await signIn(page);
+  await page.goto(`/admin/deal-files?q=${QUOTE.number}`);
   await page.getByTestId('deal-files-table').getByRole('link', { name: QUOTE.number }).click();
   await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`));
   // The QU- form of the route lands on the canonical one.
@@ -265,7 +269,8 @@ for (const [w, h] of [[1440, 900], [390, 844]] as const) {
       test.setTimeout(120_000);
       await page.setViewportSize({ width: w, height: h });
       await page.emulateMedia({ colorScheme: scheme });
-      await signIn(page, `/admin/deal-files/${QNO}`);
+      await signIn(page);
+  await page.goto(`/admin/deal-files/${QNO}`);
       await expect(page.getByTestId('deal-journey')).toBeVisible();
       await axe(page, `deal file ${w} ${scheme}`);
       await shot(page, `deal-${w}-${scheme}`);
