@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { buttonClass, tableClass, tableWrapClass, theadClass } from '@/components/ui/styles';
-import { RemoveUserButton } from '@/components/users/RemoveUserButton';
+import { RemoveUserButton, ResendInviteButton } from '@/components/users/RemoveUserButton';
 import { SettingsTabs } from '@/components/users/SettingsTabs';
 import { formatDateTime } from '@/lib/admin/grid';
 import { loadOrg } from '@/lib/forms/org';
@@ -14,7 +14,7 @@ import { listMembers } from '@/lib/users/service';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Users & access · Trailers & Tankers' };
 
-export default async function Users({ searchParams }: { searchParams: Promise<{ removed?: string; error?: string }> }) {
+export default async function Users({ searchParams }: { searchParams: Promise<{ removed?: string; sent?: string; error?: string }> }) {
   const member = await requirePerm('users.read');
   const sp = await searchParams;
   const db = await createClient();
@@ -26,7 +26,8 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
     <section className="max-w-5xl space-y-6">
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="users" />
-      {sp.removed ? <p role="status" className="rounded-sm bg-status-green-bg p-3 text-status-green-fg">Removed from the organisation. Their history stays in the activity log.</p> : null}
+      {sp.removed ? <p role="status" className="rounded-sm bg-status-green-bg p-3 text-status-green-fg">{sp.removed === 'invite' ? 'Invite cancelled. The invite link no longer works. You can invite them again.' : 'Removed from the organisation. Their history stays in the activity log.'}</p> : null}
+      {sp.sent ? <p role="status" className="rounded-sm bg-status-green-bg p-3 text-status-green-fg">Invite email sent again.</p> : null}
       {sp.error ? <p role="alert" className="rounded-sm bg-status-red-bg p-3 text-status-red-fg">{USER_ERRORS[sp.error] ?? USER_ERRORS.input}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -40,7 +41,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
       </div>
 
       <div className={tableWrapClass}>
-        <table className={`${tableClass} min-w-[720px]`}>
+        <table className={`${tableClass} min-w-[1000px]`}>
           <thead className={theadClass}>
             <tr>
               <th className="p-2.5">Name</th>
@@ -57,11 +58,13 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
             {members.map((m) => {
               const inv = inviteState(m);
               // Same guards as the server: not yourself, and only an admin removes an admin.
+              const pending = m.status === 'invited';
+              const canResend = manage && pending && m.inviteNewAccount && (member.role === 'admin' || m.role !== 'admin');
               const canRemove = manage && m.userId !== member.userId && (member.role === 'admin' || m.role !== 'admin');
               return (
               <tr key={m.userId} className="border-t border-border" data-testid={`user-row-${m.userId}`}>
                 <td className="p-2.5"><Link href={`/admin/settings/users/${m.userId}`} className="font-semibold underline">{m.name}</Link>{m.userId === member.userId ? <span className="ml-1 text-fg-muted">(you)</span> : null}</td>
-                <td className="p-2.5 break-all">{m.email ?? '-'}</td>
+                <td className="min-w-56 p-2.5 break-all">{m.email ?? '-'}</td>
                 <td className="p-2.5">{PRESET_LABEL(m.preset)}</td>
                 <td className="p-2.5"><StatusChip status={STATUS_LABEL[m.status]} color={STATUS_COLOR[m.status]} size="sm" /></td>
                 <td className="p-2.5 whitespace-nowrap" data-testid={`invite-${m.userId}`}>
@@ -70,7 +73,14 @@ export default async function Users({ searchParams }: { searchParams: Promise<{ 
                 </td>
                 <td className="p-2.5 whitespace-nowrap">{m.lastSignInAt ? formatDateTime(m.lastSignInAt, tz) : '-'}</td>
                 <td className="p-2.5 whitespace-nowrap">{m.lastSeenAt ? formatDateTime(m.lastSeenAt, tz) : '-'}</td>
-                {manage ? <td className="p-2.5 text-right">{canRemove ? <RemoveUserButton userId={m.userId} name={m.name} /> : null}</td> : null}
+                {manage ? (
+                  <td className="p-2.5">
+                    <div className="flex justify-end gap-2 whitespace-nowrap">
+                      {canResend ? <ResendInviteButton userId={m.userId} name={m.name} /> : null}
+                      {canRemove ? <RemoveUserButton userId={m.userId} name={m.name} pendingInvite={pending} /> : null}
+                    </div>
+                  </td>
+                ) : null}
               </tr>
               );
             })}

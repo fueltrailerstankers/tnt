@@ -341,6 +341,68 @@ test.describe.serial('users, access levels and activity log', () => {
     await ctx.close();
   });
 
+  test('a pending invite can be resent or cancelled from the list, and the same email can be invited again', async ({ page, request }) => {
+    const P = { name: `Pen Ding ${run}`, email: `pending-${run}@example.invalid` };
+    const mailsOf = async () => (await (await request.get(`${STUB}/__stub/mail?to=${encodeURIComponent(P.email)}`)).json()) as unknown[];
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(P.name);
+    await main.getByLabel('Email').fill(P.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    expect(await mailsOf()).toHaveLength(1);
+    const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [P.email]);
+
+    // Resend from the list: a new email, back on the list.
+    await page.goto('/admin/settings/users');
+    await main.getByRole('button', { name: `Resend invite to ${P.name}` }).click();
+    await expect(main.getByRole('status')).toContainText('Invite email sent again');
+    await expect(page).toHaveURL(/\/admin\/settings\/users\?sent=1$/);
+    expect(await mailsOf()).toHaveLength(2);
+
+    // Cancel from the list (the confirm prompt is accepted): the membership is gone.
+    page.once('dialog', (d) => void d.accept());
+    await main.getByRole('button', { name: `Cancel invite ${P.name}` }).click();
+    await expect(main.getByRole('status')).toContainText('Invite cancelled');
+    await expect(main.getByTestId(`user-row-${row.user_id}`)).toHaveCount(0);
+    expect(await sql(`select 1 from public.memberships where user_id = $1`, [row.user_id])).toHaveLength(0);
+
+    // Inviting the same email again sends a fresh invite email (it never signed in, so it is not an existing account).
+    await page.goto('/admin/settings/users/invite');
+    await main.getByLabel('Name').fill(P.name);
+    await main.getByLabel('Email').fill(P.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    expect(await mailsOf()).toHaveLength(3);
+    const [again] = await sql<{ status: string; invite_new_account: boolean }>(`select status, invite_new_account from public.memberships where user_id = $1`, [row.user_id]);
+    expect(again).toEqual({ status: 'invited', invite_new_account: true });
+  });
+
+  test('Add user reuses the leftover account of a cancelled invite', async ({ page }) => {
+    const L = { name: `Lef Tover ${run}`, email: `leftover-${run}@example.invalid` };
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(L.name);
+    await main.getByLabel('Email').fill(L.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [L.email]);
+    await page.goto(`/admin/settings/users/${row.user_id}`);
+    await main.getByText('Cancel invite', { exact: true }).first().click();
+    await main.getByLabel(/cancel the invite for/i).check();
+    await main.getByRole('button', { name: 'Cancel invite' }).click();
+    await expect(page).toHaveURL(/removed=invite/);
+
+    await page.goto('/admin/settings/users/add');
+    await main.getByLabel('Name').fill(L.name);
+    await main.getByLabel('Email').fill(L.email);
+    await main.getByRole('button', { name: /add user/i }).last().click();
+    await expect(main.getByRole('status')).toBeVisible();
+    // Even when the profile row was deleted by hand, the Auth account is found by email.
+    const [m] = await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [row.user_id]);
+    expect(m.status).toBe('active');
+  });
+
   test('every user and access change, sign-in and export is in the activity log with the actor', async ({ page }) => {
     // A failed sign-in for the reader's account: recorded without the email.
     await page.goto('/login');
