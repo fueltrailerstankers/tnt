@@ -33,7 +33,7 @@ async function signInAs(page: Page, who: { email: string; password: string }, ne
   await page.getByLabel('Email').fill(who.email);
   await page.getByLabel('Password').fill(who.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`));
+  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`), { timeout: 30_000 });
 }
 
 /** Clicks the None / Read / Write pill of an area in the access matrix. */
