@@ -16,6 +16,8 @@ export interface AuditRow {
 /** Action prefixes per area (the area filter). The M3 Xero action names (deal., rfi., ...) belong to Integrations. */
 export const AREA_ACTIONS: Partial<Record<Area, readonly string[]>> = {
   forms: ['entry.', 'entries.'],
+  // Before integrations (AREAS order): deal.* is otherwise the M3 Xero actions.
+  deals: ['deal.pack_download'],
   leads: ['lead.', 'leads.'],
   stock: ['stock.'],
   integrations: ['xero.', 'deal.', 'rfi.', 'release.', 'delivery.', 'invoice.'],
@@ -35,7 +37,7 @@ export const FILTER_AREAS = AREAS.filter((a) => AREA_ACTIONS[a]);
 export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
   'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
-  'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
+  'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'deal.pack_download', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
   'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
   'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
 ] as const;
@@ -82,6 +84,7 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'entry.decrypt': text = said(`opened encrypted entry${str(m.number) ? ` #${str(m.number)}` : ''}${str(m.form) ? ` of ${str(m.form)}` : ''}${m.via === 'document' ? ' (PDF)' : ''}`); break;
     case 'entry.reveal': text = said(`revealed a protected field${Array.isArray(m.fields) && m.fields.length ? ` (${(m.fields as unknown[]).map(String).join(', ')})` : ''} on an entry${str(m.form) ? ` of ${str(m.form)}` : ''}`); break;
     case 'entries.export': text = said(`exported entries${str(m.format) ? ` (${str(m.format)})` : ''}`); break;
+    case 'deal.pack_download': text = said(`downloaded the document pack${str(m.quote_no) ? ` of deal ${str(m.quote_no)}` : ''}${typeof m.documents === 'number' ? ` (${m.documents} PDF${m.documents === 1 ? '' : 's'})` : ''}`); break;
     case 'xero.connect': text = said('connected Xero'); break;
     case 'xero.disconnect': text = said('disconnected Xero'); break;
     case 'xero.sync.manual': text = said('ran a Xero sync'); break;
@@ -129,6 +132,10 @@ export function hrefFor(row: Pick<AuditRow, 'entity' | 'entity_id' | 'meta'>): s
     case 'entry': case 'form': return `/admin/settings/activity/open/${row.entity}/${id}`;
     case 'lead': return `/admin/leads/${id}`;
     case 'org': return '/admin/settings';
+    case 'deal_file': {
+      const q = str(row.meta?.quote_no);
+      return q && ID.test(q) ? `/admin/deal-files/${encodeURIComponent(q)}` : '/admin/deal-files';
+    }
     case 'xero_invoice': return `/admin/xero/invoices/${id}`;
     case 'xero_quote': return `/admin/xero/quotes/${id}`;
     case 'xero_connection': return '/admin/integrations/xero';
