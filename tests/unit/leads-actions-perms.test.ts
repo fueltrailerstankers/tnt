@@ -9,6 +9,8 @@ vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('red
 
 const ORG = '00000000-0000-0000-0000-000000000001';
 const OTHER_ORG_LEAD = '00000000-0000-4000-8000-0000000000b2';
+const MERGED_LEAD = '00000000-0000-4000-8000-0000000000c3';
+const rpcs: Array<[string, Record<string, unknown>]> = [];
 let role = 'staff';
 const touched: string[] = [];
 const writes: string[] = [];
@@ -25,6 +27,12 @@ vi.mock('@/lib/supabase/server', () => ({
       };
       return b;
     },
+    // 0023 lead RPCs run as the user; the SQL re-checks org and access (here: another org's lead is not found).
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      touched.push(`rpc:${fn}`);
+      rpcs.push([fn, args]);
+      return args.p_lead === OTHER_ORG_LEAD ? { data: null, error: { message: 'LEAD_NOT_FOUND', hint: 'leads' } } : { data: {}, error: null };
+    },
   }),
 }));
 
@@ -38,7 +46,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         const b = {
           select: () => b,
           eq: (c: string, v: unknown) => { eqs[c] = v; filters.push([t, c, v]); return b; },
-          maybeSingle: async () => ({ data: t === 'leads' && eqs.org_id === ORG && eqs.id !== OTHER_ORG_LEAD ? { id: eqs.id, status: 'new', assigned_to: null } : null, error: null }),
+          maybeSingle: async () => ({ data: t === 'leads' && eqs.org_id === ORG && eqs.id !== OTHER_ORG_LEAD ? { id: eqs.id, status: 'new', assigned_to: null, merged_into: eqs.id === MERGED_LEAD ? ID : null } : null, error: null }),
           update: () => { writes.push(`update:${t}`); return b; },
           insert: async () => { writes.push(`insert:${t}`); return { error: null }; },
           then: (r: (v: unknown) => unknown) => r({ error: null }),
@@ -51,6 +59,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 const actions = await import('@/app/(admin)/admin/leads/actions');
 const ID = '00000000-0000-4000-8000-0000000000a1';
+const ORIGINAL = '00000000-0000-4000-8000-0000000000a0';
 const fd = (o: Record<string, string>) => {
   const f = new FormData();
   for (const [k, v] of Object.entries(o)) f.set(k, v);
@@ -64,9 +73,12 @@ const calls: Array<[string, () => Promise<unknown>]> = [
   ['addLead', () => actions.addLead(fd({ name: 'Demo', phone: '031 555 0101' }))],
   ['createManualLead', () => actions.createManualLead(fd({ name: 'Demo', phone: '031 555 0101' }))],
   ['rematchLeads', () => actions.rematchLeads()],
+  ['mergeLead', () => actions.mergeLead({ id: ID, into: ORIGINAL })],
+  ['markNotDuplicate', () => actions.markNotDuplicate({ id: ID, of: ORIGINAL })],
+  ['setLeadBranch', () => actions.setLeadBranch({ id: ID, branch: 'Durban' })],
 ];
 
-beforeEach(() => { touched.length = 0; writes.length = 0; filters.length = 0; });
+beforeEach(() => { touched.length = 0; writes.length = 0; filters.length = 0; rpcs.length = 0; });
 
 describe('leads actions refuse members without leads.manage', () => {
   for (const r of ['reviewer', 'factory', 'inspector']) {
@@ -111,5 +123,42 @@ describe('leads actions stay in the caller org and validate input', () => {
     expect(await actions.setLeadStatus({ id: ID, status: 'contacted' })).toEqual({ ok: true });
     expect(writes).toEqual(['update:leads', 'insert:lead_events', 'insert:audit_log']);
     expect(filters).toContainEqual(['leads', 'org_id', ORG]);
+  });
+});
+
+describe('merge, not a duplicate and branch (0023 RPCs)', () => {
+  it('call the RPC with the caller org and the validated input, never the service role', async () => {
+    role = 'staff';
+    expect(await actions.mergeLead({ id: ID, into: ORIGINAL })).toEqual({ ok: true });
+    expect(await actions.markNotDuplicate({ id: ID, of: ORIGINAL })).toEqual({ ok: true });
+    expect(await actions.setLeadBranch({ id: ID, branch: '  Cape Town ' })).toEqual({ ok: true });
+    expect(await actions.setLeadBranch({ id: ID, branch: '' })).toEqual({ ok: true });
+    expect(rpcs).toEqual([
+      ['lead_merge', { p_org: ORG, p_lead: ID, p_into: ORIGINAL }],
+      ['lead_not_duplicate', { p_org: ORG, p_lead: ID, p_of: ORIGINAL }],
+      ['lead_set_branch', { p_org: ORG, p_lead: ID, p_branch: 'Cape Town' }],
+      ['lead_set_branch', { p_org: ORG, p_lead: ID, p_branch: null }],
+    ]);
+    expect(touched).not.toContain('service-role');
+    expect(writes).toEqual([]);
+  });
+
+  it('refuse bad input before any call, and map RPC errors to the page message', async () => {
+    role = 'admin';
+    expect(await actions.mergeLead({ id: ID, into: ID })).toEqual({ ok: false, error: 'invalid' });
+    expect(await actions.mergeLead({ id: ID, into: 'nope' })).toEqual({ ok: false, error: 'invalid' });
+    expect(await actions.markNotDuplicate({ id: 'nope', of: ORIGINAL })).toEqual({ ok: false, error: 'invalid' });
+    expect(await actions.setLeadBranch({ id: ID, branch: '1 Durban' })).toEqual({ ok: false, error: 'invalid' });
+    expect(await actions.setLeadBranch({ id: ID, branch: 'x'.repeat(61) })).toEqual({ ok: false, error: 'invalid' });
+    expect(rpcs).toEqual([]);
+    expect(await actions.mergeLead({ id: OTHER_ORG_LEAD, into: ORIGINAL })).toEqual({ ok: false, error: 'notfound' });
+  });
+
+  it('a merged lead is read-only for status, assignment and notes', async () => {
+    role = 'staff';
+    expect(await actions.setLeadStatus({ id: MERGED_LEAD, status: 'won' })).toEqual({ ok: false, error: 'merged' });
+    expect(await actions.setLeadAssignee({ id: MERGED_LEAD, assigned_to: '' })).toEqual({ ok: false, error: 'merged' });
+    expect(await actions.addLeadNote({ id: MERGED_LEAD, body: 'x' })).toEqual({ ok: false, error: 'merged' });
+    expect(writes).toEqual([]);
   });
 });
