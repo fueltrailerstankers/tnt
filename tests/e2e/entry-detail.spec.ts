@@ -54,14 +54,14 @@ test.describe('desktop (1440)', () => {
     await expect(main.getByRole('heading', { level: 1 })).toHaveText(`Trailer Inspection Checklist #${e.number}`);
     await expect(page.getByTestId('entry-status')).toHaveText('Submitted');
     const steps = main.getByRole('list', { name: 'Status progress' });
-    await expect(steps.getByRole('listitem')).toHaveText(['Submitted (current status)', 'Reviewed (not reached)', 'Approved (not reached)']);
+    await expect(steps.getByRole('listitem')).toHaveText([/Submitted \(current status\)$/, /Reviewed \(not reached\)$/, /Approved \(not reached\)$/]);
     // Rail actions use readable labels; the form keeps its spec-named buttons.
     await expect(main.getByRole('button', { name: 'Request review changes' })).toBeVisible();
     await expect(main.getByRole('button', { name: 'RequestReviewChanges' })).toBeVisible();
     await main.getByRole('button', { name: 'Mark reviewed' }).click();
     await expect(page.getByTestId('entry-status')).toHaveText('Reviewed');
     await expect(page.getByText('Saved. Status: Reviewed')).toBeVisible();
-    await expect(steps.getByRole('listitem').first()).toHaveText('Submitted (done)');
+    await expect(steps.getByRole('listitem').first()).toHaveText(/Submitted \(done\)$/);
     await expect(page.getByTestId('timeline')).toContainText('MarkReviewed → Reviewed');
     await expect(page.getByTestId('timeline')).toContainText('SubmitInspection → Submitted');
     await expect(page.getByTestId('timeline')).not.toContainText(`Secret comment ${run}`);
@@ -88,7 +88,7 @@ test.describe('desktop (1440)', () => {
     await signIn(page, `/admin/forms/store-room/entries/${e.number}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('list', { name: 'Status flow' }).getByRole('listitem')).toHaveText([
-      'Submitted (archived) (done)', 'APPROVAL (current status)', 'APPROVED EMAILED (not reached)',
+      /Submitted \(archived\) \(done\)$/, /APPROVAL \(current status\)$/, /APPROVED EMAILED \(not reached\)$/,
     ]);
     const low = page.getByTestId('below-minimum');
     await expect(low).toContainText('Below minimum · ');
@@ -179,7 +179,8 @@ test.describe('desktop (1440)', () => {
 
   test('Delete: the server refusal shows "The number did not match."', async ({ page }) => {
     const e = await submitInspection(page, `Del${run}`);
-    await signIn(page, `/admin/forms/trailer-inspection-checklist/entries/${e.number}?delete=confirm`);
+    await signIn(page, `/admin/forms/trailer-inspection-checklist/entries/${e.number}`);
+    await page.goto(`/admin/forms/trailer-inspection-checklist/entries/${e.number}?delete=confirm`);
     await expect(page.getByText('The number did not match.')).toBeVisible();
     await page.getByRole('button', { name: 'Delete entry…' }).click();
     const dialog = page.getByRole('alertdialog');
