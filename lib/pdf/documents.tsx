@@ -9,6 +9,7 @@ import { DOCS_BUCKET, downloadObject, ENTRY_BUCKET } from '@/lib/forms/storage';
 import { decrypt, encrypt, parseKey, sha256Hex } from '@/lib/security/crypto';
 import { CollectionSheetPdf, DealSheetPdf } from './DealPdf';
 import { EntryPdf } from './EntryPdf';
+import { publicData, publicSpec } from '@/lib/spec/values';
 
 // Generated PDFs are stored once per version in the private 'documents' bucket with a sha256 hash.
 // A version is reused until the entry changes; then a new version is added and the old one kept.
@@ -21,7 +22,8 @@ export interface DocumentTemplate {
 
 /** Templates we can produce per form. #2 (Cognito's fillable "edit" PDF) is not reproduced. */
 export function templatesFor(form: FormRecord): DocumentTemplate[] {
-  const t: DocumentTemplate[] = [{ number: 1, label: 'Entry PDF' }];
+  // M8: the designer can turn the entry PDF off (no document #1 in the spec).
+  const t: DocumentTemplate[] = form.spec.documents.some((d) => d.number === 1) ? [{ number: 1, label: 'Entry PDF' }] : [];
   if (form.slug === 'deal') t.push({ number: 3, label: 'DEAL (Cognito template)' }, { number: 4, label: 'Collection sheet (provisional)' });
   return t;
 }
@@ -83,6 +85,21 @@ async function render(db: SupabaseClient, form: FormRecord, entry: EntryRecord, 
       generatedAt={generatedAt}
     />,
   );
+}
+
+/** True when the form has internalOnly fields (M8), so a customer copy must differ from the staff record. */
+export function hasInternalOnly(form: FormRecord): boolean {
+  return form.spec.fields.some((f) => 'internalOnly' in f && f.internalOnly === true);
+}
+
+/**
+ * The entry PDF for someone outside the org (an email to an address taken from the entry): internalOnly fields
+ * and their files are left out. Rendered on demand, never stored; the stored version stays the staff record.
+ */
+export async function publicDocument(db: SupabaseClient, form: FormRecord, entry: EntryRecord, timezone: string): Promise<{ name: string; bytes: Buffer }> {
+  const pub = { ...form, spec: publicSpec(form.spec) };
+  const bytes = await render(db, pub, { ...entry, data: publicData(form.spec, entry.data) }, 1, timezone);
+  return { name: documentName(form, entry, 1), bytes };
 }
 
 // Encrypted forms (DEAL, Delivery Note): the stored PDF holds the same personal data as the entry, so it is

@@ -5,12 +5,16 @@ import { Alert } from '@/components/ui/Alert';
 import { Icon } from '@/components/ui/Icon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Stepper } from '@/components/ui/Stepper';
-import { contentBlocks, type Block } from '@/lib/spec/content';
+import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { cellId, minimumOf, present, shortBy, stepOf, type DisplayCell, type Section, type Step } from '@/lib/spec/presentation';
-import type { FormSpec } from '@/lib/spec/types';
-import type { ChecklistRow, EntryData } from '@/lib/spec/values';
+import { utcToZoned } from '@/lib/spec/time';
+import type { FieldSpec, FormSpec } from '@/lib/spec/types';
+import { applyLocks, checkPost, displayValue, lockedFor, publicSpec, readFormData, type Audience, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import { hasShowWhen, hiddenFields, isHeading } from '@/lib/spec/visibility';
 import { isQuoteField } from '@/lib/forms/quote-fields';
 import { Checklist } from './Checklist';
+import { ChoiceInput, CurrencyInput, pillCls, pillInputCls, RatingInput, YesNoInput } from './fields';
+import { a11y, ErrorText, FieldLabel, HelpText, Legend } from './parts';
 import { CountField } from './CountField';
 import { FileField } from './FileField';
 import { QuoteField } from './QuoteField';
@@ -41,14 +45,36 @@ export interface FormRendererProps {
   importQuote?: (quoteNo: string) => Promise<QuoteImport>;
   /** Public forms: Cloudflare Turnstile site key (absent when not configured). */
   turnstileSiteKey?: string;
+  /**
+   * M8: who fills the form. 'public' (public link, role links) leaves out internalOnly fields and shows readOnly
+   * fields as not editable; the server applies the same rules (prepareSave). Default 'staff'.
+   */
+  audience?: Audience;
+  /** Org timezone for datetime fields (entered and shown in it, stored UTC). Default UTC. */
+  timeZone?: string;
+  /** Org currency code for currency fields that do not name one. Default USD. */
+  currency?: string;
 }
 
 const SECONDARY_ACTION = /change|reject|cancel|decline/i;
 
 export function FormRenderer(props: FormRendererProps) {
-  const { spec } = props;
+  const audience = props.audience ?? 'staff';
+  const spec = useMemo(() => (audience === 'public' ? publicSpec(props.spec) : props.spec), [audience, props.spec]);
   const steps = useMemo(() => present(spec), [spec]);
   const [state, formAction, pending] = useActionState(props.submit, {} as SubmitState);
+  // M8: errors found in the browser before posting (the same rules as the server; see checkPost).
+  const [local, setLocal] = useState<SubmitState | null>(null);
+  const shown = local ?? state;
+  const readOpts = { timeZone: props.timeZone, currency: props.currency };
+  // M8 show-when: track the current values only when the form has rules (the kit forms have none).
+  const track = useMemo(() => hasShowWhen(spec), [spec]);
+  const [live, setLive] = useState<EntryData>(props.initial);
+  const hidden = useMemo(
+    () => (track ? hiddenFields(spec, applyLocks(spec, live, { audience, previous: props.initial })) : new Set<FieldSpec>()),
+    [track, spec, live, audience, props.initial],
+  );
+  const locked = useMemo(() => lockedFor(spec, audience), [spec, audience]);
   const [step, setStep] = useState(0);
   const [panel, setPanel] = useState(props.lookupPanel ?? []);
   const [gateErrors, setGateErrors] = useState<Record<string, string>>({});
@@ -60,18 +86,18 @@ export function FormRenderer(props: FormRendererProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const readOnly = props.actions.length === 0;
-  const errors = useMemo(() => ({ ...(state.errors ?? {}), ...gateErrors }), [state.errors, gateErrors]);
+  const errors = useMemo(() => ({ ...(shown.errors ?? {}), ...gateErrors }), [shown.errors, gateErrors]);
   const labels = useMemo(() => labelMap(spec, steps), [spec, steps]);
   const multi = steps.length > 1;
   const current = steps[step];
 
   // After a failed save, jump to the step with the first error.
   useEffect(() => {
-    if (!state.at || !state.errors) return;
-    const first = Object.keys(state.errors).map((n) => stepOf(steps, n)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
+    if (!shown.at || !shown.errors) return;
+    const first = Object.keys(shown.errors).map((n) => stepOf(steps, n)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
     if (first !== undefined) setStep(first);
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [state.at, state.errors, steps]);
+  }, [shown.at, shown.errors, steps]);
 
   // The review step reads back what was entered (labels and short values only; nothing leaves the browser).
   // Recomputed when the step opens and whenever a file list changes (uploads made on the review step).
@@ -117,7 +143,7 @@ export function FormRenderer(props: FormRendererProps) {
     }, 50);
   };
 
-  const errorList = Object.entries(state.errors ?? {});
+  const errorList = Object.entries(shown.errors ?? {});
   const lowItems = steps.flatMap((s) => s.sections.filter((sec) => sec.kind === 'count').flatMap((sec) => sec.rows.flatMap((r) => r.cells)))
     .map((c) => ({ name: cellId(c.cell), label: labelOf(c), min: minimumOf(labelOf(c)) }))
     .map((x) => ({ ...x, short: shortBy(counts[x.name], x.min) }))
@@ -134,8 +160,16 @@ export function FormRenderer(props: FormRendererProps) {
         e.preventDefault();
         const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
         const fd = new FormData(e.currentTarget, submitter);
+        // M8: required, types and show-when checked here first, with the server's own functions.
+        const found = checkPost(props.spec, fd, { ...readOpts, audience, previous: props.initial });
+        if (Object.keys(found).length) {
+          setLocal({ message: 'Please correct the highlighted fields.', errors: found, at: Date.now() });
+          return;
+        }
+        setLocal(null);
         startTransition(() => formAction(fd));
       }}
+      onChange={track ? (e) => setLive(readFormData(spec, new FormData(e.currentTarget), readOpts).data) : undefined}
     >
       {Object.entries(props.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
@@ -165,7 +199,7 @@ export function FormRenderer(props: FormRendererProps) {
             </div>
           </div>
         ) : null}
-        {state.message ? <Alert tone="error">{state.message}</Alert> : null}
+        {shown.message ? <Alert tone="error">{shown.message}</Alert> : null}
         {errorList.length ? (
           <Alert tone="error" title={`Fix ${errorList.length} field${errorList.length === 1 ? '' : 's'} to continue`}>
             <ul className="flex flex-wrap gap-x-3 gap-y-1">
@@ -185,7 +219,7 @@ export function FormRenderer(props: FormRendererProps) {
         <fieldset key={st.index} hidden={st.index !== step} disabled={readOnly} className="min-w-0 space-y-5">
           {st.title ? <legend className="sr-only">{st.title}</legend> : null}
           {st.sections.map((sec) => (
-            <SectionCard key={sec.key} section={sec}>
+            <SectionCard key={sec.key} section={sec} hidden={!!sec.heading && hidden.has(sec.heading)}>
               {sec.kind === 'lines' ? (
                 <LinesTable section={sec} initial={props.initial} errors={errors} imported={imported} />
               ) : sec.kind === 'count' ? (
@@ -196,7 +230,7 @@ export function FormRenderer(props: FormRendererProps) {
                     if (label.trim() === 'OTHER' || c.cell.field.type !== 'text') {
                       return (
                         <div key={name} className="[grid-column:1/-1]">
-                          <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} />
+                          <FieldView {...props} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} locked={false} />
                         </div>
                       );
                     }
@@ -216,8 +250,12 @@ export function FormRenderer(props: FormRendererProps) {
                         key={`${ri}-${ci}`}
                         className="min-w-0 sm:[grid-column:var(--gc-sm)] md:[grid-column:var(--gc)]"
                         style={{ '--gc': `span ${c.span} / span ${c.span}`, '--gc-sm': c.span >= 18 ? '1 / -1' : 'auto' } as CSSProperties}
+                        hidden={hidden.has(c.cell.field) || undefined}
                       >
-                        <FieldView {...props} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} />
+                        <FieldView
+                          {...props} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead}
+                          setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} locked={'name' in c.cell.field && locked.has(c.cell.field.name)}
+                        />
                       </div>
                     )),
                   )}
@@ -282,10 +320,10 @@ export function FormRenderer(props: FormRendererProps) {
   );
 }
 
-function SectionCard({ section, children }: { section: Section; children: ReactNode }) {
+function SectionCard({ section, children, hidden }: { section: Section; children: ReactNode; hidden?: boolean }) {
   const id = `sec-${section.key}`;
   return (
-    <section aria-labelledby={section.title ? id : undefined} className="rounded-md border border-border bg-surface shadow-card">
+    <section aria-labelledby={section.title ? id : undefined} className="rounded-md border border-border bg-surface shadow-card" hidden={hidden || undefined}>
       {section.title ? (
         <header className="border-b border-border px-5 py-4 sm:px-6">
           <h2 id={id} className="text-h2 text-fg">{section.title}</h2>
@@ -478,19 +516,6 @@ function ImportQuoteButton({ run, quoteField, onFilled }: { run: (no: string) =>
   );
 }
 
-function FieldLabel({ htmlFor, text, hidden, required }: { htmlFor: string; text: string; hidden?: boolean; required?: boolean }) {
-  return (
-    <label htmlFor={htmlFor} className={hidden ? 'sr-only' : labelCls}>
-      {text}
-      {required ? <span className="ml-0.5 text-danger" aria-hidden="true">*</span> : null}
-    </label>
-  );
-}
-
-function ErrorText({ msg, id }: { msg?: string; id: string }) {
-  return msg ? <p id={id} className={errorCls}>{msg}</p> : null;
-}
-
 /** Legal and info text. A short all-bold line is a heading; long paragraphs read at normal weight. */
 export function ContentView({ blocks, scroll, onReadToEnd, testId }: { blocks: Block[]; scroll: boolean; onReadToEnd?: () => void; testId?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -520,6 +545,14 @@ export function ContentView({ blocks, scroll, onReadToEnd, testId }: { blocks: B
         aria-label={scroll ? 'Terms (scroll to read)' : undefined}
       >
         {blocks.map((b, i) => {
+          if (b.kind === 'list') {
+            const items = b.items.map((it, j) => <li key={j}>{it.map((s, k) => <SpanView key={k} s={s} />)}</li>);
+            return b.ordered ? <ol key={i} className="mb-2.5 list-decimal pl-5 last:mb-0">{items}</ol> : <ul key={i} className="mb-2.5 list-disc pl-5 last:mb-0">{items}</ul>;
+          }
+          if (b.kind === 'heading') return <p key={i} className="mb-2 mt-3 font-semibold text-fg first:mt-0">{b.spans.map((s, j) => <SpanView key={j} s={s} />)}</p>;
+          if (b.spans.some((s) => s.italic || s.href)) {
+            return <p key={i} className="mb-2.5 last:mb-0">{b.spans.map((s, j) => <SpanView key={j} s={s} />)}</p>;
+          }
           const text = b.spans.map((s) => s.text).join('');
           const allBold = b.spans.length > 0 && b.spans.every((s) => s.bold || !s.text.trim());
           if (allBold && text.length <= 90) return <p key={i} className="mb-2 mt-3 font-semibold text-fg first:mt-0">{text}</p>;
@@ -540,6 +573,14 @@ export function ContentView({ blocks, scroll, onReadToEnd, testId }: { blocks: B
   );
 }
 
+/** One span of M8 rich text: bold, italic, https/mailto link. */
+function SpanView({ s }: { s: Span }) {
+  let node: ReactNode = s.bold ? <strong className="font-semibold">{s.text}</strong> : <span>{s.text}</span>;
+  if (s.italic) node = <em>{node}</em>;
+  if (s.href) node = <a href={s.href} target="_blank" rel="noopener noreferrer" className="font-medium text-accent-text underline underline-offset-2">{node}</a>;
+  return node;
+}
+
 type ViewProps = FormRendererProps & {
   dc: DisplayCell;
   step: Step;
@@ -552,7 +593,11 @@ type ViewProps = FormRendererProps & {
   clearGate: (name: string) => void;
   onFiles: () => void;
   onImported: (names: Record<string, boolean>) => void;
+  /** M8: public role on a readOnly field. */
+  locked: boolean;
 };
+
+const INPUT_TYPE: Record<string, string> = { text: 'text', email: 'email', date: 'date', number: 'number', phone: 'tel', url: 'url', time: 'time', datetime: 'datetime-local' };
 
 function FieldView(p: ViewProps) {
   const f = p.dc.cell.field;
@@ -573,10 +618,24 @@ function FieldView(p: ViewProps) {
   const id = `f-${name}`;
   const err = p.errors[name];
   const v = p.initial[name];
-  const errProps = err ? { 'aria-invalid': true, 'aria-describedby': `${id}-err` } : {};
   const label = labelOf(p.dc);
   const hideLabel = 'hideLabel' in f && !!f.hideLabel;
   const required = 'required' in f && !!f.required;
+  // M8 options (absent on the kit forms, so their markup is unchanged apart from aria-required).
+  const help = 'help' in f ? f.help : undefined;
+  const errProps = a11y(id, err, help, required);
+  const locked = p.locked || undefined;
+
+  // An M8 heading normally becomes a section card (lib/spec/presentation); this covers a heading placed by a
+  // per-form presentation.
+  if (f.type === 'section' && isHeading(f)) {
+    return (
+      <div className="border-b border-border pb-2">
+        <h3 id={id} className="text-h2 text-fg">{label}</h3>
+        {f.description ? <p className="mt-0.5 text-small text-fg-muted">{f.description}</p> : null}
+      </div>
+    );
+  }
 
   if (f.type === 'text' && p.quotes && isQuoteField(p.spec.slug, name)) {
     const field = (
@@ -599,23 +658,39 @@ function FieldView(p: ViewProps) {
     case 'text':
     case 'email':
     case 'date':
-    case 'number': {
+    case 'number':
+    case 'phone':
+    case 'url':
+    case 'time':
+    case 'datetime': {
       const mono = f.type === 'number' || /VIN|QUOTE|INV|PART/i.test(name);
+      const value =
+        v === undefined || v === null ? ''
+        : f.type === 'datetime' ? utcToZoned(String(v), p.timeZone ?? 'UTC')
+        : f.type === 'phone' ? displayValue(v)
+        : String(v);
+      const ph = 'placeholder' in f && f.placeholder ? f.placeholder : undefined;
+      const extra = `${mono ? 'font-mono' : ''} ${f.type === 'number' ? 'text-right' : ''}${f.type === 'text' && f.pattern === 'uppercase' ? ' uppercase' : ''}`;
       return (
         <div>
           <FieldLabel htmlFor={id} text={label} hidden={hideLabel} required={required} />
           <input
             id={id}
             name={`f.${name}`}
-            type={f.type === 'number' ? 'number' : f.type}
+            type={INPUT_TYPE[f.type]}
             step={f.type === 'number' ? (f.integer ? 1 : 'any') : undefined}
-            inputMode={f.type === 'number' ? (f.integer ? 'numeric' : 'decimal') : f.type === 'email' ? 'email' : undefined}
-            placeholder={hideLabel ? label : undefined}
-            defaultValue={v === undefined || v === null ? '' : String(v)}
+            inputMode={f.type === 'number' ? (f.integer ? 'numeric' : 'decimal') : f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : f.type === 'url' ? 'url' : undefined}
+            placeholder={ph ?? (hideLabel ? label : undefined)}
+            defaultValue={value}
             autoComplete="off"
-            className={inputCls(err, `${mono ? 'font-mono' : ''} ${f.type === 'number' ? 'text-right' : ''}`)}
+            className={inputCls(err, extra)}
             {...errProps}
+            readOnly={locked}
+            min={f.type === 'number' || f.type === 'date' || f.type === 'time' ? f.min : undefined}
+            max={f.type === 'number' || f.type === 'date' || f.type === 'time' ? f.max : undefined}
+            maxLength={f.type === 'text' ? f.maxLength : undefined}
           />
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
@@ -623,38 +698,59 @@ function FieldView(p: ViewProps) {
     case 'textarea':
       return (
         <div>
-          <FieldLabel htmlFor={id} text={label} />
-          <textarea id={id} name={`f.${name}`} rows={3} defaultValue={(v as string) ?? ''} className={textareaCls(err)} {...errProps} />
+          <FieldLabel htmlFor={id} text={label} required={required} />
+          <textarea
+            id={id} name={`f.${name}`} rows={f.rows ?? 3} defaultValue={(v as string) ?? ''} className={textareaCls(err)} {...errProps}
+            placeholder={f.placeholder} readOnly={locked} maxLength={f.maxLength}
+          />
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
+    case 'currency':
+      return (
+        <CurrencyInput
+          id={id} name={name} label={label} err={err} help={help} required={required} locked={p.locked} hideLabel={hideLabel}
+          currency={f.currency ?? p.currency ?? 'USD'} placeholder={f.placeholder} value={v}
+        />
+      );
+    case 'yesno':
+      return <YesNoInput id={id} name={name} label={label} err={err} help={help} required={required} locked={p.locked} style={f.style} value={v} />;
+    case 'rating':
+      return <RatingInput id={id} name={name} label={label} err={err} help={help} required={required} locked={p.locked} value={v} />;
     case 'choice':
+      if (f.other) {
+        return (
+          <ChoiceInput
+            id={id} name={name} label={label} err={err} help={help} required={required} locked={p.locked}
+            style={f.style} multi={!!f.multi} options={f.options} value={v}
+          />
+        );
+      }
       if (f.style === 'checkboxes' || f.style === 'radio' || f.multi) {
         const radio = f.style === 'radio' && !f.multi;
         const selected = new Set(Array.isArray(v) ? (v as string[]) : v ? [String(v)] : []);
         return (
-          <fieldset {...errProps}>
-            <legend className={labelCls}>{label}</legend>
+          <fieldset {...(radio ? { role: 'radiogroup' } : {})} {...a11y(id, err, help, radio && required)}>
+            <Legend text={label} required={required} />
             <div className="flex flex-wrap gap-2">
               {f.options.map((o) => (
-                <label
-                  key={o}
-                  className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-pill border border-border-strong bg-surface px-3.5 text-body font-medium text-fg transition hover:bg-surface-2 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus sm:h-10"
-                >
-                  <input type={radio ? 'radio' : 'checkbox'} name={`f.${name}`} value={o} defaultChecked={selected.has(o)} className="size-4 accent-[var(--accent)]" />
+                <label key={o} className={pillCls}>
+                  <input type={radio ? 'radio' : 'checkbox'} name={`f.${name}`} value={o} defaultChecked={selected.has(o)} className={pillInputCls} disabled={locked} />
                   {o}
                 </label>
               ))}
             </div>
+            <HelpText text={help} id={`${id}-help`} />
             <ErrorText msg={err} id={`${id}-err`} />
           </fieldset>
         );
       }
       return (
         <div>
-          <FieldLabel htmlFor={id} text={label} />
+          <FieldLabel htmlFor={id} text={label} required={required} />
           <div className="relative">
-            <select id={id} name={`f.${name}`} defaultValue={(v as string) ?? ''} className={inputCls(err, 'appearance-none pr-10')} {...errProps}>
+            <select id={id} name={`f.${name}`} defaultValue={(v as string) ?? ''} className={inputCls(err, 'appearance-none pr-10')} {...errProps} disabled={locked}>
               <option value="" />
               {f.options.map((o) => (
                 <option key={o} value={o}>{o}</option>
@@ -664,6 +760,7 @@ function FieldView(p: ViewProps) {
               <Icon name="chevronDown" size={16} strokeWidth={2} />
             </span>
           </div>
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </div>
       );
@@ -673,19 +770,20 @@ function FieldView(p: ViewProps) {
       const partLabel: Record<string, string> = { Line1: 'Address Line 1', Line2: 'Address Line 2', PostalCode: 'Postal / Zip Code', State: 'State / Province / Region' };
       const wide = (part: string) => f.type === 'address' && part.startsWith('Line');
       return (
-        <fieldset {...errProps}>
-          <legend className={labelCls}>
-            {label}
-            {required ? <span className="ml-0.5 text-danger" aria-hidden="true">*</span> : null}
-          </legend>
+        <fieldset {...a11y(id, err, help, false)}>
+          <Legend text={label} required={required} />
           <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2">
             {f.parts.map((part) => (
               <div key={part} className={wide(part) ? 'sm:col-span-2' : ''}>
                 <label htmlFor={`${id}-${part}`} className={partLabelCls}>{partLabel[part] ?? part}</label>
-                <input id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)} />
+                <input
+                  id={`${id}-${part}`} name={`f.${name}.${part}`} defaultValue={obj[part] ?? ''} autoComplete="off" className={inputCls(err)}
+                  readOnly={locked} aria-required={f.type === 'name' && required ? true : undefined}
+                />
               </div>
             ))}
           </div>
+          <HelpText text={help} id={`${id}-help`} />
           <ErrorText msg={err} id={`${id}-err`} />
         </fieldset>
       );
@@ -717,21 +815,27 @@ function FieldView(p: ViewProps) {
       return <Checklist spec={p.spec} rows={(p.initial.checklist as ChecklistRow[] | undefined) ?? []} label={label} disabled={p.readOnly} />;
     case 'file':
       return (
-        <FileField
-          name={name} label={label} multi={!!f.multi} maxFiles={f.maxFiles} accept={f.accept}
-          existing={p.files[name] ?? []} upload={p.upload} supabase={p.supabase} error={err} disabled={p.readOnly}
-          onChange={p.onFiles}
-        />
+        <>
+          <FileField
+            name={name} label={label} multi={!!f.multi} maxFiles={f.maxFiles} accept={f.accept}
+            existing={p.files[name] ?? []} upload={p.upload} supabase={p.supabase} error={err} disabled={p.readOnly || p.locked}
+            onChange={p.onFiles}
+          />
+          <HelpText text={help} id={`${id}-help`} />
+        </>
       );
     case 'signature': {
       const gated = p.step.gate?.signature === name && !p.termsRead[name] && !p.signatures[name];
       return (
-        <SignaturePad
-          name={name} label={label} existing={p.signatures[name] ?? null} error={err} disabled={p.readOnly}
-          required={p.step.requireSigned.includes(name)}
-          locked={gated ? 'Scroll to the end of the terms above to sign.' : null}
-          onChange={(signed) => { if (signed) p.clearGate(name); }}
-        />
+        <>
+          <SignaturePad
+            name={name} label={label} existing={p.signatures[name] ?? null} error={err} disabled={p.readOnly || p.locked}
+            required={p.step.requireSigned.includes(name) || required}
+            locked={gated ? 'Scroll to the end of the terms above to sign.' : null}
+            onChange={(signed) => { if (signed) p.clearGate(name); }}
+          />
+          <HelpText text={help} id={`${id}-help`} />
+        </>
       );
     }
   }

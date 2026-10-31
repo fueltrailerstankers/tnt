@@ -1,0 +1,295 @@
+{
+ "slug": "engine-types-test",
+ "cognitoFormId": 0,
+ "name": "ENGINE TYPES TEST",
+ "internalName": "EngineTypesTest",
+ "entryCountAtExport": null,
+ "settings": {
+  "entrySummary": "[Title] [Phone]"
+ },
+ "fields": [
+  {
+   "name": "AboutHeading",
+   "label": "About the job",
+   "type": "section",
+   "description": "Synthetic test form: every M8 field type.",
+   "row": 1
+  },
+  {
+   "name": "Title",
+   "label": "Title",
+   "type": "text",
+   "row": 2,
+   "required": true,
+   "placeholder": "Short title",
+   "minLength": 2,
+   "maxLength": 40,
+   "help": "Two to forty characters."
+  },
+  {
+   "name": "Code",
+   "label": "Code",
+   "type": "text",
+   "row": 3,
+   "col": 1,
+   "span": 12,
+   "pattern": "uppercase"
+  },
+  {
+   "name": "Ref",
+   "label": "Ref",
+   "type": "text",
+   "row": 3,
+   "col": 13,
+   "span": 12,
+   "pattern": "alphanumeric"
+  },
+  {
+   "name": "Notes",
+   "label": "Notes",
+   "type": "textarea",
+   "row": 4,
+   "rows": 5,
+   "maxLength": 200
+  },
+  {
+   "name": "Email",
+   "label": "Email",
+   "type": "email",
+   "row": 5,
+   "required": true
+  },
+  {
+   "name": "Phone",
+   "label": "Phone",
+   "type": "phone",
+   "row": 6,
+   "required": true
+  },
+  {
+   "name": "Website",
+   "label": "Website",
+   "type": "url",
+   "row": 7
+  },
+  {
+   "name": "Price",
+   "label": "Price",
+   "type": "currency",
+   "currency": "ZAR",
+   "row": 8,
+   "required": true,
+   "min": 0,
+   "max": 100000
+  },
+  {
+   "name": "Qty",
+   "label": "Quantity",
+   "type": "number",
+   "integer": true,
+   "row": 9,
+   "min": 1,
+   "max": 10,
+   "default": 1
+  },
+  {
+   "name": "Due",
+   "label": "Due date",
+   "type": "date",
+   "row": 10,
+   "min": "2026-01-01"
+  },
+  {
+   "name": "StartTime",
+   "label": "Start time",
+   "type": "time",
+   "row": 11,
+   "default": "08:00"
+  },
+  {
+   "name": "Appointment",
+   "label": "Appointment",
+   "type": "datetime",
+   "row": 12
+  },
+  {
+   "name": "Urgent",
+   "label": "Urgent?",
+   "type": "yesno",
+   "row": 13,
+   "required": true
+  },
+  {
+   "name": "UrgentReason",
+   "label": "Why is it urgent?",
+   "type": "textarea",
+   "row": 14,
+   "required": true,
+   "showWhen": "Urgent = true"
+  },
+  {
+   "name": "Agree",
+   "label": "I agree to the terms",
+   "type": "yesno",
+   "style": "toggle",
+   "row": 15,
+   "required": true
+  },
+  {
+   "name": "Score",
+   "label": "Score",
+   "type": "rating",
+   "row": 16,
+   "required": true
+  },
+  {
+   "name": "Colour",
+   "label": "Colour",
+   "type": "choice",
+   "style": "radio",
+   "options": [
+    "Red",
+    "Green",
+    "Blue"
+   ],
+   "other": true,
+   "row": 17
+  },
+  {
+   "name": "Extras",
+   "label": "Extras",
+   "type": "choice",
+   "style": "checkboxes",
+   "multi": true,
+   "options": [
+    "Lights",
+    "Ramp",
+    "Spare"
+   ],
+   "other": true,
+   "row": 18
+  },
+  {
+   "name": "Size",
+   "label": "Size",
+   "type": "choice",
+   "style": "dropdown",
+   "options": [
+    "S",
+    "M",
+    "L"
+   ],
+   "default": "M",
+   "row": 19
+  },
+  {
+   "name": "Contact",
+   "label": "Contact",
+   "type": "name",
+   "parts": [
+    "First",
+    "Last"
+   ],
+   "row": 20
+  },
+  {
+   "name": "Site",
+   "label": "Site",
+   "type": "address",
+   "parts": [
+    "Line1",
+    "City"
+   ],
+   "row": 21
+  },
+  {
+   "name": "RedHeading",
+   "label": "Red delivery",
+   "type": "section",
+   "showWhen": "Colour = \"Red\"",
+   "row": 23
+  },
+  {
+   "name": "RedNote",
+   "label": "Red delivery note",
+   "type": "text",
+   "required": true,
+   "row": 24
+  },
+  {
+   "type": "content",
+   "html": "<p><strong>Bold</strong> and <em>italic</em> with a <a href=\"https://example.invalid/terms\">link</a>.</p><ul><li>First point</li><li>Second point</li></ul><script>alert(1)</script>",
+   "row": 22
+  },
+  {
+   "type": "pagebreak",
+   "row": 25,
+   "nextButton": "Next"
+  },
+  {
+   "name": "InternalNote",
+   "label": "Internal note",
+   "type": "text",
+   "internalOnly": true,
+   "row": 26
+  },
+  {
+   "name": "FixedRef",
+   "label": "Fixed ref",
+   "type": "text",
+   "readOnly": true,
+   "default": "REF-001",
+   "row": 27
+  }
+ ],
+ "workflow": {
+  "roles": [
+   {
+    "id": 0,
+    "name": "Public",
+    "public": true
+   },
+   {
+    "id": 1,
+    "name": "Internal",
+    "internal": true
+   }
+  ],
+  "statuses": [
+   {
+    "id": 0,
+    "name": "Incomplete",
+    "color": "gray"
+   },
+   {
+    "id": 1,
+    "name": "Submitted",
+    "color": "teal"
+   }
+  ],
+  "actions": [
+   {
+    "id": 1,
+    "name": "Submit",
+    "button": "Submit",
+    "allowedWhen": "status == 'Incomplete'",
+    "newStatus": "Submitted",
+    "emails": []
+   },
+   {
+    "id": 2,
+    "name": "Update",
+    "button": "Update",
+    "allowedWhen": "status != 'Incomplete'",
+    "emails": []
+   }
+  ]
+ },
+ "documents": [
+  {
+   "number": 1,
+   "mode": "view",
+   "output": "pdf"
+  }
+ ]
+}

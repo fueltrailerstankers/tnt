@@ -29,7 +29,10 @@ export default async function NewEntry({ params }: { params: Promise<{ slug: str
         </p>
       )}
       <div className="min-w-0">
-        <StaffForm form={form} number={null} initial={defaultData(form.spec, { today: todayIn(org.timezone) })} files={{}} signatures={{}} actions={actions} lookupOptions={options} lookupPanel={[]} version={null} />
+        <StaffForm
+          form={form} number={null} initial={defaultData(form.spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency })}
+          files={{}} signatures={{}} actions={actions} lookupOptions={options} lookupPanel={[]} version={null} timeZone={org.timezone} currency={org.currency}
+        />
       </div>
     </section>
   );

@@ -23,6 +23,7 @@ export default async function FormSettings({ params, searchParams }: { params: P
 
       <form action={setPublicLink.bind(null, slug)} className="space-y-2 rounded-md border bg-surface shadow-card p-4">
         <h2 className="font-semibold">Public link</h2>
+        {error === 'archived' ? <p role="alert" className="text-sm text-status-red-fg">This form is archived: its public link stays off.</p> : null}
         <p className="text-sm"><a href={url} className="underline">{url}</a></p>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={form.isActive} className="h-5 w-5" /> Public link is on
@@ -33,7 +34,7 @@ export default async function FormSettings({ params, searchParams }: { params: P
       <div className="space-y-3 rounded-md border bg-surface shadow-card p-4">
         <h2 className="font-semibold">Notification recipients</h2>
         <p className="text-sm text-fg-muted">Inboxes that get the form&apos;s emails. Field addresses such as [InspectorEmail] come from the entry and are not listed here.</p>
-        {error ? <p className="text-sm text-status-red-fg">Enter a valid email address and choose an action.</p> : null}
+        {error && error !== 'archived' ? <p className="text-sm text-status-red-fg">Enter a valid email address and choose an action.</p> : null}
         <ul className="divide-y text-sm">
           {(recipients ?? []).map((r) => (
             <li key={r.id} className="flex items-center justify-between py-2">

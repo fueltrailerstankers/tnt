@@ -4,6 +4,9 @@ import { publicEnv } from '@/lib/env';
 import { loadEntryById } from '@/lib/forms/entries';
 import { customerPanel } from '@/lib/forms/lookup';
 import { rendererFiles } from '@/lib/forms/view';
+import { loadOrg } from '@/lib/forms/org';
+import { pickPublic, publicLookupOf } from '@/lib/forms/public-policy';
+import { publicData, publicSpec } from '@/lib/spec/values';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { inspectRoleLink } from '@/lib/workflow/links';
 import { Icon } from '@/components/ui/Icon';
@@ -78,11 +81,15 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
       </StateCard>
     );
   }
-  const { files, signatures } = await rendererFiles(db, entry, true);
-  const lookup = form.spec.fields.find((f) => f.type === 'lookup');
-  const lookupId = lookup && lookup.type === 'lookup' ? (entry.data[lookup.name] as string | undefined) : undefined;
-  const panel = lookup && lookup.type === 'lookup' && lookupId ? await customerPanel(db, form.orgId, lookup.lookup.sourceForm, lookupId, true) : [];
+  // M8: only what the public role may see leaves the server: public spec, data, files, signatures and lookup.
+  const all = await rendererFiles(db, entry, true);
+  const files = pickPublic(form.spec, all.files);
+  const signatures = pickPublic(form.spec, all.signatures);
+  const lookup = publicLookupOf(form.spec);
+  const lookupId = lookup ? (entry.data[lookup.name] as string | undefined) : undefined;
+  const panel = lookup && lookupId ? await customerPanel(db, form.orgId, lookup.lookup.sourceForm, lookupId, true) : [];
   const env = publicEnv();
+  const org = await loadOrg(db, form.orgId);
 
   return (
     <>
@@ -92,8 +99,8 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
         {actions.length === 0 ? ' · No action is available for you at this stage.' : ''}
       </p>
       <FormRenderer
-        spec={form.spec}
-        initial={entry.data}
+        spec={publicSpec(form.spec)}
+        initial={publicData(form.spec, entry.data)}
         files={files}
         signatures={signatures}
         actions={actions}
@@ -103,6 +110,9 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
         lookup={lookup ? { mode: 'exact', find: findLookupLink.bind(null, token) } : undefined}
         lookupPanel={panel}
         hidden={{ __version: entry.updatedAt }}
+        audience="public"
+        timeZone={org.timezone}
+        currency={org.currency}
       />
     </>
   );

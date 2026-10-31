@@ -1,6 +1,6 @@
 // Entries grid: URL query parsing, column choice, timezone date ranges and CSV. Pure.
-import { inputFields, type FormSpec } from '@/lib/spec/types';
-import { displayValue, type EntryData } from '@/lib/spec/values';
+import { fieldByName, inputFields, type FormSpec, type InputField } from '@/lib/spec/types';
+import { formatValue, type EntryData } from '@/lib/spec/values';
 
 export const PAGE_SIZE = 50;
 export const EXPORT_LIMIT = 10_000;
@@ -91,16 +91,40 @@ export interface ExportRow {
   data: EntryData;
 }
 
-/** Header and rows for CSV/XLSX: Entry number, status, timestamps, then every data field (protected fields masked). */
+/** A grid cell: the stored value as text, with the field's type (datetime in the org timezone, rating "4/5"). */
+export function gridCell(spec: FormSpec, name: string, v: unknown, timeZone: string): string {
+  return formatValue(fieldByName(spec, name), v, { timeZone });
+}
+
+/** Export text of one value. M8 types: currency splits into amount + code columns (see exportTable), rating is the number. */
+function exportCell(f: InputField | undefined, v: unknown, timeZone: string): string {
+  if (f?.type === 'rating' && typeof v === 'number') return String(v);
+  return formatValue(f, v, { timeZone });
+}
+
+/**
+ * Header and rows for CSV/XLSX: Entry number, status, timestamps, then every data field (protected fields
+ * masked). A currency field (M8) gives two columns, "<label>" (amount, 2 decimals) and "<label> currency".
+ */
 export function exportTable(spec: FormSpec, rows: ExportRow[], timeZone: string, revealProtected: boolean): string[][] {
   const fields = columnChoices(spec);
+  const byName = new Map(inputFields(spec).map((f) => [f.name, f]));
   const prot = new Set(inputFields(spec).filter((f) => f.type === 'email' && f.protected).map((f) => f.name));
-  const header = ['Entry Number', 'Status', 'Created', 'Updated', ...fields.map((f) => f.label)];
+  const isMoney = (name: string) => byName.get(name)?.type === 'currency';
+  const header = ['Entry Number', 'Status', 'Created', 'Updated', ...fields.flatMap((f) => (isMoney(f.name) ? [f.label, `${f.label} currency`] : [f.label]))];
   const hasChecklist = !!spec.checklist;
   if (hasChecklist) header.push(...spec.checklist!.map((c) => c.label));
   const body = rows.map((r) => {
     const cells = [String(r.number), r.status, formatDateTime(r.createdAt, timeZone), formatDateTime(r.updatedAt, timeZone)];
-    for (const f of fields) cells.push(prot.has(f.name) && !revealProtected && r.data[f.name] ? '(protected)' : displayValue(r.data[f.name]));
+    for (const f of fields) {
+      const v = r.data[f.name];
+      if (isMoney(f.name)) {
+        const m = v as { amount?: unknown; currency?: unknown } | undefined;
+        cells.push(typeof m?.amount === 'number' ? m.amount.toFixed(2) : '', typeof m?.currency === 'string' ? m.currency : '');
+        continue;
+      }
+      cells.push(prot.has(f.name) && !revealProtected && v ? '(protected)' : exportCell(byName.get(f.name), v, timeZone));
+    }
     if (hasChecklist) {
       const list = (r.data.checklist as Array<{ itemNo: number; fail: boolean; pass: boolean; comments: string }> | undefined) ?? [];
       for (const c of spec.checklist!) {
