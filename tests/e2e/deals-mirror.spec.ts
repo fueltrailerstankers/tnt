@@ -212,7 +212,8 @@ test('invoices: overdue chip and filter, drawer with payments and attachments, d
   await expect(dialog.getByRole('link', { name: /Open in Xero/ })).toHaveAttribute('href', `https://go.xero.com/AccountsReceivable/View.aspx?InvoiceID=${PAID.id}`);
   await shot(page, 'invoices-drawer-1440-light');
   await dialog.getByRole('link', { name: 'Go to deal file' }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`));
+  // The first visit compiles the route in next dev.
+  await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`), { timeout: 30_000 });
 
   expect((await page.goto(`/admin/xero/quotes/${OTHER.id}`))?.status()).toBe(404);
   expect((await page.goto('/admin/xero/invoices/not..an..id'))?.status()).toBe(404);
@@ -222,7 +223,7 @@ test('deal file: header, journey, Xero panel and documents', async ({ page }) =>
   await signIn(page);
   await page.goto(`/admin/deal-files?q=${QUOTE.number}`);
   await page.getByTestId('deal-files-table').getByRole('link', { name: QUOTE.number }).click();
-  await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`));
+  await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`), { timeout: 30_000 });
   // The QU- form of the route lands on the canonical one.
   await page.goto(`/admin/deal-files/${QUOTE.number}`);
   await expect(page).toHaveURL(new RegExp(`/admin/deal-files/${QNO}$`));
