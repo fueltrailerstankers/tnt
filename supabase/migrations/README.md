@@ -20,6 +20,7 @@ Apply in order. Never edit a migration once it is applied to a real project; add
 | 0017 | M6 overview | optimistic locking: optional `p_expected_updated_at` on `stock_correct_unit` / `stock_move_unit` (raises `UNIT_CHANGED` under the row lock); the 0011 bodies are kept as internal `*_unchecked`, so calls without it behave as before; grants as 0011 |
 | 0019 | M6 invoices | `xero_credit_notes` read-only mirror, `xero_invoices.credit_note_applied`, `stock_invoice_exceptions.source_updated_utc`, `stock_apply_invoice` with optional `p_source_updated` |
 | 0020 | M5 | in-app Cognito import: `cognito_api_keys` (one per org, AES-256-GCM with ENCRYPTION_KEY, last 4 characters in clear; service role only) and `import_runs` (per form, dry_run/apply, cursor + counts-only report; org admins read, server writes; one queued/running run per form) |
+| 0021 | M7 | users and access levels: `memberships` gets `display_name`, `access` (area -> none/read/write, normalised by trigger), `preset`, `status` (invited/active/disabled), invite/accept/disable timestamps, `last_seen_at`; backfill = active with the role's preset; `must_change_password` (Add user); `has_access()`; per-area RLS select policies (forms, deals, quotes, invoices, leads, stock, integrations, settings, users, activity); inactive members get nothing; last-active-admin trigger; stock RPC gate follows Stock write |
 
 The live project got 0012 and 0013 before 0010/0011: apply 0010 and 0011 next (with the Supabase CLI: `supabase db push --include-all`). 0012 depends on 0008 only.
 
@@ -28,9 +29,9 @@ intake jobs raced before this fix), the migration stops with a message and a que
 rows, delete the later copy of each pair by hand (keep the earliest), and apply 0012 again.
 
 0015 (UI handoff) depends on 0001, 0004 and 0005 only. Numbers on other lines: the main line has M6's 0010
-(`factory` role) and 0011 (stock), 0014 is reserved for M7 (`0014_access.sql`, docs/M7.md) and 0018 for M8
+(`factory` role) and 0011 (stock), M7's users and access is `0021_access.sql` (docs/M7.md; first planned as 0014) and 0018 for M8
 (docs/M8.md); none is 0015, and 0015 touches none of their objects (0011's restrictive `entry_files_not_factory`
-policy also covers the new `entry_files` columns). Apply 0015 with `--include-all` if it lands before 0014.
+policy also covers the new `entry_files` columns). 
 It is additive:
 - `saved_views`: a user's own named list filters (`scope` = `form:<slug>` | `xero_quotes` | `xero_invoices` |
   `leads`; `query` = list URL params only, never entry values). RLS: own rows within the caller's orgs; clients may
@@ -48,10 +49,8 @@ It is additive:
   unchanged.
 
 **Reserved numbers (work in progress on other branches; pick the next free number above these):**
-0014 users and access (M7), 0018 form builder (M8),
-0016 (dispatch) and 0017 (overview) are M6 stock. 0015 is the UI handoff foundation. Next free number: 0021.
-0014 users and access (M7), 0016-0017 stock pages (M6, only if needed), 0018 form builder (M8),
-0020 in-app Cognito import. 0015 is the UI handoff foundation. Next free number: 0021.
+0018 form builder (M8). 0021 is M7 users and access (written against the schema as of 0020; it keeps the
+0016/0017/0019 stock RPCs). Next free number: 0022.
 `0019_stock_invoice_guard.sql` (M6 stock invoices review, branch `m6-invoices`): `xero_credit_notes` (read-only
 mirror of Xero /CreditNotes; RLS like the other `xero_*` mirror tables, factory excluded), `xero_invoices.
 credit_note_applied` (sum of CreditNotes[].AppliedAmount, backfilled from `raw`), `stock_invoice_exceptions.

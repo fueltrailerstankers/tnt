@@ -59,7 +59,8 @@ async function main() {
 
   const member = await db
     .from('memberships')
-    .upsert({ org_id: orgId, user_id: userId, role: 'admin' }, { onConflict: 'org_id,user_id' });
+    // Active admin with the admin preset (0014 fills the access map); also re-enables a disabled admin.
+    .upsert({ org_id: orgId, user_id: userId, role: 'admin', status: 'active', disabled_at: null }, { onConflict: 'org_id,user_id' });
   if (member.error) throw new Error(`memberships upsert failed: ${member.error.message}`);
 
   const audit = await db.from('audit_log').insert({ org_id: orgId, actor_user: null, action: 'admin.provisioned', entity: 'user', entity_id: userId });

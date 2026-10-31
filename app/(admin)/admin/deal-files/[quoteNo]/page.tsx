@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Deal file · Trailers & Tankers' };
 
 export default async function DealFilePage({ params }: { params: Promise<{ quoteNo: string }> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('deals.read');
   const { quoteNo } = await params;
   if (!QUOTE_NO_PARAM.test(quoteNo)) notFound();
   const db = await createClient();

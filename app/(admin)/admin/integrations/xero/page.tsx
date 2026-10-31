@@ -22,7 +22,7 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function XeroHealth({ searchParams }: { searchParams: Promise<{ error?: string; connected?: string; synced?: string }> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('integrations.read');
   const sp = await searchParams;
   // xero_connections, job_runs and integration_events are service-only tables: read after the permission check.
   const db = createAdminClient();

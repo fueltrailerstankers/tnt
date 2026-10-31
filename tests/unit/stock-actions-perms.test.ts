@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('redirect'); }) }));
+// requirePerm answers 403 with forbidden() (M7).
+vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('redirect'); }), forbidden: vi.fn(() => { throw new Error('Forbidden (403)'); }) }));
 
 let role = 'staff';
 const touched: string[] = [];
@@ -15,7 +16,7 @@ vi.mock('@/lib/supabase/server', () => ({
       if (t !== 'memberships') touched.push(`user:${t}`);
       const b = {
         select: () => b, eq: () => b, order: () => b, limit: () => b,
-        maybeSingle: async () => ({ data: { org_id: '00000000-0000-0000-0000-000000000001', role, branch: null }, error: null }),
+        maybeSingle: async () => ({ data: { id: 'm1', org_id: '00000000-0000-0000-0000-000000000001', role, branch: null, access: null, status: 'active', last_seen_at: new Date().toISOString() }, error: null }),
       };
       return b;
     },
@@ -50,7 +51,7 @@ describe('stock setup and invoice actions refuse members without stock.manage', 
     for (const [name, call] of calls) {
       it(`${r}: ${name} is forbidden and touches nothing`, async () => {
         role = r;
-        await expect(call()).rejects.toThrow(/Forbidden: missing permission stock.manage/);
+        await expect(call()).rejects.toThrow(/Forbidden/);
         expect(touched).toEqual([]);
       });
     }

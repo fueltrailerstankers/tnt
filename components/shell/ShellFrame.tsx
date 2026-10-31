@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Logo } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { activeKey } from '@/lib/ui/nav';
-import type { SearchAccess } from '@/lib/ui/search';
+import { canSearch, type SearchAccess } from '@/lib/ui/search';
 import { GlobalSearch } from './GlobalSearch';
 import type { ShellNavItem, ShellUser, ShellXero } from './types';
 import { UserMenu } from './UserMenu';
@@ -32,7 +32,7 @@ const isDesktop = () => window.matchMedia('(min-width: 1024px)').matches;
  */
 export function ShellFrame({
   items, user, xero, signOut, children, searchAccess,
-}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; signOut: () => Promise<void>; children: ReactNode; searchAccess?: SearchAccess }) {
+}: { items: ShellNavItem[]; user: ShellUser; xero: ShellXero | null; signOut: () => Promise<void>; children: ReactNode; searchAccess?: SearchAccess | null }) {
   const pathname = usePathname();
   const current = activeKey(pathname, items);
   const [menu, setMenu] = useState(false);
@@ -43,6 +43,8 @@ export function ShellFrame({
   const closeButton = useRef<HTMLButtonElement>(null);
   const drawer = useRef<HTMLElement>(null);
   const tabs = items.filter((i) => i.tab);
+  // Search routes only to areas the member can read; with none of them there is no search.
+  const searchable = canSearch(searchAccess) ? searchAccess! : null;
 
   // Navigating closes the drawer and the phone search row.
   useEffect(() => { setMenu(false); setPhoneSearch(false); }, [pathname]);
@@ -50,7 +52,7 @@ export function ShellFrame({
   // "/" focuses global search (not while typing in a field).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || !deskSearch.current) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       e.preventDefault();
@@ -125,7 +127,7 @@ export function ShellFrame({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Desktop top bar */}
         <header className="hidden flex-wrap items-center gap-3 border-b border-border bg-surface px-7 py-[11px] lg:flex">
-          <GlobalSearch inputRef={deskSearch} access={searchAccess} className="max-w-[560px] flex-1 basis-72" />
+          {searchable ? <GlobalSearch inputRef={deskSearch} access={searchable} className="max-w-[560px] flex-1 basis-72" /> : null}
           <div className="ml-auto flex items-center gap-1.5">
             <ThemeToggle />
             <UserMenu name={user.name} initials={user.initials} role={user.role} signOut={signOut} />
@@ -147,19 +149,21 @@ export function ShellFrame({
           <Link href="/admin" aria-label="Trailers & Tankers home" className="flex flex-1 items-center">
             <Logo variant="on-dark" height={30} />
           </Link>
-          <button
-            type="button"
-            aria-label="Search quote no, VIN or invoice no"
-            aria-expanded={phoneSearch}
-            onClick={() => setPhoneSearch((o) => !o)}
-            className="flex size-11 items-center justify-center rounded-lg text-side-fg"
-          >
-            <Icon name="search" size={20} />
-          </button>
+          {searchable ? (
+            <button
+              type="button"
+              aria-label="Search quote no, VIN or invoice no"
+              aria-expanded={phoneSearch}
+              onClick={() => setPhoneSearch((o) => !o)}
+              className="flex size-11 items-center justify-center rounded-lg text-side-fg"
+            >
+              <Icon name="search" size={20} />
+            </button>
+          ) : null}
         </header>
-        {phoneSearch ? (
+        {phoneSearch && searchable ? (
           <div className="border-b border-border bg-surface px-3 py-2 lg:hidden">
-            <GlobalSearch inputRef={phoneSearchInput} access={searchAccess} showHint={false} className="h-11 w-full" />
+            <GlobalSearch inputRef={phoneSearchInput} access={searchable} showHint={false} className="h-11 w-full" />
           </div>
         ) : null}
 
@@ -215,6 +219,10 @@ export function ShellFrame({
                 <Badge text={m.badge} />
               </Link>
             ))}
+            <Link href="/admin/account" className="flex h-12 items-center gap-3 rounded-pill px-3 text-[15px] font-medium text-side-muted no-underline">
+              <Icon name="user" size={20} />
+              <span className="flex-1">My account</span>
+            </Link>
             <ThemeToggle variant="menu" />
             <form action={signOut}>
               <button className="h-12 w-full rounded-pill border border-side-border bg-transparent text-sm font-semibold text-side-fg">Sign out</button>

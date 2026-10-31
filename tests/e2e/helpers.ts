@@ -21,7 +21,8 @@ export async function signIn(page: Page, next = '/admin') {
   await page.getByLabel('Email').fill(ADMIN.email);
   await page.getByLabel('Password').fill(ADMIN.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`));
+  // The first visit to a route compiles it in next dev: allow for that before the redirect lands.
+  await expect(page).toHaveURL(new RegExp(`${next.replace(/[/?]/g, '\\$&')}$`), { timeout: 30_000 });
 }
 
 /** Draws a short stroke on a signature canvas. */

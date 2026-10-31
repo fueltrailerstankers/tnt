@@ -16,7 +16,7 @@ function fileSize(n: number | string | null): string {
 }
 
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('invoices.read');
   const { id } = await params;
   if (!UUID_PARAM.test(id)) notFound();
   const db = await createClient();

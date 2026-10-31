@@ -10,7 +10,7 @@ export const metadata = { title: 'Quotes · Trailers & Tankers' };
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'DECLINED', 'INVOICED', 'DELETED'] as const;
 
 export default async function Quotes({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('quotes.read');
   const sp = await searchParams;
   const q = searchTerm(sp.q);
   const status = oneOf(sp.status, STATUSES);

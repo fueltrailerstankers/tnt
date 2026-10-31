@@ -1,4 +1,5 @@
 import type { IconName } from '@/components/ui/Icon';
+export type { SearchScope } from '@/lib/ui/search';
 
 export interface ShellNavItem {
   key: string;
