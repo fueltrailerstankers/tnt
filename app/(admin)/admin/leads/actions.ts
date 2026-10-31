@@ -4,17 +4,20 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { isLeadMember } from '@/lib/leads/members';
-import { Assign, ManualLead, Note, StatusChange } from '@/lib/leads/schema';
+import { Assign, BranchChange, ManualLead, Merge, Note, NotDuplicate, StatusChange } from '@/lib/leads/schema';
 import { createLead, rematchOpenLeads } from '@/lib/leads/service';
 import { enqueue } from '@/lib/jobs/outbox';
-import { UI_SOURCES, type ActionResult, type AddLeadResult } from '@/lib/leads-view/actions';
+import { leadRpcError, UI_SOURCES, type ActionResult, type AddLeadResult } from '@/lib/leads-view/actions';
 import { assertPerm } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 // Leads server actions (inbox, pipeline drawer, phone detail, Add lead). Each one: requirePerm('leads.manage')
 // first, Zod validation, then the service-role client with every query filtered by member.orgId. Audit rows and
 // lead_events.meta carry ids, statuses and field names only; results carry no personal data.
+// Merge, Not a duplicate and Branch (0023) call the lead_* RPCs with the signed-in user's client instead: the RPC
+// re-checks Leads write and the org, locks the lead, and writes the lead_events and audit rows itself.
 
 const str = (fd: FormData, k: string) => {
   const v = fd.get(k);
@@ -65,8 +68,8 @@ export async function createManualLead(fd: FormData): Promise<void> {
 }
 
 async function leadInOrg(orgId: string, id: string) {
-  const { data } = await createAdminClient().from('leads').select('id, status, assigned_to').eq('org_id', orgId).eq('id', id).maybeSingle();
-  return data as { id: string; status: string; assigned_to: string | null } | null;
+  const { data } = await createAdminClient().from('leads').select('id, status, assigned_to, merged_into').eq('org_id', orgId).eq('id', id).maybeSingle();
+  return data as { id: string; status: string; assigned_to: string | null; merged_into: string | null } | null;
 }
 
 /** Status / stage change (inbox Status select, pipeline drawer and phone stage pills). */
@@ -77,6 +80,7 @@ export async function setLeadStatus(input: { id: string; status: string }): Prom
   const { id, status } = parsed.data;
   const lead = await leadInOrg(member.orgId, id);
   if (!lead) return { ok: false, error: 'notfound' };
+  if (lead.merged_into) return { ok: false, error: 'merged' };
   if (lead.status !== status) {
     const db = createAdminClient();
     const { error } = await db.from('leads').update({ status }).eq('org_id', member.orgId).eq('id', id);
@@ -95,6 +99,7 @@ export async function setLeadAssignee(input: { id: string; assigned_to: string }
   const { id, assigned_to } = parsed.data;
   const lead = await leadInOrg(member.orgId, id);
   if (!lead) return { ok: false, error: 'notfound' };
+  if (lead.merged_into) return { ok: false, error: 'merged' };
   if (assigned_to && !(await isLeadMember(member.orgId, assigned_to))) return { ok: false, error: 'invalid' };
   if (lead.assigned_to !== assigned_to) {
     const db = createAdminClient();
@@ -112,9 +117,47 @@ export async function addLeadNote(input: { id: string; body: string }): Promise<
   const parsed = Note.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'invalid' };
   const { id, body } = parsed.data;
-  if (!(await leadInOrg(member.orgId, id))) return { ok: false, error: 'notfound' };
+  const lead = await leadInOrg(member.orgId, id);
+  if (!lead) return { ok: false, error: 'notfound' };
+  if (lead.merged_into) return { ok: false, error: 'merged' };
   const { error } = await createAdminClient().from('lead_events').insert({ lead_id: id, kind: 'note', actor: member.userId, meta: {}, body });
   if (error) return { ok: false, error: 'save' };
+  revalidateLeads();
+  return { ok: true };
+}
+
+/** Merge a duplicate into the original the page showed (lead_merge refuses if the duplicate link changed). */
+export async function mergeLead(input: { id: string; into: string }): Promise<ActionResult> {
+  const member = await requirePerm('leads.manage');
+  const parsed = Merge.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
+  const db = await createClient();
+  const { error } = await db.rpc('lead_merge', { p_org: member.orgId, p_lead: parsed.data.id, p_into: parsed.data.into });
+  if (error) return { ok: false, error: leadRpcError(error) };
+  revalidateLeads();
+  return { ok: true };
+}
+
+/** "Not a duplicate": clears the flag (still `of`) and remembers it so detection never flags it against `of` again. */
+export async function markNotDuplicate(input: { id: string; of: string }): Promise<ActionResult> {
+  const member = await requirePerm('leads.manage');
+  const parsed = NotDuplicate.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
+  const db = await createClient();
+  const { error } = await db.rpc('lead_not_duplicate', { p_org: member.orgId, p_lead: parsed.data.id, p_of: parsed.data.of });
+  if (error) return { ok: false, error: leadRpcError(error) };
+  revalidateLeads();
+  return { ok: true };
+}
+
+/** Lead branch (blank clears it). Routing is not re-run: the notification already went to the routed inbox. */
+export async function setLeadBranch(input: { id: string; branch: string }): Promise<ActionResult> {
+  const member = await requirePerm('leads.manage');
+  const parsed = BranchChange.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'invalid' };
+  const db = await createClient();
+  const { error } = await db.rpc('lead_set_branch', { p_org: member.orgId, p_lead: parsed.data.id, p_branch: parsed.data.branch });
+  if (error) return { ok: false, error: leadRpcError(error) };
   revalidateLeads();
   return { ok: true };
 }
