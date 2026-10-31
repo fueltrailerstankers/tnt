@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Leads pipeline</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+.search:focus-within{outline:2px solid #C25A12;outline-offset:1px}
+</style>
+</helmet>
+<div style="{{tv}}; position: relative; overflow: hidden; min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <aside aria-label="Main navigation" style="flex: 1 1 232px; min-width: 0; box-sizing: border-box; background: var(--side); border-right: 1px solid var(--sideborder); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+    <a href="Home.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; text-decoration: none; color: var(--sidetext)">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 14px; font-weight: 600">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Operations portal</span></span>
+    </a>
+    <nav style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+        <a href="{{n.href}}" aria-current="{{n.current}}" style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 14px; {{n.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>
+          <span style="flex: 1">{{n.label}}</span>
+          <sc-if value="{{n.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{n.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </nav>
+    <div style="margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--sideborder); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sidemuted)">
+      <span style="display: flex; align-items: center; gap: 6px; color: var(--sidetext); font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3CCB7F"></span>Xero connected</span>
+      <span>Synced 2 min ago · 14:30 SAST</span>
+    </div>
+  </aside>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 28px; border-bottom: 1px solid var(--border); background: var(--surface)">
+      <label class="search" style="flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--muted)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg>
+        <input aria-label="Search by quote no, VIN or invoice no" placeholder="Search quote no, VIN or invoice no" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline: none">
+        <kbd style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border: 1px solid var(--strong); border-radius: 6px; color: var(--muted)">/</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+        <button aria-label="{{themeAria}}" onClick="{{toggleTheme}}" style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"></path></svg></button>
+        <button aria-haspopup="menu" aria-label="User menu, Zanele D., Admin" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">ZD</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 13px; font-weight: 600">Zanele D.</span><span style="font-size: 11px; color: var(--muted)">Admin · Durban</span></span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1400px; box-sizing: border-box">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">Leads</h1>
+          <span style="font-size: 13px; color: var(--muted)">{{openCount}} open · pipeline {{pipeline}} <span style="font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 6px; border: 1px solid var(--strong); color: var(--muted)">ZAR</span> from matched Xero quotes</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <div role="tablist" aria-label="Leads view" style="display: inline-flex; padding: 3px; gap: 2px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--border)">
+            <a href="Leads.dc.html" role="tab" aria-selected="false" style="display: inline-flex; align-items: center; height: 30px; padding: 0 14px; border-radius: 999px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600">Inbox</a>
+            <span role="tab" aria-selected="true" style="display: inline-flex; align-items: center; height: 30px; padding: 0 14px; border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-size: 13px; font-weight: 600">Pipeline</span>
+          </div>
+          <button onClick="{{openNew}}" style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add lead</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <label style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); flex: 0 1 260px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg><input aria-label="Search leads" placeholder="Company, contact or phone" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; outline: none"></label>
+        <select aria-label="Owner" style="height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px"><option>All owners</option><option>Mine</option><option>Unassigned</option></select>
+        <select aria-label="Branch" style="height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px"><option>All branches</option><option>Durban</option><option>Cape Town</option><option>Johannesburg</option></select>
+        <button onClick="{{toggleTest}}" aria-pressed="{{hideTest}}" style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer"><span style="width: 28px; height: 16px; border-radius: 999px; position: relative; {{switchBg}}"><span style="position: absolute; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #FFFFFF; {{switchKnob}}"></span></span>Hide test leads</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(240px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px">
+        <sc-for list="{{cols}}" as="c" hint-placeholder-count="5">
+          <section aria-label="{{c.name}}" style="display: flex; flex-direction: column; gap: 10px; padding: 10px; border-radius: 16px; background: var(--surface2); min-height: 560px">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 2px">
+              <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 50%; {{c.dot}}"></span>{{c.name}}<span style="font-weight: 500; color: var(--muted)">{{c.count}}</span></span>
+              <span style="font-size: 12px; color: var(--muted)">{{c.sum}}</span>
+            </div>
+            <sc-for list="{{c.cards}}" as="l" hint-placeholder-count="2">
+              <button onClick="{{l.open}}" aria-label="Open lead {{l.id}}, {{l.company}}" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; {{l.ring}}">
+                <span style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start"><span style="font-size: 14px; font-weight: 700">{{l.company}}</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted)">{{l.id}}</span></span>
+                <span style="font-size: 13px; color: var(--muted)">{{l.need}}</span>
+                <sc-if value="{{l.hasMatch}}" hint-placeholder-val="{{ false }}"><span style="display: flex; align-items: center; gap: 6px; font-size: 12px"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600">{{l.match}}</span><span style="color: var(--muted)">· {{l.amt}}</span></span></sc-if>
+                <span style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center">
+                  <span style="font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; {{l.srcTone}}">{{l.source}}</span>
+                  <sc-if value="{{l.dup}}" hint-placeholder-val="{{ false }}"><span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--yelb); color: var(--yelt)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.01"></path></svg>Duplicate?</span></sc-if>
+                  <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted)">{{l.age}}<span style="width: 24px; height: 24px; border-radius: 50%; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700">{{l.ini}}</span></span>
+                </span>
+              </button>
+            </sc-for>
+          </section>
+        </sc-for>
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{drawer}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--overlay)"></div>
+    <aside role="dialog" aria-modal="true" aria-labelledby="ld-h" style="position: absolute; top: 0; right: 0; bottom: 0; width: 460px; max-width: 100%; box-sizing: border-box; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column">
+      <div style="display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border)">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted)">{{cur.id}} · {{cur.source}}</span>
+          <h2 id="ld-h" style="margin: 0; font-size: 20px; font-weight: 700">{{cur.company}}</h2>
+          <span style="font-size: 13px; color: var(--muted)">{{cur.contact}} · {{cur.phone}}</span>
+        </div>
+        <button onClick="{{close}}" aria-label="Close" style="width: 36px; height: 36px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600">Stage</span>
+          <div role="radiogroup" aria-label="Stage" style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{stages}}" as="st" hint-placeholder-count="5">
+              <button role="radio" aria-checked="{{st.on}}" onClick="{{st.pick}}" style="height: 34px; padding: 0 12px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; {{st.style}}">{{st.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{cur.dup}}" hint-placeholder-val="{{ false }}">
+          <div role="alert" style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--yelb); color: var(--yelt)">
+            <span style="font-size: 14px"><strong>Possible duplicate of L-0917</strong> · same phone number</span>
+            <div style="display: flex; gap: 8px"><button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: 13px; font-weight: 700">Merge</button><button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13px; font-weight: 700; text-decoration: underline">Not a duplicate</button></div>
+          </div>
+        </sc-if>
+        <dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 13px">
+          <div><dt style="color: var(--muted)">Owner</dt><dd style="margin: 2px 0 0; font-weight: 600">{{cur.owner}}</dd></div>
+          <div><dt style="color: var(--muted)">Branch</dt><dd style="margin: 2px 0 0; font-weight: 600">{{cur.branch}}</dd></div>
+          <div><dt style="color: var(--muted)">Email</dt><dd style="margin: 2px 0 0">{{cur.email}}</dd></div>
+          <div><dt style="color: var(--muted)">Created</dt><dd style="margin: 2px 0 0">{{cur.created}}</dd></div>
+        </dl>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600">Matched in Xero</span>
+          <sc-if value="{{cur.hasMatch}}" hint-placeholder-val="{{ false }}">
+            <a href="XeroMirror.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); text-decoration: none; color: var(--text)"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 700">{{cur.match}}</span><span style="font-size: 12px; color: var(--muted)">{{cur.matchStatus}}</span><span style="margin-left: auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600">{{cur.amt}}</span></a>
+          </sc-if>
+          <sc-if value="{{cur.noMatch}}" hint-placeholder-val="{{ true }}"><span style="font-size: 13px; color: var(--muted)">No Xero quote yet. When a quote is raised in Xero for this contact it links here automatically.</span></sc-if>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <label for="ld-note" style="font-size: 13px; font-weight: 600">Add note</label>
+          <textarea id="ld-note" rows="3" placeholder="Call outcome, next step…" style="padding: 10px 12px; border-radius: 14px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; resize: vertical"></textarea>
+        </div>
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px">
+        <a href="Leads.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 999px; border: 1px solid var(--strong); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600">Open in inbox</a>
+        <button onClick="{{close}}" style="flex: 1; height: 40px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Save</button>
+      </div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{newOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: var(--overlay); display: flex; align-items: flex-start; justify-content: center; padding-top: 120px">
+      <div role="dialog" aria-modal="true" aria-labelledby="nl-h" style="width: 520px; max-width: calc(100% - 32px); background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 14px">
+        <h2 id="nl-h" style="margin: 0; font-size: 18px; font-weight: 700">Add lead</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+          <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px"><label for="nl-co" style="font-size: 13px; font-weight: 600">Company <span style="color: var(--red)">*</span></label><input id="nl-co" placeholder="Company name" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="nl-ct" style="font-size: 13px; font-weight: 600">Contact</label><input id="nl-ct" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="nl-ph" style="font-size: 13px; font-weight: 600">Phone</label><input id="nl-ph" type="tel" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"></div>
+          <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px"><label for="nl-nd" style="font-size: 13px; font-weight: 600">What do they need?</label><input id="nl-nd" placeholder="e.g. 2-compartment diesel bowser" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="nl-br" style="font-size: 13px; font-weight: 600">Branch</label><select id="nl-br" style="height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"><option>Durban</option><option>Cape Town</option><option>Johannesburg</option></select></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="nl-src" style="font-size: 13px; font-weight: 600">Source</label><select id="nl-src" style="height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"><option>Manual</option><option>Test</option></select></div>
+        </div>
+        <span style="font-size: 12px; color: var(--muted)">We check phone and email against existing leads and Xero contacts before saving.</span>
+        <div style="display: flex; justify-content: flex-end; gap: 8px">
+          <button onClick="{{closeNew}}" style="height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer">Cancel</button>
+          <button onClick="{{closeNew}}" style="height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Save lead</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  nav(active) {
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4' };
+    const items = [['Home','home','Home.dc.html'],['Tasks','tasks','Tasks.dc.html',5],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','LeadsPipeline.dc.html',2],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return items.map(([label, ic, href, badge]) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, current: label === active ? 'page' : 'false', style: label === active ? 'background: var(--sideactive); color: #FFFFFF; font-weight: 600' : 'color: var(--sidemuted)' }));
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const hideTest = s.hideTest != null ? s.hideTest : false;
+    const src = { Manual: 'background: var(--surface2); color: var(--muted)', Test: 'background: var(--yelb); color: var(--yelt)' };
+    const base = [
+      { id: 'L-0931', company: 'Karoo Demo Transport', contact: 'K. Sample', phone: '+27 23 555 0101', email: 'karoo@example.com', need: '2-compartment diesel bowser', stage: 'New', source: 'Manual', owner: 'Zanele D.', ini: 'ZD', branch: 'Cape Town', created: '27 Oct 2026', age: '2 d', dup: true, match: '', amt: '', zar: 0, matchStatus: '' },
+      { id: 'L-0928', company: 'Webhook test lead', contact: 'Test Runner', phone: '+27 00 555 0000', email: 'test@example.com', need: 'Integration test payload', stage: 'New', source: 'Test', owner: 'Unassigned', ini: '—', branch: '—', created: '23 Oct 2026', age: '6 d', dup: false, match: '', amt: '', zar: 0, matchStatus: '' },
+      { id: 'L-0932', company: 'Sample Agri Supplies', contact: 'S. Demo', phone: '+27 31 555 0190', email: 'agri@example.com', need: 'Mini tanker 1 000 L', stage: 'New', source: 'Manual', owner: 'Thandi M.', ini: 'TM', branch: 'Durban', created: '29 Oct 2026', age: '4 h', dup: false, match: '', amt: '', zar: 0, matchStatus: '' },
+      { id: 'L-0930', company: 'Test Fleet (Pty) Ltd', contact: 'T. Demo', phone: '+27 31 555 0177', email: 'fleet@example.com', need: 'Two 38 000 L fuel tankers', stage: 'Contacted', source: 'Manual', owner: 'Pieter V.', ini: 'PV', branch: 'Durban', created: '26 Oct 2026', age: '3 d', dup: false, match: '', amt: '', zar: 0, matchStatus: '' },
+      { id: 'L-0917', company: 'Karoo Demo Transport', contact: 'K. Sample', phone: '+27 23 555 0101', email: 'k.sample@example.com', need: 'Diesel bowser quote', stage: 'Quoted', source: 'Manual', owner: 'Thandi M.', ini: 'TM', branch: 'Cape Town', created: '23 Oct 2026', age: '6 d', dup: true, match: 'QU-10476', amt: 'R 198,400', zar: 198400, matchStatus: 'Sent' },
+      { id: 'L-0912', company: 'Sample Logistics', contact: 'L. Example', phone: '+27 11 555 0122', email: 'logistics@example.com', need: 'Flat-deck trailer', stage: 'Quoted', source: 'Manual', owner: 'Ayesha K.', ini: 'AK', branch: 'Johannesburg', created: '20 Oct 2026', age: '9 d', dup: false, match: 'QU-10470', amt: 'R 86,250', zar: 86250, matchStatus: 'Draft' },
+      { id: 'L-0929', company: 'Demo Haulage CC', contact: 'D. Example', phone: '+27 21 555 0133', email: 'haulage@example.com', need: 'Flat-deck trailer, 12 m', stage: 'Won', source: 'Manual', owner: 'Pieter V.', ini: 'PV', branch: 'Cape Town', created: '19 Oct 2026', age: '10 d', dup: false, match: 'QU-10479', amt: 'R 312,900', zar: 312900, matchStatus: 'Accepted' },
+      { id: 'L-0905', company: 'Vaal Demo Carriers', contact: 'V. Sample', phone: '+27 16 555 0155', email: 'vaal@example.com', need: '45 000 L tanker', stage: 'Lost', source: 'Manual', owner: 'Ayesha K.', ini: 'AK', branch: 'Johannesburg', created: '8 Oct 2026', age: '21 d', dup: false, match: 'QU-10466', amt: 'R 402,100', zar: 402100, matchStatus: 'Declined' }
+    ];
+    const moved = s.moved || {};
+    const leads = base.map(l => ({ ...l, stage: moved[l.id] || l.stage })).filter(l => !(hideTest && l.source === 'Test'));
+    const open = s.open || null;
+    const stageDefs = [['New', 'background: var(--tealt)'], ['Contacted', 'background: var(--yelt)'], ['Quoted', 'background: var(--accent)'], ['Won', 'background: var(--grnt)'], ['Lost', 'background: var(--muted)']];
+    const fmt = (n) => n ? 'R ' + n.toLocaleString('en-ZA').replace(/ /g, ',') : '—';
+    const cur = leads.find(l => l.id === open) || base.find(l => l.id === open);
+    const curStage = cur ? (moved[cur.id] || cur.stage) : '';
+    const openLeads = leads.filter(l => l.stage !== 'Won' && l.stage !== 'Lost');
+    return {
+      tv: this.themeVars(dark),
+      themeAria: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      themeIcon: dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      nav: this.nav('Leads'),
+      openCount: openLeads.length,
+      pipeline: fmt(openLeads.reduce((a, l) => a + l.zar, 0)),
+      hideTest: hideTest ? 'true' : 'false',
+      toggleTest: () => this.setState({ hideTest: !hideTest }),
+      switchBg: hideTest ? 'background: var(--accent)' : 'background: var(--strong)',
+      switchKnob: hideTest ? 'left: 14px' : 'left: 2px',
+      cols: stageDefs.map(([name, dot]) => {
+        const cards = leads.filter(l => l.stage === name);
+        return { name, dot, count: cards.length, sum: fmt(cards.reduce((a, l) => a + l.zar, 0)),
+          cards: cards.map(l => ({ ...l, hasMatch: !!l.match, srcTone: src[l.source], ring: l.id === open ? 'border-color: var(--accent); box-shadow: 0 0 0 3px var(--accentsoft)' : 'box-shadow: var(--cardshadow)', open: () => this.setState({ open: l.id }) })) };
+      }),
+      drawer: !!cur,
+      cur: cur ? { ...cur, hasMatch: !!cur.match, noMatch: !cur.match } : { id: '', company: '', contact: '', phone: '', source: '', owner: '', branch: '', email: '', created: '', dup: false, hasMatch: false, noMatch: true, match: '', amt: '', matchStatus: '' },
+      stages: stageDefs.map(([label]) => ({ label, on: label === curStage ? 'true' : 'false',
+        style: label === curStage ? 'border: 1px solid var(--accent); background: var(--accentsoft); color: var(--accenttext)' : 'border: 1px solid var(--border); background: var(--surface); color: var(--text)',
+        pick: () => { if (cur) this.setState({ moved: { ...moved, [cur.id]: label } }); } })),
+      close: () => this.setState({ open: null }),
+      newOpen: !!s.newOpen,
+      openNew: () => this.setState({ newOpen: true, open: null }),
+      closeNew: () => this.setState({ newOpen: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

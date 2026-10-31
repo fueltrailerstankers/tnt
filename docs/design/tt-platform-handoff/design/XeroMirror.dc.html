@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quotes and invoices</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+.search:focus-within{outline:2px solid #C25A12;outline-offset:1px}
+</style>
+</helmet>
+<div style="{{tv}}; position: relative; overflow: hidden; min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <aside aria-label="Main navigation" style="flex: 1 1 232px; min-width: 0; box-sizing: border-box; background: var(--side); border-right: 1px solid var(--sideborder); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+    <a href="Home.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; text-decoration: none; color: var(--sidetext)">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 14px; font-weight: 600">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Operations portal</span></span>
+    </a>
+    <nav style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+        <a href="{{n.href}}" aria-current="{{n.current}}" style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 14px; {{n.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>
+          <span style="flex: 1">{{n.label}}</span>
+          <sc-if value="{{n.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{n.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </nav>
+    <div style="margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--sideborder); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sidemuted)">
+      <span style="display: flex; align-items: center; gap: 6px; color: var(--sidetext); font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3CCB7F"></span>Xero connected</span>
+      <span>Synced 2 min ago · 14:30 SAST</span>
+    </div>
+  </aside>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 28px; border-bottom: 1px solid var(--border); background: var(--surface)">
+      <label class="search" style="flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--muted)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg>
+        <input aria-label="Search by quote no, VIN or invoice no" placeholder="Search quote no, VIN or invoice no" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline: none">
+        <kbd style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border: 1px solid var(--strong); border-radius: 6px; color: var(--muted)">/</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+        <button aria-label="{{themeAria}}" onClick="{{toggleTheme}}" style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"></path></svg></button>
+        <button aria-haspopup="menu" aria-label="User menu, Zanele D., Admin" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">ZD</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 13px; font-weight: 600">Zanele D.</span><span style="font-size: 11px; color: var(--muted)">Admin · Durban</span></span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1360px; box-sizing: border-box">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">{{title}}</h1>
+          <span style="display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>Read-only mirror of Xero. Change these in Xero; the portal never creates quotes.</span>
+        </div>
+        <span style="font-size: 13px; color: var(--muted)">Last synced {{synced}} · <a href="XeroIntegration.dc.html" style="font-weight: 600">Sync health</a></span>
+      </div>
+
+      <div role="tablist" aria-label="Record type" style="display: flex; gap: 4px; border-bottom: 1px solid var(--border)">
+        <button role="tab" aria-selected="{{qOn}}" onClick="{{showQ}}" style="height: 40px; padding: 0 14px; border: 0; background: transparent; font: inherit; font-size: 14px; cursor: pointer; {{qStyle}}">Quotes · 1,204</button>
+        <button role="tab" aria-selected="{{iOn}}" onClick="{{showI}}" style="height: 40px; padding: 0 14px; border: 0; background: transparent; font: inherit; font-size: 14px; cursor: pointer; {{iStyle}}">Invoices · 986</button>
+      </div>
+
+      <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow)">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border)">
+          <label style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); flex: 0 1 280px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg><input aria-label="Search number or contact" placeholder="Number or contact" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; outline: none"></label>
+          <sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+            <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; {{c.style}}">{{c.label}}</span>
+          </sc-for>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 14px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)">
+              <th style="padding: 9px 14px; font-weight: 600">Number</th><th style="padding: 9px 8px; font-weight: 600">Contact</th><th style="padding: 9px 8px; font-weight: 600">Date</th><th style="padding: 9px 8px; font-weight: 600">{{dateCol}}</th><th style="padding: 9px 8px; font-weight: 600">Status</th><th style="padding: 9px 8px; font-weight: 600; text-align: right">{{amtCol}}</th><th style="padding: 9px 14px 9px 8px; font-weight: 600">Synced</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+                <tr style="border-top: 1px solid var(--border); {{r.bg}}">
+                  <td style="padding: 0 14px; height: 42px"><button onClick="{{r.open}}" style="border: 0; background: transparent; padding: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600; color: var(--accenttext); cursor: pointer">{{r.no}}</button></td>
+                  <td style="padding: 0 8px">{{r.contact}}</td>
+                  <td style="padding: 0 8px; color: var(--muted); white-space: nowrap">{{r.date}}</td>
+                  <td style="padding: 0 8px; color: var(--muted); white-space: nowrap">{{r.date2}}</td>
+                  <td style="padding: 0 8px"><span style="display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{r.tone}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>{{r.status}}</span></td>
+                  <td style="padding: 0 8px; text-align: right; white-space: nowrap"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{r.amt}}</span> <span style="font-size: 10px; font-weight: 600; padding: 1px 4px; border-radius: 6px; border: 1px solid var(--strong); color: var(--muted)">ZAR</span></td>
+                  <td style="padding: 0 14px 0 8px; color: var(--muted); font-size: 13px; white-space: nowrap">{{r.synced}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <sc-if value="{{drawerOpen}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--overlay)"></div>
+    <aside role="dialog" aria-modal="true" aria-labelledby="dr-h" style="position: absolute; top: 0; right: 0; bottom: 0; width: 480px; max-width: 100%; box-sizing: border-box; background: var(--surface); box-shadow: var(--shadow); display: flex; flex-direction: column">
+      <div style="display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border)">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; color: var(--muted)">{{kind}} · Xero</span>
+          <h2 id="dr-h" style="margin: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 20px; font-weight: 600">{{d.no}}</h2>
+          <span style="display: flex; gap: 8px; align-items: center"><span style="display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{d.tone}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>{{d.status}}</span><span style="font-size: 13px; color: var(--muted)">{{d.contact}}</span></span>
+        </div>
+        <button onClick="{{close}}" aria-label="Close" style="width: 36px; height: 36px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 18px">
+        <dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 13px">
+          <div><dt style="color: var(--muted)">Date</dt><dd style="margin: 2px 0 0; font-weight: 500">{{d.date}}</dd></div>
+          <div><dt style="color: var(--muted)">{{dateCol}}</dt><dd style="margin: 2px 0 0; font-weight: 500">{{d.date2}}</dd></div>
+          <div><dt style="color: var(--muted)">Reference</dt><dd style="margin: 2px 0 0; font-family: 'JetBrains Mono', ui-monospace, monospace">{{d.ref}}</dd></div>
+          <div><dt style="color: var(--muted)">Linked deal</dt><dd style="margin: 2px 0 0"><a href="DealFile.dc.html" style="font-weight: 600">Deal file</a></dd></div>
+        </dl>
+        <div style="display: flex; flex-direction: column">
+          <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 600">Lines</h3>
+          <sc-for list="{{lines}}" as="l" hint-placeholder-count="3">
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) 36px 120px; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px">
+              <span style="display: flex; flex-direction: column"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted)">{{l.code}}</span><span>{{l.desc}}</span></span>
+              <span style="text-align: right; color: var(--muted)">×{{l.qty}}</span>
+              <span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace">{{l.amt}}</span>
+            </div>
+          </sc-for>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 4px 8px; padding-top: 10px; border-top: 1px solid var(--strong); font-size: 13px">
+            <span style="color: var(--muted)">Subtotal</span><span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace">R 423,260.87</span>
+            <span style="color: var(--muted)">VAT 15%</span><span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace">R 63,489.13</span>
+            <span style="font-weight: 600">Total</span><span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600">R 486,750.00</span>
+            <span style="color: var(--muted)">≈ USD</span><span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--muted)">$26,450.00</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <h3 style="margin: 0; font-size: 14px; font-weight: 600">Attachments</h3>
+          <sc-for list="{{atts}}" as="a" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px">
+              <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--muted)">PDF</span>
+              <span style="flex: 1">{{a}}</span>
+              <a href="#" style="font-weight: 600">Preview</a>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px">
+        <a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; border-radius: 999px; border: 1px solid var(--strong); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500">Open in Xero<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg></a>
+        <a href="DealFile.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 999px; background: var(--accent); color: var(--onaccent); text-decoration: none; font-size: 14px; font-weight: 600">Go to deal file</a>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  nav(active) {
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4' };
+    const items = [['Home','home','Home.dc.html'],['Tasks','tasks','Tasks.dc.html',5],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','Leads.dc.html',2],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return items.map(([label, ic, href, badge]) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, current: label === active ? 'page' : 'false', style: label === active ? 'background: var(--sideactive); color: #FFFFFF; font-weight: 600' : 'color: var(--sidemuted)' }));
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const tab = s.tab || 'q';
+    const open = s.open === undefined ? 'QU-10482' : s.open;
+    const tone = { Draft:'background: var(--grayb); color: var(--grayt)', Sent:'background: var(--yelb); color: var(--yelt)', Accepted:'background: var(--grnb); color: var(--grnt)', Invoiced:'background: var(--tealb); color: var(--tealt)', Declined:'background: var(--redb); color: var(--redt)', Authorised:'background: var(--yelb); color: var(--yelt)', Paid:'background: var(--grnb); color: var(--grnt)', Overdue:'background: var(--redb); color: var(--redt)' };
+    const Q = [
+      ['QU-10482', 'Bergview Agri Co-op', '20 Oct', 'Expires 19 Nov', 'Invoiced', '486,750.00', '14:30'],
+      ['QU-10479', 'Demo Haulage CC', '19 Oct', 'Expires 18 Nov', 'Accepted', '312,900.00', '14:30'],
+      ['QU-10476', 'Karoo Demo Transport', '17 Oct', 'Expires 16 Nov', 'Sent', '198,400.00', '14:30'],
+      ['QU-10471', 'Test Fleet (Pty) Ltd', '14 Oct', 'Expires 13 Nov', 'Invoiced', '1,024,000.00', '14:30'],
+      ['QU-10470', 'Sample Logistics', '13 Oct', 'Expires 12 Nov', 'Draft', '86,250.00', '14:30'],
+      ['QU-10466', 'Vaal Demo Carriers', '10 Oct', 'Expired 9 Nov', 'Declined', '402,100.00', '14:28']
+    ];
+    const I = [
+      ['INV-20931', 'Bergview Agri Co-op', '25 Oct', 'Due 24 Nov', 'Paid', '486,750.00', '14:30'],
+      ['INV-20930', 'Test Fleet (Pty) Ltd', '24 Oct', 'Due 23 Nov', 'Authorised', '1,024,000.00', '13:58 · failed'],
+      ['INV-20926', 'Demo Haulage CC', '22 Oct', 'Due 21 Nov', 'Paid', '298,000.00', '14:30'],
+      ['INV-20920', 'Sample Logistics', '18 Oct', 'Due 1 Oct', 'Overdue', '64,500.00', '14:30'],
+      ['INV-20911', 'Karoo Demo Transport', '12 Oct', 'Due 11 Nov', 'Paid', '154,800.00', '14:30']
+    ];
+    const src = tab === 'q' ? Q : I;
+    const rows = src.map(r => ({ no: r[0], contact: r[1], date: r[2] + ' 2026', date2: r[3], status: r[4], tone: tone[r[4]], amt: 'R ' + r[5], synced: r[6], bg: r[0] === open ? 'background: var(--accentsoft)' : '', open: () => this.setState({ open: r[0] }) }));
+    const cur = rows.find(r => r.no === open);
+    const on = 'color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent)', off = 'color: var(--muted)';
+    const statuses = tab === 'q' ? ['All', 'Draft', 'Sent', 'Accepted', 'Invoiced', 'Declined'] : ['All', 'Authorised', 'Paid', 'Overdue'];
+    return {
+      tv: this.themeVars(dark),
+      themeAria: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      themeIcon: dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      nav: this.nav(tab === 'q' ? 'Quotes' : 'Invoices'),
+      title: tab === 'q' ? 'Quotes' : 'Invoices',
+      synced: tab === 'q' ? '14:30 SAST' : '13:58 SAST · 1 failure',
+      qOn: tab === 'q' ? 'true' : 'false', iOn: tab === 'i' ? 'true' : 'false',
+      qStyle: tab === 'q' ? on : off, iStyle: tab === 'i' ? on : off,
+      showQ: () => this.setState({ tab: 'q', open: null }), showI: () => this.setState({ tab: 'i', open: null }),
+      chips: statuses.map((x, i) => ({ label: x, style: i === 0 ? 'background: var(--text); color: var(--bg)' : 'border: 1px solid var(--border); color: var(--text)' })),
+      dateCol: tab === 'q' ? 'Expiry' : 'Due',
+      amtCol: 'Total',
+      rows: rows,
+      drawerOpen: !!cur,
+      kind: tab === 'q' ? 'Quote' : 'Invoice',
+      d: cur ? { ...cur, ref: tab === 'q' ? 'TT9DEMO24D0010482' : 'QU-10482 · TT9DEMO24D0010482' } : { no: '', status: '', tone: '', contact: '', date: '', date2: '', ref: '' },
+      close: () => this.setState({ open: null }),
+      lines: [
+        { code: 'TT-45K-FT', desc: 'Fuel tanker 45 000 L, tri-axle, 5 compartments', qty: 1, amt: 'R 358,260.87' },
+        { code: 'BLK-KIT-04', desc: 'Bottom-loading kit with API couplers', qty: 1, amt: 'R 65,000.00' },
+        { code: 'DOC-RW-01', desc: 'Roadworthy and registration pack', qty: 1, amt: 'R 0.00' }
+      ],
+      atts: tab === 'q' ? ['QU-10482.pdf', 'tank-spec-sheet.pdf'] : ['INV-20931.pdf', 'DeliveryNote-QU-10482-v1.pdf']
+    };
+  }
+}
+</script>
+</body>
+</html>

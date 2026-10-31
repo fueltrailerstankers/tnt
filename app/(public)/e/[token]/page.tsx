@@ -33,18 +33,11 @@ function StateCard({ icon, tone, title, children }: { icon: 'lock' | 'check' | '
 function Invalid() {
   return (
     <StateCard icon="lock" tone="gray" title="Link not valid">
-      <p>This link has expired or is no longer valid. Ask the office to send a new one.</p>
+      <p>This link is no longer valid: a newer link was sent for this entry, or the address is incomplete. Ask the office to send a new one.</p>
     </StateCard>
   );
 }
 
-function Expired() {
-  return (
-    <StateCard icon="warning" tone="yellow" title="This link has expired">
-      <p>Ask your Trailers &amp; Tankers contact to send a new one. Nothing you entered before has been lost.</p>
-    </StateCard>
-  );
-}
 
 const sastStamp = (iso: string) => {
   const d = new Date(iso);
@@ -57,7 +50,6 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
   const { token } = await params;
   const db = createAdminClient();
   const { status, link } = await inspectRoleLink(db, token);
-  if (status === 'expired') return <Expired />;
   if (status !== 'ok' || !link) return <Invalid />;
   const { data: row } = await db.from('entries').select('form_id').eq('id', link.entryId).maybeSingle();
   const form = row ? await loadFormById(db, row.form_id) : null;

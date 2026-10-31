@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspection entry 214</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+.search:focus-within{outline:2px solid #C25A12;outline-offset:1px}
+</style>
+</helmet>
+<div style="{{tv}}; min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <aside aria-label="Main navigation" style="flex: 1 1 232px; min-width: 0; box-sizing: border-box; background: var(--side); border-right: 1px solid var(--sideborder); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+    <a href="Home.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; text-decoration: none; color: var(--sidetext)">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 14px; font-weight: 600">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Operations portal</span></span>
+    </a>
+    <nav style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+        <a href="{{n.href}}" aria-current="{{n.current}}" style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 14px; {{n.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>
+          <span style="flex: 1">{{n.label}}</span>
+          <sc-if value="{{n.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{n.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </nav>
+    <div style="margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--sideborder); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sidemuted)">
+      <span style="display: flex; align-items: center; gap: 6px; color: var(--sidetext); font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3CCB7F"></span>Xero connected</span>
+      <span>Synced 2 min ago · 14:30 SAST</span>
+    </div>
+  </aside>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 28px; border-bottom: 1px solid var(--border); background: var(--surface)">
+      <label class="search" style="flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--muted)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg>
+        <input aria-label="Search by quote no, VIN or invoice no" placeholder="Search quote no, VIN or invoice no" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline: none">
+        <kbd style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border: 1px solid var(--strong); border-radius: 6px; color: var(--muted)">/</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+        <button aria-label="{{themeAria}}" onClick="{{toggleTheme}}" style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"></path></svg></button>
+        <button aria-haspopup="menu" aria-label="User menu" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{initials}}</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 13px; font-weight: 600">{{userName}}</span><span style="font-size: 11px; color: var(--muted)">{{role}}</span></span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1360px; box-sizing: border-box">
+      <nav aria-label="Breadcrumb" style="font-size: 13px; color: var(--muted); display: flex; gap: 6px"><a href="FormsIndex.dc.html" style="color: var(--muted)">Forms</a><span>/</span><a href="Entries.dc.html" style="color: var(--muted)">Trailer Inspection</a><span>/</span><span style="color: var(--text)">#214</span></nav>
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+          <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">Trailer Inspection #214</h1>
+          <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; color: var(--muted)">TT9DEMO24D0010482</span>
+        </div>
+        <div role="tablist" aria-label="Mode" style="display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border)">
+          <button role="tab" aria-selected="{{viewOn}}" onClick="{{setView}}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; {{viewStyle}}">View</button>
+          <button role="tab" aria-selected="{{editOn}}" onClick="{{setEdit}}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; {{editStyle}}">Edit</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section style="flex: 3 1 560px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 22px; display: flex; flex-direction: column; gap: 20px">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 6px"><label for="e-vin" style="font-size: 13px; font-weight: 600">VIN</label><input id="e-vin" value="TT9DEMO24D0010482" readonly="{{ro}}" style="height: 38px; padding: 0 10px; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; color: var(--text); {{inputStyle}}"></div>
+            <div style="display: flex; flex-direction: column; gap: 6px"><label for="e-d1" style="font-size: 13px; font-weight: 600">1st inspection date</label><input id="e-d1" value="27/10/2026" readonly="{{ro}}" style="height: 38px; padding: 0 10px; border-radius: 10px; font: inherit; font-size: 14px; color: var(--text); {{inputStyle}}"></div>
+            <div style="display: flex; flex-direction: column; gap: 6px"><label for="e-by" style="font-size: 13px; font-weight: 600">Inspected by</label><input id="e-by" value="Inspector A. Demo" readonly="{{ro}}" style="height: 38px; padding: 0 10px; border-radius: 10px; font: inherit; font-size: 14px; color: var(--text); {{inputStyle}}"></div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <label for="e-em" style="font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px">Inspector email<sc-if value="{{masked}}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Protected field"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg></sc-if></label>
+              <input id="e-em" value="{{email}}" readonly style="height: 38px; padding: 0 10px; border-radius: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: var(--text); {{emailStyle}}">
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px">
+              <h2 style="margin: 0; font-size: 17px; font-weight: 600">Checklist</h2>
+              <span style="font-size: 13px; color: var(--muted)">46 pass · <strong style="color: var(--redt)">2 fail</strong> · Pass and Fail are independent</span>
+            </div>
+          </div>
+          <sc-for list="{{sections}}" as="sec" hint-placeholder-count="4">
+            <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column">
+              <legend style="font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); padding: 0 0 8px">{{sec.name}}</legend>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) 76px 76px; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden">
+                <span style="padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2)">Item</span><span style="padding: 6px 0; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2); text-align: center">Pass</span><span style="padding: 6px 0; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2); text-align: center">Fail</span>
+                <sc-for list="{{sec.rows}}" as="row" hint-placeholder-count="4">
+                  <span style="padding: 0 12px; height: 40px; display: flex; align-items: center; font-size: 14px; border-top: 1px solid var(--border); {{row.bg}}">{{row.label}}</span>
+                  <span style="height: 40px; display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--border); {{row.bg}}"><input type="checkbox" aria-label="{{row.label}} pass" checked="{{row.pass}}" disabled="{{ro}}" style="width: 18px; height: 18px; accent-color: #16613A"></span>
+                  <span style="height: 40px; display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--border); {{row.bg}}"><input type="checkbox" aria-label="{{row.label}} fail" checked="{{row.fail}}" disabled="{{ro}}" style="width: 18px; height: 18px; accent-color: #B42318"></span>
+                </sc-for>
+              </div>
+            </fieldset>
+          </sc-for>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; align-items: end">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <span style="font-size: 13px; font-weight: 600">Inspector signature</span>
+              <div style="height: 96px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--text)"><svg width="200" height="64" viewBox="0 0 260 90" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-label="Inspector signature image" role="img"><path d="M14 58c22-24 34-40 44-36 10 4-10 40 2 40s20-30 34-30 0 26 14 26 26-30 40-28 2 22 14 22 28-14 44-18 24-4 40-6"></path></svg></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px"><label for="e-d2" style="font-size: 13px; font-weight: 600">Inspection date</label><input id="e-d2" value="29/10/2026" readonly="{{ro}}" style="height: 38px; padding: 0 10px; border-radius: 10px; font: inherit; font-size: 14px; color: var(--text); {{inputStyle}}"></div>
+          </div>
+        </section>
+
+        <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 16px; display: flex; flex-direction: column; gap: 14px">
+            <div style="display: flex; justify-content: space-between; align-items: center">
+              <h2 style="margin: 0; font-size: 15px; font-weight: 600">Status</h2>
+              <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; {{statusTone}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>{{status}}</span>
+            </div>
+            <ol style="list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 6px">
+              <sc-for list="{{stepper}}" as="sp" hint-placeholder-count="3">
+                <li style="display: flex; align-items: center; gap: 6px; font-size: 13px; {{sp.text}}"><span style="width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; box-sizing: border-box; {{sp.dot}}">{{sp.mark}}</span>{{sp.label}}</li>
+                <sc-if value="{{sp.line}}" hint-placeholder-val="{{ true }}"><li aria-hidden="true" style="flex: 1; height: 2px; {{sp.lineStyle}}"></li></sc-if>
+              </sc-for>
+            </ol>
+            <sc-if value="{{canAct}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                <sc-if value="{{showReview}}" hint-placeholder-val="{{ true }}"><button onClick="{{review}}" style="flex: 1 1 140px; height: 38px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Mark reviewed</button></sc-if>
+                <sc-if value="{{showApprove}}" hint-placeholder-val="{{ false }}"><button onClick="{{approve}}" style="flex: 1 1 140px; height: 38px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Approve</button></sc-if>
+                <sc-if value="{{showChanges}}" hint-placeholder-val="{{ true }}"><button onClick="{{changes}}" style="flex: 1 1 140px; height: 38px; border-radius: 999px; border: 1px solid var(--red); background: var(--surface); color: var(--redt); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Request changes</button></sc-if>
+              </div>
+            </sc-if>
+            <span style="font-size: 12px; color: var(--muted)">{{roleNote}}</span>
+          </section>
+
+          <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 16px; display: flex; flex-direction: column; gap: 12px">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600">Timeline</h2>
+            <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+              <sc-for list="{{timeline}}" as="ev" hint-placeholder-count="4">
+                <li style="display: flex; gap: 10px">
+                  <span style="width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; flex: none; {{ev.dot}}"></span>
+                  <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 13px"><strong style="font-weight: 600">{{ev.who}}</strong> {{ev.what}}</span><span style="font-size: 12px; color: var(--muted)">{{ev.when}}</span></span>
+                </li>
+              </sc-for>
+            </ol>
+            <span style="font-size: 12px; color: var(--muted)">Field names only. Values are never stored in the timeline.</span>
+          </section>
+
+          <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600">Files</h2>
+            <sc-for list="{{files}}" as="fl" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span style="width: 34px; height: 34px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--muted); flex: none">{{fl.ext}}</span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{fl.name}}</span><span style="font-size: 12px; color: {{fl.metaColor}}">{{fl.meta}}</span></span>
+                <button onClick="{{fl.preview}}" style="height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Preview</button>
+              </div>
+            </sc-for>
+          </section>
+
+          <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600">Emails sent</h2>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+              <div style="display: flex; justify-content: space-between; gap: 8px"><span>Inspection submitted → inspections-dbn@example.com</span><span style="color: var(--grnt); font-weight: 600; flex: none">Delivered</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 8px"><span>Review needed → reviewer link to Thandi M.</span><span style="color: var(--grnt); font-weight: 600; flex: none">Opened</span></div>
+            </div>
+          </section>
+
+          <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600">Generated PDFs</h2>
+            <sc-for list="{{pdfs}}" as="p" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px">
+                <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; width: 26px">{{p.v}}</span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span>{{p.when}}</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted)">sha256 {{p.hash}}</span></span>
+                <a href="#" aria-label="Download PDF {{p.v}}" style="font-weight: 600">PDF</a>
+              </div>
+            </sc-for>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"role":{"editor":"enum","options":["Admin","Reviewer","Sales rep (read only)"],"default":"Admin"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  nav(active) {
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4' };
+    const items = [['Home','home','Home.dc.html'],['Tasks','tasks','Tasks.dc.html',5],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','Leads.dc.html',2],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return items.map(([label, ic, href, badge]) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, current: label === active ? 'page' : 'false', style: label === active ? 'background: var(--sideactive); color: #FFFFFF; font-weight: 600' : 'color: var(--sidemuted)' }));
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const role = this.props.role || 'Admin';
+    const isAdmin = role === 'Admin';
+    const canAct = role !== 'Sales rep (read only)';
+    const st = s.st || 'Submitted';
+    const edit = !!s.edit && canAct;
+    const tone = { Submitted:'background: var(--tealb); color: var(--tealt)', Reviewed:'background: var(--yelb); color: var(--yelt)', Approved:'background: var(--grnb); color: var(--grnt)', 'Changes requested':'background: var(--redb); color: var(--redt)' };
+    const idx = st === 'Approved' ? 2 : st === 'Reviewed' ? 1 : 0;
+    const segOn = 'background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12)', segOff = 'background: transparent; color: var(--muted)';
+    const sec = (name, rows) => ({ name, rows: rows.map(([label, p, f]) => ({ label, pass: !!p, fail: !!f, bg: f ? 'background: var(--redb)' : '' })) });
+    const fileMeta = (k, base) => s.prev === k ? 'Signed link · expires in 60 s' : base;
+    const tl = [
+      { who: 'Inspector A. Demo', what: 'submitted the entry', when: 'Today 09:14 SAST', dot: 'background: var(--tealt)' },
+      { who: 'Inspector A. Demo', what: 'changed fields: Side markers (Fail), Earth reel (Fail), Comments', when: 'Today 09:11 SAST', dot: 'background: var(--strong)' },
+      { who: 'System', what: 'emailed inspector edit link', when: 'Yesterday 16:30 SAST', dot: 'background: var(--strong)' }
+    ];
+    if (st === 'Reviewed' || st === 'Approved') tl.unshift({ who: 'Zanele D.', what: 'changed status Submitted → Reviewed', when: 'Just now', dot: 'background: var(--yelt)' });
+    if (st === 'Approved') tl.unshift({ who: 'Zanele D.', what: 'changed status Reviewed → Approved · PDF v2 generated', when: 'Just now', dot: 'background: var(--grnt)' });
+    if (st === 'Changes requested') tl.unshift({ who: 'Zanele D.', what: 'requested changes · inspector link re-sent', when: 'Just now', dot: 'background: var(--red)' });
+    return {
+      tv: this.themeVars(dark),
+      themeAria: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      themeIcon: dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      nav: this.nav('Forms'),
+      initials: isAdmin ? 'ZD' : (canAct ? 'TM' : 'PV'), userName: isAdmin ? 'Zanele D.' : (canAct ? 'Thandi M.' : 'Pieter V.'), role: role,
+      viewOn: edit ? 'false' : 'true', editOn: edit ? 'true' : 'false',
+      viewStyle: edit ? segOff : segOn, editStyle: edit ? segOn : segOff,
+      setView: () => this.setState({ edit: false }), setEdit: () => this.setState({ edit: true }),
+      ro: !edit,
+      inputStyle: edit ? 'border: 1px solid var(--strong); background: var(--surface)' : 'border: 1px solid transparent; background: var(--surface2)',
+      masked: !isAdmin,
+      email: isAdmin ? 'inspector.a@example.com' : 'i•••••••••a@example.com',
+      emailStyle: isAdmin ? 'border: 1px solid transparent; background: var(--surface2)' : 'border: 1px dashed var(--strong); background: var(--surface2); letter-spacing: 0.5px',
+      sections: [
+        sec('Chassis & running gear', [['Axles & hubs', 1, 0], ['Suspension & airbags', 1, 0], ['Brakes & brake lines', 1, 0], ['Tyres, rims & wheel nuts torqued', 1, 0]]),
+        sec('Lighting & electrical', [['Brake lights & indicators', 1, 0], ['Side marker lamps', 0, 1], ['Reflectors & chevrons', 1, 0], ['ABS harness & plug', 1, 0]]),
+        sec('Tank & fittings', [['Manhole lids & seals', 1, 0], ['Bottom valves & API couplers', 1, 0], ['Earth reel & bonding', 0, 1], ['Pressure test', 1, 0]]),
+        sec('Plates & documentation', [['VIN plate matches', 1, 0], ['Compliance plates fitted', 1, 0]])
+      ],
+      status: st, statusTone: tone[st],
+      stepper: ['Submitted', 'Reviewed', 'Approved'].map((l, i) => ({ label: l, mark: i < idx || (i === idx && st === 'Approved') ? '✓' : String(i + 1), line: i < 2,
+        dot: i < idx || st === 'Approved' ? 'background: var(--grnt); color: var(--surface)' : (i === idx ? 'border: 2px solid var(--accent); color: var(--accenttext)' : 'border: 1px solid var(--strong); color: var(--muted)'),
+        text: i <= idx ? 'font-weight: 600; color: var(--text)' : 'color: var(--muted)',
+        lineStyle: i < idx ? 'background: var(--grnt)' : 'background: var(--border)' })),
+      canAct: canAct && st !== 'Approved',
+      showReview: st === 'Submitted' || st === 'Changes requested',
+      showApprove: st === 'Reviewed' && isAdmin,
+      showChanges: st !== 'Approved',
+      review: () => this.setState({ st: 'Reviewed' }),
+      approve: () => this.setState({ st: 'Approved' }),
+      changes: () => this.setState({ st: 'Changes requested' }),
+      roleNote: !canAct ? 'You can view this entry. Reviewing and approving need the Reviewer or Admin role.' : (st === 'Reviewed' && !isAdmin ? 'Approval needs an Admin.' : (st === 'Approved' ? 'Approved. Locked for editing; new changes create PDF v3.' : 'Actions are logged to the audit trail.')),
+      timeline: tl,
+      files: [
+        { ext: 'JPG', name: 'side-marker-left.jpg', meta: fileMeta('a', '1.8 MB · camera'), metaColor: s.prev === 'a' ? 'var(--accenttext)' : 'var(--muted)', preview: () => this.setState({ prev: 'a' }) },
+        { ext: 'JPG', name: 'earth-reel.jpg', meta: fileMeta('b', '1.2 MB · camera'), metaColor: s.prev === 'b' ? 'var(--accenttext)' : 'var(--muted)', preview: () => this.setState({ prev: 'b' }) },
+        { ext: 'PNG', name: 'inspector-signature.png', meta: fileMeta('c', '24 KB · signature'), metaColor: s.prev === 'c' ? 'var(--accenttext)' : 'var(--muted)', preview: () => this.setState({ prev: 'c' }) }
+      ],
+      pdfs: (st === 'Approved' ? [{ v: 'v2', when: 'Approved · just now', hash: '5e0b…91c4' }] : []).concat([{ v: 'v1', when: 'Submitted · today 09:14', hash: 'c80d…5b19' }])
+    };
+  }
+}
+</script>
+</body>
+</html>

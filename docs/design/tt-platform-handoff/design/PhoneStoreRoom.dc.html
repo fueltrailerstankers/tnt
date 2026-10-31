@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Store Room count on phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+</style>
+</helmet>
+<div style="{{tv}}; width: 390px; min-height: 1500px; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <header style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; background: var(--side); color: var(--sidetext)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <a href="PhoneHome.dc.html" aria-label="Back" style="width: 44px; height: 44px; border-radius: 16px; color: var(--sidetext); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+      <span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 16px; font-weight: 700">Store Room count</span><span style="font-size: 12px; color: var(--sidemuted)">Durban · page 1 of 3 · Tyres, axles &amp; brakes</span></span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div role="progressbar" aria-label="Count progress" aria-valuemin="0" aria-valuemax="3" aria-valuenow="1" style="height: 6px; border-radius: 3px; background: rgba(255,255,255,.15)"><div style="width: 33%; height: 6px; border-radius: 3px; background: var(--accent)"></div></div>
+      <span style="display: flex; justify-content: space-between; font-size: 12px; color: var(--sidemuted)"><span>Draft saved as Incomplete · 14:32</span><span style="color: #FF8A80; font-weight: 700">{{lowCount}} below min</span></span>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="15">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--surface); {{r.card}}">
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><label for="{{r.id}}" style="font-size: 14px; font-weight: 600">{{r.label}}</label><span style="font-size: 12px; {{r.minColor}}">{{r.minText}}</span></span>
+        <button onClick="{{r.dec}}" aria-label="Decrease {{r.label}}" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 20px; font-weight: 600; cursor: pointer">−</button>
+        <input id="{{r.id}}" value="{{r.v}}" inputmode="numeric" style="width: 56px; height: 44px; box-sizing: border-box; border-radius: 14px; text-align: center; color: var(--text); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 17px; font-weight: 600; {{r.inStyle}}">
+        <button onClick="{{r.inc}}" aria-label="Increase {{r.label}}" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 20px; font-weight: 600; cursor: pointer">+</button>
+      </div>
+    </sc-for>
+  </main>
+
+  <footer style="position: sticky; bottom: 0; display: flex; gap: 10px; padding: 12px 16px 16px; background: var(--surface); border-top: 1px solid var(--border)">
+    <button style="flex: 1; height: 52px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 16px; font-weight: 600">Save</button>
+    <button style="flex: 2; height: 52px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 16px; font-weight: 700">Next page</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = !!this.props.dark;
+    const defs = [['Tyre 175/70 R13', 20, 26], ['Tyre 185 R14C', 20, 12], ['Tyre 195 R14C', 16, 18], ['Tyre 215/75 R17.5', 12, 14], ['Tyre 235/75 R17.5', 12, 5], ['Spare rim 14 in', 8, 9], ['Axle 1.5 t braked', 6, 7], ['Axle 1.5 t unbraked', 6, 6], ['Axle 3.5 t', 4, 2], ['Axle 9 t', 4, 4], ['Brake drum 200 mm', 10, 12], ['Brake shoe set 200 mm', 10, 11], ['Brake cable', 12, 15], ['Hub 5-stud', 10, 10], ['Wheel bearing set', 20, 24]];
+    const vals = s.vals || defs.map(d => d[2]);
+    const set = (i, n) => { const next = vals.slice(); next[i] = Math.max(0, n); this.setState({ vals: next }); };
+    const rows = defs.map(([label, min], i) => {
+      const v = vals[i], low = v < min;
+      return { id: 'psr-' + i, label, v,
+        minText: low ? 'Min ' + min + ' · short ' + (min - v) : 'Min ' + min,
+        minColor: low ? 'color: var(--redt); font-weight: 700' : 'color: var(--muted)',
+        card: low ? 'border: 2px solid var(--red)' : 'border: 1px solid var(--border)',
+        inStyle: low ? 'border: 2px solid var(--red); background: var(--redb)' : 'border: 1px solid var(--strong); background: var(--surface)',
+        dec: () => set(i, v - 1), inc: () => set(i, v + 1) };
+    });
+    return { tv: this.themeVars(dark), rows: rows, lowCount: rows.filter((r, i) => vals[i] < defs[i][1]).length };
+  }
+}
+</script>
+</body>
+</html>

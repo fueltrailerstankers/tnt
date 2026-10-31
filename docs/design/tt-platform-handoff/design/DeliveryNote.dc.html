@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Delivery Note signing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+</style>
+</helmet>
+<div style="{{tv}}; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <header style="flex: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2; flex: 1"><span style="font-size: 15px; font-weight: 600">Delivery Note</span><span style="font-size: 12px; color: var(--muted)">QU-10482 · TT9DEMO24D0010482</span></span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Step {{step}} of 5 · {{stepName}}</span><span style="color: var(--muted)">{{pct}}</span></div>
+      <div role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="{{step}}" aria-label="Form progress" style="height: 6px; border-radius: 3px; background: var(--border)"><div style="height: 6px; border-radius: 3px; background: var(--accent); width: {{pct}}"></div></div>
+    </div>
+  </header>
+
+  <main style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+
+    <sc-if value="{{s1}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 6px"><label for="dn-vin" style="font-size: 14px; font-weight: 600">VIN <span style="color: var(--red)">*</span></label><input id="dn-vin" value="TT9DEMO24D0010482" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label for="dn-q" style="font-size: 14px; font-weight: 600">Quote No <span style="color: var(--red)">*</span></label>
+        <div style="display: flex; gap: 8px"><input id="dn-q" value="QU-10482" style="flex: 1; min-width: 0; height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px"><button type="button" style="height: 48px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 15px; font-weight: 600">Look up</button></div>
+      </div>
+      <section aria-label="Customer from Request for Invoice" style="border: 1px solid var(--border); border-radius: 14px; background: var(--surface2); padding: 14px; display: flex; flex-direction: column; gap: 8px">
+        <span style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted)">Customer · read only<span style="display: inline-flex; gap: 4px; align-items: center; text-transform: none; letter-spacing: 0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>from RFI-388</span></span>
+        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 6px 10px; font-size: 14px">
+          <span style="color: var(--muted)">Name</span><span style="font-weight: 600">Sample Customer</span>
+          <span style="color: var(--muted)">ID no</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace">SAMPLE-ID-0001</span>
+          <span style="color: var(--muted)">Address</span><span>12 Demo Street, Sampleton, Western Cape, 0000</span>
+        </div>
+      </section>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label for="dn-inv" style="font-size: 14px; font-weight: 600">Invoice no</label><input id="dn-inv" value="INV-20931" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label for="dn-date" style="font-size: 14px; font-weight: 600">Delivery date <span style="color: var(--red)">*</span></label><input id="dn-date" value="29/10/2026" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 16px"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label for="dn-em" style="font-size: 14px; font-weight: 600">Email for signed copy <span style="color: var(--red)">*</span></label><input id="dn-em" type="email" value="customer@example.com" style="height: 48px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 16px"></div>
+    </sc-if>
+
+    <sc-if value="{{s2}}" hint-placeholder-val="{{ false }}">
+      <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--muted)">Read each section, then sign below it. All five signatures are needed to continue.</p>
+      <sc-if value="{{sigErr}}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="padding: 12px; border-radius: 12px; background: var(--redb); color: var(--redt); font-size: 14px; font-weight: 600">{{sigLeft}} signature(s) still missing.</div>
+      </sc-if>
+      <sc-for list="{{sigs}}" as="g" hint-placeholder-count="5">
+        <section style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid var(--border)">
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600">{{g.title}}</h3>
+          <div tabindex="0" style="max-height: 120px; overflow-y: auto; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; line-height: 19px; color: var(--muted)">{{g.body}}</div>
+          <span style="font-size: 13px; font-weight: 600">{{g.who}} <span style="color: var(--red)">*</span></span>
+          <button type="button" onClick="{{g.sign}}" aria-label="{{g.aria}}" style="position: relative; height: 110px; border-radius: 12px; border: {{g.border}}; background: var(--surface2); color: var(--text); padding: 0; display: flex; align-items: center; justify-content: center; cursor: crosshair">
+            <sc-if value="{{g.signed}}" hint-placeholder-val="{{ false }}"><svg width="200" height="64" viewBox="0 0 260 90" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 62c18-30 30-44 36-38 8 8-14 44-4 46 12 2 22-40 34-38 10 2-2 30 8 30 12 0 18-26 30-26 10 0 4 22 14 22s20-18 30-18c8 0 6 14 16 14 12 0 30-10 46-14"></path></svg></sc-if>
+            <sc-if value="{{g.unsigned}}" hint-placeholder-val="{{ true }}"><span style="font-size: 14px; color: var(--muted)">Tap to sign</span></sc-if>
+            <span style="position: absolute; left: 14px; right: 14px; bottom: 22px; border-bottom: 1px solid var(--strong)"></span>
+          </button>
+        </section>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+      <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--muted)">Upload a photo or PDF of each document. The camera opens on your phone.</p>
+      <sc-for list="{{docs}}" as="u" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 14px; font-weight: 600">{{u.label}}</span>
+          <button type="button" onClick="{{u.toggle}}" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 12px; border: {{u.border}}; background: {{u.bg}}; color: var(--text); font: inherit; font-size: 15px; text-align: left; cursor: pointer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{u.icon}}"></path></svg>
+            <span style="flex: 1">{{u.text}}</span>
+          </button>
+        </div>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{s4}}" hint-placeholder-val="{{ false }}">
+      <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--muted)">Take four photos of the trailer on handover.</p>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{photos}}" as="p" hint-placeholder-count="4">
+          <button type="button" onClick="{{p.toggle}}" aria-label="{{p.aria}}" style="aspect-ratio: 4 / 3; border-radius: 14px; border: {{p.border}}; background: {{p.bg}}; color: {{p.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.icon}}"></path></svg>
+            {{p.label}}
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s5}}" hint-placeholder-val="{{ false }}">
+      <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--cardshadow); padding: 14px; display: flex; flex-direction: column; gap: 10px">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 600">Ready to sign off</h3>
+        <sc-for list="{{review}}" as="r" hint-placeholder-count="4">
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 14px">
+            <span style="width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; {{r.tone}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.icon}}"></path></svg></span>
+            <span style="flex: 1">{{r.label}}</span>
+            <span style="color: var(--muted)">{{r.val}}</span>
+          </div>
+        </sc-for>
+      </section>
+      <p style="margin: 0; font-size: 13px; line-height: 19px; color: var(--muted)">Submitting creates a signed PDF of this Delivery Note with the terms and all signatures, and emails a copy to customer@example.com.</p>
+    </sc-if>
+  </main>
+
+  <footer style="flex: none; display: flex; gap: 10px; padding: 12px 16px 16px; background: var(--surface); border-top: 1px solid var(--border)">
+    <button type="button" onClick="{{back}}" disabled="{{atStart}}" style="flex: 1; height: 50px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; opacity: {{backOpacity}}">Back</button>
+    <sc-if value="{{notLast}}" hint-placeholder-val="{{ true }}">
+      <button type="button" onClick="{{next}}" style="flex: 2; height: 50px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Next</button>
+    </sc-if>
+    <sc-if value="{{last}}" hint-placeholder-val="{{ false }}">
+      <a href="ThankYou.dc.html" style="flex: 2; height: 50px; border-radius: 999px; background: var(--accent); color: var(--onaccent); font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Submit &amp; create PDF</a>
+    </sc-if>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = !!this.props.dark;
+    const step = s.step || 1;
+    const signed = s.signed || {};
+    const docs = s.docs || {};
+    const photos = s.photos || {};
+    const names = ['Trailer & customer', 'Terms & signatures', 'Documents', 'Handover photos', 'Review & submit'];
+    const upIcon = 'M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3';
+    const okIcon = 'M5 12l4 4 10-10';
+    const camIcon = 'M4 8h3l2-3h6l2 3h3v11H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z';
+    const sigDefs = [
+      ['sec1', '1 · Ownership and risk', 'Customer signature 1'],
+      ['sec2', '2 · Warranty', 'Customer signature 2'],
+      ['sec3', '3 · Roadworthy, licensing and NATIS', 'Customer signature 3'],
+      ['sec4', '4 · Payment and release', 'Customer signature 4'],
+      ['rep', '5 · Sales representative declaration', 'Sales rep signature']
+    ];
+    const tried = !!s.sigTried;
+    const sigs = sigDefs.map(([k, title, who]) => {
+      const on = !!signed[k];
+      return { title, who, signed: on, unsigned: !on,
+        body: '[Clause text for "' + title.slice(4) + '" from the current Trailers & Tankers terms and conditions goes here. This box scrolls for long clauses.]',
+        aria: on ? who + ', signed' : who + ', tap to sign',
+        border: on ? '1px solid var(--grnt)' : (tried ? '2px solid var(--red)' : '1px dashed var(--strong)'),
+        sign: () => this.setState({ signed: { ...signed, [k]: true } }) };
+    });
+    const left = sigDefs.filter(([k]) => !signed[k]).length;
+    const docDefs = [['id', 'Signatory ID copy'], ['natis', 'NATIS document'], ['p1', 'Payment 1 proof'], ['p2', 'Payment 2 proof'], ['rel', 'Release note']];
+    const photoDefs = [['front', 'Front'], ['left', 'Left side'], ['right', 'Right side'], ['rear', 'Rear']];
+    const next = () => {
+      if (step === 2 && left > 0) { this.setState({ sigTried: true }); return; }
+      this.setState({ step: Math.min(5, step + 1) });
+    };
+    return {
+      tv: this.themeVars(dark),
+      step: step, stepName: names[step - 1], pct: (step * 20) + '%',
+      s1: step === 1, s2: step === 2, s3: step === 3, s4: step === 4, s5: step === 5,
+      last: step === 5, notLast: step !== 5,
+      atStart: step === 1, backOpacity: step === 1 ? '0.45' : '1',
+      back: () => this.setState({ step: Math.max(1, step - 1) }),
+      next: next,
+      sigs: sigs, sigErr: tried && left > 0, sigLeft: left,
+      docs: docDefs.map(([k, label]) => { const on = !!docs[k]; return { label, icon: on ? okIcon : upIcon, text: on ? label.toLowerCase().replace(/ /g, '-') + '.jpg · uploaded' : 'Upload or take photo', border: on ? '1px solid var(--grnt)' : '1px dashed var(--strong)', bg: on ? 'var(--grnb)' : 'var(--surface2)', toggle: () => this.setState({ docs: { ...docs, [k]: !on } }) }; }),
+      photos: photoDefs.map(([k, label]) => { const on = !!photos[k]; return { label: on ? label + ' · taken' : label, aria: on ? label + ' photo taken, tap to retake' : 'Take ' + label.toLowerCase() + ' photo', icon: on ? okIcon : camIcon, border: on ? '2px solid var(--grnt)' : '1px dashed var(--strong)', bg: on ? 'var(--grnb)' : 'var(--surface2)', fg: on ? 'var(--grnt)' : 'var(--text)', toggle: () => this.setState({ photos: { ...photos, [k]: !on } }) }; }),
+      review: [
+        { label: 'Customer & trailer', val: 'Complete', icon: okIcon, tone: 'background: var(--grnb); color: var(--grnt)' },
+        { label: 'Signatures', val: (5 - left) + ' of 5', icon: left ? 'M12 7v6M12 17v.01' : okIcon, tone: left ? 'background: var(--yelb); color: var(--yelt)' : 'background: var(--grnb); color: var(--grnt)' },
+        { label: 'Documents', val: Object.values(docs).filter(Boolean).length + ' of 5', icon: okIcon, tone: 'background: var(--grnb); color: var(--grnt)' },
+        { label: 'Photos', val: Object.values(photos).filter(Boolean).length + ' of 4', icon: okIcon, tone: 'background: var(--grnb); color: var(--grnt)' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

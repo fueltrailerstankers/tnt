@@ -1,0 +1,82 @@
+/* Trailers & Tankers Platform — design tokens
+   Source of truth for colour, radius, shadow and type. Map these into shadcn/ui
+   (see tailwind.tokens.ts). Light is default; dark applies on [data-theme="dark"]
+   or prefers-color-scheme when no explicit theme is set. */
+
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  /* Neutrals */
+  --bg: #F6F7F9;          /* app canvas */
+  --surface: #FFFFFF;     /* cards, tables, header */
+  --surface2: #F2F4F7;    /* wells, table header, inputs (read-only) */
+  --border: #E4E7EC;
+  --strong: #C4CAD4;      /* input borders */
+  --text: #101828;
+  --muted: #475467;       /* secondary text, labels */
+  --subtle: #5D6679;
+
+  /* Brand — fueltrailers.co.za signal orange */
+  --accent: #F47B20;      /* primary buttons, progress, unread dot, active tab underline */
+  --onaccent: #17181A;    /* text on orange. White on this orange fails WCAG AA — keep dark */
+  --accentsoft: #FFF1E6;  /* selected rows, soft buttons */
+  --accenttext: #B4500C;  /* orange used as text/links on light surfaces (≥4.5:1) */
+  --focus: #C25A12;       /* focus ring */
+
+  /* Charcoal sidebar / public headers */
+  --side: #1C1D21;
+  --sideborder: #2C2E33;
+  --sidetext: #F4F4F5;
+  --sidemuted: #B0B4BC;
+  --sideactive: #2F3137;
+
+  /* Status tones (chip bg / chip text). Always dot + label + tone, never colour alone */
+  --grayb: #ECEEF2; --grayt: #3F4652;   /* Incomplete, Archived, Draft, Lost */
+  --tealb: #DBF3F1; --tealt: #0B6560;   /* Submitted, New, Invoiced */
+  --yelb:  #FBF0C4; --yelt:  #6E5100;   /* Reviewed, Sent, Dry-run, Contacted */
+  --grnb:  #DCF2E3; --grnt:  #16613A;   /* Approved, Paid, APPROVED EMAILED, Won */
+  --redb:  #FDE2DF; --redt:  #B42318;   /* APPROVAL, Failed, Overdue, below minimum */
+  --red: #D92D20;                       /* destructive buttons, error borders, badges (white text) */
+
+  /* Elevation */
+  --cardshadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05);
+  --shadow: 0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14);  /* modals, drawers, popovers */
+  --overlay: rgba(16,18,24,.45);
+
+  /* Radius */
+  --radius-xs: 6px;    /* badges, checkboxes */
+  --radius-sm: 10px;   /* inputs */
+  --radius-md: 12px;   /* cards, tables */
+  --radius-lg: 16px;   /* modals, drawers */
+  --radius-pill: 999px;/* buttons, chips, segmented controls, tabs */
+
+  /* Type */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;  /* VINs, quote/invoice numbers, amounts, hashes */
+}
+
+[data-theme="dark"] {
+  --bg: #0B0D12; --surface: #14171E; --surface2: #1D2129; --border: #2A2F39; --strong: #3A404C;
+  --text: #ECEEF2; --muted: #A9AFBB; --subtle: #8F96A3;
+  --accent: #FF8A3D; --onaccent: #17181A; --accentsoft: #3A2210; --accenttext: #FFA466; --focus: #FFA466;
+  --side: #101114; --sideborder: #23252A; --sidetext: #ECEEF2; --sidemuted: #A2A6AE; --sideactive: #26282D;
+  --grayb: #262A33; --grayt: #C5CAD3; --tealb: #0F302E; --tealt: #5FD3C9; --yelb: #3A3010; --yelt: #F2CF5B;
+  --grnb: #12301F; --grnt: #6DD596; --redb: #3D1714; --redt: #FF8A80; --red: #C93A2E;
+  --cardshadow: 0 1px 2px rgba(0,0,0,.35); --shadow: 0 12px 32px rgba(0,0,0,.5); --overlay: rgba(0,0,0,.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B0D12; --surface: #14171E; --surface2: #1D2129; --border: #2A2F39; --strong: #3A404C;
+    --text: #ECEEF2; --muted: #A9AFBB; --subtle: #8F96A3;
+    --accent: #FF8A3D; --onaccent: #17181A; --accentsoft: #3A2210; --accenttext: #FFA466; --focus: #FFA466;
+    --side: #101114; --sideborder: #23252A; --sidetext: #ECEEF2; --sidemuted: #A2A6AE; --sideactive: #26282D;
+    --grayb: #262A33; --grayt: #C5CAD3; --tealb: #0F302E; --tealt: #5FD3C9; --yelb: #3A3010; --yelt: #F2CF5B;
+    --grnb: #12301F; --grnt: #6DD596; --redb: #3D1714; --redt: #FF8A80; --red: #C93A2E;
+    --cardshadow: 0 1px 2px rgba(0,0,0,.35); --shadow: 0 12px 32px rgba(0,0,0,.5); --overlay: rgba(0,0,0,.6);
+  }
+}
+
+html { font-family: var(--font-sans); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.font-mono, code, kbd { font-family: var(--font-mono); }

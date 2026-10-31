@@ -9,7 +9,7 @@ import { ACCEPT_PATH, ConfirmQuery } from '@/lib/users/rules';
 export const dynamic = 'force-dynamic';
 
 /**
- * Invite links land here (type invite only: no magic links) (`?token_hash=&type=&next=`). The token hash is verified with Supabase Auth,
+ * Invite links land here (type invite, or recovery for a leftover invite account; no magic links) (`?token_hash=&type=&next=`). The token hash is verified with Supabase Auth,
  * which sets the session cookies; the person then sets a password (`next`, default /admin/account/password).
  * Invalid or used links go to /login with a plain message. The token is never logged (no-referrer, no-store).
  */
@@ -21,6 +21,16 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.verifyOtp({ type: parsed.data.type, token_hash: parsed.data.token_hash });
   if (error || !data.user) redirect('/login?error=link');
+  if (parsed.data.type === 'recovery') {
+    // Recovery links are only made for a leftover invite account: accept one only while that account has a pending
+    // new-account invite and no other membership; otherwise end the session it just opened.
+    const { data: ms } = await createAdminClient().from('memberships').select('status, invite_new_account').eq('user_id', data.user.id);
+    const rows = (ms ?? []) as Array<{ status: string; invite_new_account: boolean | null }>;
+    if (rows.length !== 1 || rows[0].status !== 'invited' || rows[0].invite_new_account !== true) {
+      await supabase.auth.signOut();
+      redirect('/login?error=link');
+    }
+  }
   // Opens the first-password window for invites that created this account (acceptMode 'new').
   await createAdminClient().from('memberships').update({ invite_verified_at: new Date().toISOString() })
     .eq('user_id', data.user.id).eq('status', 'invited').eq('invite_new_account', true);

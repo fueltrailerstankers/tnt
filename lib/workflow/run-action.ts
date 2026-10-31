@@ -11,7 +11,7 @@ import { can, type Member } from '@/lib/security/can';
 import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
 import { defaultData, prepareSave, readFormData, renderSummary, todayIn, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
-import { SIGNING, signatureMeta, termsBlocksFor } from '@/lib/terms/signing';
+import { SIGNING, signatureMeta, signMethodOf, termsBlocksFor } from '@/lib/terms/signing';
 import { ensureTermsVersion } from '@/lib/terms/versions';
 import { buildEmail, eventKey, isExternalEmail } from './email-template';
 import { createRoleLink } from './links';
@@ -161,7 +161,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
     const size = await saveSignature(db, to, s.dataUrl);
     newRows.push({
       entry_id: id, field_key: s.field, kind: 'signature', storage_path: to, file_name: `${s.field}.png`, content_type: 'image/png', size_bytes: size, sort_order: sortBase + plan.staged.length + i,
-      ...(signatureMeta(form.slug, s.field, termsVersionId, now) ?? {}),
+      ...(signatureMeta(form.slug, s.field, termsVersionId, now, signMethodOf(fd, s.field)) ?? {}),
     });
   }
   if (newRows.length) {

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Public and role link states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+</style>
+</helmet>
+<div style="{{tv}}; width: 1330px; height: 960px; box-sizing: border-box; padding: 40px; background: var(--surface2); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif; display: grid; grid-template-columns: repeat(3, 390px); gap: 40px">
+
+  <section style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted)">Reviewer link</span>
+    <div style="height: 844px; border-radius: 16px; overflow: hidden; background: var(--bg); border: 1px solid var(--border); display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--side); color: var(--sidetext)">
+        <span style="width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700">T&amp;T</span>
+        <span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 15px; font-weight: 700">Review inspection #214</span><span style="font-size: 12px; color: var(--sidemuted)">Reviewer link for Thandi M. · single use</span></span>
+      </header>
+      <main style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); display: grid; grid-template-columns: 96px 1fr; gap: 8px; font-size: 14px">
+          <span style="color: var(--muted)">VIN</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace">TT9DEMO24D0010482</span>
+          <span style="color: var(--muted)">Inspector</span><span>Inspector A. Demo</span>
+          <span style="color: var(--muted)">Result</span><span><strong>46 pass</strong> · <strong style="color: var(--redt)">2 fail</strong></span>
+        </div>
+        <div style="padding: 14px; border-radius: 16px; background: var(--redb); color: var(--redt); display: flex; flex-direction: column; gap: 6px; font-size: 14px"><strong>Failed items</strong><span>Side marker lamps · photo attached</span><span>Earth reel &amp; bonding · photo attached</span></div>
+        <label for="rv-note" style="font-size: 14px; font-weight: 600">Note to inspector</label>
+        <textarea id="rv-note" rows="4" placeholder="Required when requesting changes" style="padding: 12px; border-radius: 16px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 15px; resize: none"></textarea>
+      </main>
+      <footer style="display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 18px; background: var(--surface); border-top: 1px solid var(--border)">
+        <button style="height: 52px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 16px; font-weight: 700">Mark reviewed</button>
+        <button style="height: 52px; border-radius: 999px; border: 1px solid var(--red); background: var(--surface); color: var(--redt); font: inherit; font-size: 16px; font-weight: 700">Request changes</button>
+      </footer>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted)">Expired link</span>
+    <div style="height: 844px; border-radius: 16px; overflow: hidden; background: var(--bg); border: 1px solid var(--border); display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--side); color: var(--sidetext)">
+        <span style="width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700">T&amp;T</span>
+        <span style="font-size: 15px; font-weight: 700">Trailers &amp; Tankers</span>
+      </header>
+      <main style="flex: 1; padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+        <span style="width: 64px; height: 64px; border-radius: 50%; background: var(--yelb); color: var(--yelt); display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2"></path></svg></span>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 700">This link has expired</h1>
+        <p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--muted)">Links stay open for 7 days. Ask your Trailers &amp; Tankers contact to send a new one. Nothing you entered before has been lost.</p>
+        <a href="#" style="margin-top: 8px; display: flex; align-items: center; justify-content: center; width: 100%; height: 52px; border-radius: 999px; background: var(--accent); color: var(--onaccent); text-decoration: none; font-size: 16px; font-weight: 700">Request a new link</a>
+        <span style="font-size: 13px; color: var(--muted)">sales@fueltrailers.co.za · JHB · DBN · CPT</span>
+      </main>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 12px">
+    <span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted)">Already submitted</span>
+    <div style="height: 844px; border-radius: 16px; overflow: hidden; background: var(--bg); border: 1px solid var(--border); display: flex; flex-direction: column">
+      <header style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--side); color: var(--sidetext)">
+        <span style="width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700">T&amp;T</span>
+        <span style="font-size: 15px; font-weight: 700">Trailers &amp; Tankers</span>
+      </header>
+      <main style="flex: 1; padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+        <span style="width: 64px; height: 64px; border-radius: 50%; background: var(--grnb); color: var(--grnt); display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"></path></svg></span>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 700">Already signed</h1>
+        <p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--muted)">This Delivery Note was signed on 29 Oct 2026 at 15:02. A copy went to customer@example.com.</p>
+        <a href="ThankYou.dc.html" style="margin-top: 8px; display: flex; align-items: center; justify-content: center; width: 100%; height: 52px; border-radius: 999px; border: 1px solid var(--strong); color: var(--text); text-decoration: none; font-size: 16px; font-weight: 700">View receipt</a>
+      </main>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1330,"height":960}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  renderVals() {
+    return { tv: this.themeVars(!!this.props.dark) };
+  }
+}
+</script>
+</body>
+</html>

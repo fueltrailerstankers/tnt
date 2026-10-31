@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+</style>
+</helmet>
+<div style="{{tv}}; position: relative; width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <header style="flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--side); color: var(--sidetext)">
+    <button onClick="{{openMenu}}" aria-label="Open menu" aria-expanded="{{menuOpen}}" style="width: 44px; height: 44px; border: 0; border-radius: 16px; background: transparent; color: var(--sidetext); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <span style="width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700">T&amp;T</span>
+    <span style="flex: 1; font-size: 15px; font-weight: 700">Trailers &amp; Tankers</span>
+    <button aria-label="Search quote no, VIN or invoice no" style="width: 44px; height: 44px; border: 0; border-radius: 16px; background: transparent; color: var(--sidetext); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg></button>
+  </header>
+
+  <main style="flex: 1; overflow-y: auto; padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">Good afternoon, Zanele</h1>
+      <span style="font-size: 13px; color: var(--muted)">Thu 29 Oct · 14:32 SAST</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <a href="Entries.dc.html" style="padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: var(--text); display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: var(--muted)">Unread</span><span style="font-size: 26px; font-weight: 700">12</span></a>
+      <a href="Tasks.dc.html" style="padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: var(--text); display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: var(--muted)">Awaiting approval</span><span style="font-size: 26px; font-weight: 700">4</span></a>
+    </div>
+    <a href="XeroIntegration.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--yelb); color: var(--yelt); text-decoration: none; font-size: 14px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.01"></path></svg><span style="flex: 1">Xero invoice sync failed at 13:58</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 600">My tasks</h2>
+      <sc-for list="{{tasks}}" as="t" hint-placeholder-count="3">
+        <a href="{{t.href}}" style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px; box-sizing: border-box; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: var(--text)">
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">{{t.title}}</span><span style="display: flex; gap: 8px; align-items: center"><span style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 600; {{t.tone}}"><span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor"></span>{{t.status}}</span><span style="font-size: 12px; color: var(--muted)">{{t.meta}}</span></span></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--muted)"><path d="M9 6l6 6-6 6"></path></svg>
+        </a>
+      </sc-for>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 600">New entry</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <sc-for list="{{forms}}" as="f" hint-placeholder-count="4">
+          <a href="{{f.href}}" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; box-sizing: border-box; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: var(--text); font-size: 14px; font-weight: 600">
+            <span style="width: 32px; height: 32px; border-radius: 14px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; flex: none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{f.d}}"></path></svg></span>{{f.name}}
+          </a>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+
+  <nav aria-label="Primary" style="flex: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 6px 6px 10px; background: var(--surface); border-top: 1px solid var(--border)">
+    <sc-for list="{{tabs}}" as="tb" hint-placeholder-count="5">
+      <a href="{{tb.href}}" aria-current="{{tb.cur}}" style="position: relative; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border-radius: 16px; text-decoration: none; font-size: 11px; font-weight: 600; {{tb.style}}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{tb.d}}"></path></svg>{{tb.label}}
+        <sc-if value="{{tb.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: 4px; right: 18px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{tb.badge}}</span></sc-if>
+      </a>
+    </sc-for>
+  </nav>
+
+  <sc-if value="{{menuOpen}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--overlay)"></div>
+    <aside role="dialog" aria-modal="true" aria-label="Menu" style="position: absolute; top: 0; bottom: 0; left: 0; width: 300px; box-sizing: border-box; background: var(--side); color: var(--sidetext); padding: 12px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 4px 4px 14px">
+        <span style="width: 36px; height: 36px; border-radius: 14px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 700">T&amp;T</span>
+        <span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 15px; font-weight: 700">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Zanele D. · Admin</span></span>
+        <button onClick="{{closeMenu}}" aria-label="Close menu" style="width: 44px; height: 44px; border: 0; border-radius: 16px; background: transparent; color: var(--sidetext); cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <sc-for list="{{menu}}" as="m" hint-placeholder-count="10">
+        <a href="{{m.href}}" style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 15px; font-weight: 500; {{m.style}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{m.d}}"></path></svg>{{m.label}}</a>
+      </sc-for>
+      <button onClick="{{toggleTheme}}" style="margin-top: auto; height: 48px; border-radius: 999px; border: 1px solid var(--sideborder); background: transparent; color: var(--sidetext); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">{{themeLabel}}</button>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"menu":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const menuOpen = s.menu != null ? s.menu : !!this.props.menu;
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4', menu:'M4 6h16M4 12h16M4 18h16', inspect:'M9 11l2 2 4-4M4 4h16v16H4z', store:'M3 8l9-5 9 5v12H3zM8 20v-6h8v6M3 8h18', job:'M14 6l4 4-9 9H5v-4zM12 8l4 4', delivery:'M3 6h11v10H3zM14 9h4l3 3v4h-7zM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' };
+    const tone = { teal:'background: var(--tealb); color: var(--tealt)', red:'background: var(--redb); color: var(--redt)', yel:'background: var(--yelb); color: var(--yelt)' };
+    const tabDefs = [['Home', 'home', 'PhoneHome.dc.html'], ['Tasks', 'tasks', 'Tasks.dc.html', 5], ['Forms', 'forms', 'FormsIndex.dc.html'], ['Deals', 'deals', 'DealFile.dc.html'], ['Leads', 'leads', 'Leads.dc.html', 2]];
+    const menuDefs = [['Home','home','PhoneHome.dc.html'],['Tasks','tasks','Tasks.dc.html'],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','Leads.dc.html'],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return {
+      tv: this.themeVars(dark),
+      menuOpen: menuOpen,
+      openMenu: () => this.setState({ menu: true }), closeMenu: () => this.setState({ menu: false }),
+      toggleTheme: () => this.setState({ dark: !dark }), themeLabel: dark ? 'Light mode' : 'Dark mode',
+      tasks: [
+        { title: 'Review inspection #214', status: 'Submitted', tone: tone.teal, meta: 'VIN …0482 · 09:14', href: 'PhoneInspection.dc.html' },
+        { title: 'Store Room #61 · Durban', status: 'APPROVAL', tone: tone.red, meta: '6 below minimum', href: 'PhoneStoreRoom.dc.html' },
+        { title: 'Approve inspection #209', status: 'Reviewed', tone: tone.yel, meta: 'Yesterday 16:40', href: 'EntryDetail.dc.html' }
+      ],
+      forms: [
+        { name: 'Inspection', d: I.inspect, href: 'PhoneInspection.dc.html' }, { name: 'Store Room', d: I.store, href: 'PhoneStoreRoom.dc.html' },
+        { name: 'Job Card', d: I.job, href: 'FormRenderer.dc.html' }, { name: 'Delivery', d: I.delivery, href: 'DeliveryNote.dc.html' }
+      ],
+      tabs: tabDefs.map(([label, ic, href, badge], i) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, cur: i === 0 ? 'page' : 'false', style: i === 0 ? 'color: var(--accenttext); background: var(--accentsoft)' : 'color: var(--muted)' })),
+      menu: menuDefs.map(([label, ic, href], i) => ({ label, d: I[ic], href, style: i === 0 ? 'background: var(--sideactive); color: #FFFFFF' : 'color: var(--sidemuted)' }))
+    };
+  }
+}
+</script>
+</body>
+</html>
