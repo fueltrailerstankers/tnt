@@ -1,6 +1,8 @@
 // Entries grid: URL query parsing, column choice, timezone date ranges and CSV. Pure.
+import { z } from 'zod';
 import { fieldByName, inputFields, type FormSpec, type InputField } from '@/lib/spec/types';
 import { formatValue, type EntryData } from '@/lib/spec/values';
+import { toneFor, type Tone } from '@/lib/ui/status';
 
 export const PAGE_SIZE = 50;
 export const EXPORT_LIMIT = 10_000;
@@ -147,4 +149,200 @@ export function toCsv(table: string[][]): string {
     const s = safeCell(v);
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   }).join(',')).join('\r\n') + '\r\n';
+}
+
+// ---------------------------------------------------------------------------
+// Redesigned entries grid (UI handoff Entries.dc.html). Pure.
+// ---------------------------------------------------------------------------
+
+type HrefKey = 'view' | 'q' | 'from' | 'to' | 'cols' | 'page';
+
+/** The `view` URL value of a query: null (all), 'unread' or 'status:<name>'. */
+export function viewParam(q: Pick<GridQuery, 'view' | 'status'>): string | null {
+  if (q.view === 'unread') return 'unread';
+  if (q.view === 'status' && q.status) return `status:${q.status}`;
+  return null;
+}
+
+/**
+ * The grid's own URL: the current query with some keys replaced (null drops a key). Page 1 is never written, and
+ * the columns only when they differ from the form's defaults (so built-in views keep short URLs).
+ */
+export function gridHref(slug: string, spec: FormSpec, q: GridQuery, over: Partial<Record<HrefKey, string | null>> = {}): string {
+  const cols = q.cols.join(',');
+  const base: Record<HrefKey, string | null> = {
+    view: viewParam(q),
+    q: q.q, from: q.from, to: q.to,
+    cols: cols && cols !== defaultColumns(spec).join(',') ? cols : null,
+    page: q.page > 1 ? String(q.page) : null,
+  };
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries({ ...base, ...over })) if (v && !(k === 'page' && v === '1')) u.set(k, v);
+  const s = u.toString();
+  return `/admin/forms/${slug}${s ? `?${s}` : ''}`;
+}
+
+/** Whether a search or date filter is applied: the empty state then offers Clear filters. */
+export function hasFilters(q: Pick<GridQuery, 'q' | 'from' | 'to'>): boolean {
+  return !!(q.q || q.from || q.to);
+}
+
+export interface ViewCounts {
+  all: number;
+  unread: number;
+  byStatus: Readonly<Record<string, number>>;
+}
+
+export interface ViewChip {
+  /** The `view` URL value ('all' for none). */
+  value: string;
+  label: string;
+  count: number;
+  dot: Tone | 'all';
+}
+
+/**
+ * Filter chips with counts: All entries, Unread, then each status in spec order. Archived statuses show only while
+ * they still hold entries (Store Room "Submitted"). Dots take the status colour; the label always carries meaning.
+ */
+export function viewChips(spec: FormSpec, counts: ViewCounts): ViewChip[] {
+  const chips: ViewChip[] = [
+    { value: 'all', label: 'All entries', count: counts.all, dot: 'all' },
+    { value: 'unread', label: 'Unread', count: counts.unread, dot: 'all' },
+  ];
+  for (const s of spec.workflow.statuses) {
+    const n = counts.byStatus[s.name] ?? 0;
+    if (s.archived && !n) continue;
+    chips.push({ value: `status:${s.name}`, label: s.name, count: n, dot: toneFor(s.name, s.color) });
+  }
+  return chips;
+}
+
+export interface GridColumn {
+  key: string;
+  label: string;
+  visible: boolean;
+  required?: boolean;
+}
+
+/** Fixed columns every grid shows; field columns sit between Summary and Created. */
+export const FIXED_COLUMNS = [
+  { key: '_number', label: '#' },
+  { key: '_summary', label: 'Summary' },
+  { key: '_created', label: 'Created' },
+  { key: '_status', label: 'Status' },
+] as const;
+
+/**
+ * Column picker options. Encrypted forms (DEAL, Delivery Note) list only number, summary, created and status: no
+ * field is offered, so no field value can reach the grid. Other forms offer every data field.
+ */
+export function gridColumns(spec: FormSpec, encrypted: boolean, visibleCols: readonly string[]): GridColumn[] {
+  const fixed = (i: number): GridColumn => ({ ...FIXED_COLUMNS[i], visible: true, required: true });
+  const fields = encrypted ? [] : columnChoices(spec).map((c) => ({ key: c.name, label: c.label, visible: visibleCols.includes(c.name) }));
+  return [fixed(0), fixed(1), ...fields, fixed(2), fixed(3)];
+}
+
+/** Field columns to render, in the chosen order. Always none for encrypted forms. */
+export function visibleFieldColumns(spec: FormSpec, encrypted: boolean, cols: readonly string[]): Array<{ name: string; label: string }> {
+  if (encrypted) return [];
+  const label = new Map(columnChoices(spec).map((c) => [c.name, c.label]));
+  return cols.filter((c) => label.has(c)).map((c) => ({ name: c, label: label.get(c)! }));
+}
+
+// --- bulk actions and export inputs (Zod) -------------------------------------------------------------------------
+
+/** Most rows one bulk action or "Export selected" takes (a page is PAGE_SIZE). */
+export const BULK_MAX = 200;
+
+/** Mark read / Mark unread: entry ids from the current page, and the mode. */
+export const ReadStateInput = z.object({
+  ids: z.array(z.string().uuid()).min(1, 'Select entries first.').max(BULK_MAX),
+  mode: z.enum(['read', 'unread']),
+}).strict();
+export type ReadStateInput = z.output<typeof ReadStateInput>;
+
+/**
+ * Export route options: format (CSV unless xlsx) and an optional selection of entry numbers ("sel=214,213"). The
+ * rest of the query is the grid filter, parsed by parseGridQuery.
+ */
+export const ExportParams = z.object({
+  format: z.enum(['csv', 'xlsx']).catch('csv'),
+  sel: z.string().max(2400).optional().transform((s, ctx) => {
+    if (!s) return null;
+    const parts = s.split(',');
+    if (parts.length > BULK_MAX || parts.some((p) => !/^[1-9]\d{0,8}$/.test(p))) {
+      ctx.addIssue({ code: 'custom', message: 'Invalid selection' });
+      return z.NEVER;
+    }
+    return [...new Set(parts.map(Number))];
+  }),
+});
+export type ExportParams = z.output<typeof ExportParams>;
+
+/** Export link for the current filter, optionally limited to the selected entry numbers. */
+export function exportHref(slug: string, q: GridQuery, format: 'csv' | 'xlsx', selected: readonly number[] = []): string {
+  const u = new URLSearchParams({ format });
+  const view = viewParam(q);
+  if (view) u.set('view', view);
+  if (q.q) u.set('q', q.q);
+  if (q.from) u.set('from', q.from);
+  if (q.to) u.set('to', q.to);
+  if (q.cols.length) u.set('cols', q.cols.join(','));
+  if (selected.length) u.set('sel', selected.join(','));
+  return `/admin/forms/${slug}/export?${u}`;
+}
+
+/**
+ * Export of an encrypted form: the clear columns only (number, status, timestamps, summary). Field values stay
+ * sealed; reading them means opening the entry, which is logged.
+ */
+export function clearExportTable(
+  rows: ReadonlyArray<Pick<ExportRow, 'number' | 'status' | 'createdAt' | 'updatedAt'> & { summary: string | null }>,
+  timeZone: string,
+): string[][] {
+  return [
+    ['Entry Number', 'Status', 'Created', 'Updated', 'Summary'],
+    ...rows.map((r) => [String(r.number), r.status, formatDateTime(r.createdAt, timeZone), formatDateTime(r.updatedAt, timeZone), r.summary ?? '']),
+  ];
+}
+
+// --- saved views ----------------------------------------------------------------------------------------------------
+
+/** What "Save view" stores for the current grid: view, search, dates and non-default columns. Never paging. */
+export function gridViewQuery(spec: FormSpec, q: GridQuery): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+  const view = viewParam(q);
+  if (view) out.view = view;
+  if (q.q) out.q = q.q;
+  if (q.from) out.from = q.from;
+  if (q.to) out.to = q.to;
+  if (q.cols.join(',') !== defaultColumns(spec).join(',')) out.cols = [...q.cols];
+  return out;
+}
+
+function paramsOf(href: string): { path: string; params: Params } {
+  const u = new URL(href, 'http://local');
+  const params: Params = {};
+  for (const k of new Set(u.searchParams.keys())) {
+    const all = u.searchParams.getAll(k);
+    params[k] = all.length > 1 ? all : all[0];
+  }
+  return { path: u.pathname, params };
+}
+
+/**
+ * Which view the select shows: a saved view whose stored query gives this grid, else the built-in "all" or
+ * "unread", else "custom" (filters no view holds).
+ */
+export function currentViewId(slug: string, spec: FormSpec, q: GridQuery, saved: ReadonlyArray<{ id: string; href: string }>): string {
+  const here = gridHref(slug, spec, { ...q, page: 1 });
+  const hit = saved.find((v) => {
+    const { path, params } = paramsOf(v.href);
+    return path === `/admin/forms/${slug}` && gridHref(slug, spec, { ...parseGridQuery(spec, params), page: 1 }) === here;
+  });
+  if (hit) return hit.id;
+  if (here === `/admin/forms/${slug}`) return 'all';
+  if (here === `/admin/forms/${slug}?view=unread`) return 'unread';
+  return 'custom';
 }

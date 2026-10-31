@@ -3,7 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { QuoteImport, SubmitState, UploadTicket } from '@/components/form-engine/types';
+import { z } from 'zod';
 import { adminForm } from '@/lib/admin/context';
+import { BULK_MAX, ReadStateInput } from '@/lib/admin/grid';
+import { createSavedView, deleteSavedView, formScope } from '@/lib/views/saved-views';
 import { loadEntryByNumber, loadFiles } from '@/lib/forms/entries';
 import { customerPanel } from '@/lib/forms/lookup';
 import { dealFieldsFromQuote } from '@/lib/integrations/xero/write/plan-deal';
@@ -111,6 +114,47 @@ export async function markRead(slug: string, fd: FormData): Promise<void> {
   }
   // Re-render the current grid in place. A redirect here would be applied after any navigation the user makes
   // meanwhile (e.g. clicking a view straight away) and take them back to this page.
+  revalidatePath(`/admin/forms/${slug}`);
+}
+
+/**
+ * Entries grid bulk bar: Mark read / Mark unread for the caller only. Ids are validated (Zod) and narrowed to
+ * entries of this form that the caller can see (RLS) before any read row is written or removed.
+ */
+export async function setEntriesRead(slug: string, input: unknown): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const { member, userDb, form } = await adminForm(slug, 'entries.read');
+  const p = ReadStateInput.safeParse(input);
+  if (!p.success) return { ok: false, error: 'Select entries first.' };
+  const { data, error } = await userDb.from('entries').select('id').eq('form_id', form.id).in('id', p.data.ids).limit(BULK_MAX);
+  if (error) return { ok: false, error: 'Could not update the entries. Try again.' };
+  const ids = (data ?? []).map((r) => r.id as string);
+  if (ids.length) {
+    const res = p.data.mode === 'unread'
+      ? await userDb.from('entry_reads').delete().eq('user_id', member.userId).in('entry_id', ids)
+      : await userDb.from('entry_reads').upsert(ids.map((entry_id) => ({ entry_id, user_id: member.userId })), { onConflict: 'entry_id,user_id', ignoreDuplicates: true });
+    if (res.error) return { ok: false, error: 'Could not update the entries. Try again.' };
+  }
+  revalidatePath(`/admin/forms/${slug}`);
+  return { ok: true, count: ids.length };
+}
+
+const SaveViewInput = z.object({ name: z.string().max(200), query: z.record(z.string(), z.unknown()) }).strict();
+const DeleteViewInput = z.object({ id: z.string().uuid() }).strict();
+
+/** Save view on the entries grid: the caller's own view of this form (RLS client; name and query re-validated). */
+export async function saveFormView(slug: string, input: unknown): Promise<{ id: string; href: string }> {
+  const { member, userDb, form } = await adminForm(slug, 'entries.read');
+  const p = SaveViewInput.parse(input);
+  const view = await createSavedView(userDb, member, { scope: formScope(form.slug), name: p.name, query: p.query });
+  revalidatePath(`/admin/forms/${slug}`);
+  return { id: view.id, href: view.href };
+}
+
+/** Delete view: only the caller's own view of this form. */
+export async function deleteFormView(slug: string, input: unknown): Promise<void> {
+  const { member, userDb, form } = await adminForm(slug, 'entries.read');
+  const p = DeleteViewInput.parse(input);
+  await deleteSavedView(userDb, member, { id: p.id, scope: formScope(form.slug) });
   revalidatePath(`/admin/forms/${slug}`);
 }
 
