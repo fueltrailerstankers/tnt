@@ -9,6 +9,7 @@
 // action can be live until an admin reconnects with XERO_SCOPES including the write scopes.
 // Our own entries and emails are not Xero writes, but dry run does not apply them either: it only records the
 // entries/emails it would make, and live applies them. So an action without Xero writes does nothing in dry run.
+import { livePhrase, typedMatches } from '@/lib/ui/confirm';
 import type { ActionName } from './types';
 
 export const MODES = ['off', 'dry_run', 'live'] as const;
@@ -75,8 +76,13 @@ export interface SwitchRequest {
   /** The user holds xero.actions.configure. */
   mayConfigure: boolean;
   connection: { status: string; scopes: readonly string[] } | null;
-  /** What the user typed to confirm a switch to live. */
+  /** What the user typed to confirm a switch to live: must be exactly liveConfirmPhrase(action). */
   typed: string | null | undefined;
+}
+
+/** The phrase that confirms a switch to live: "LIVE rfi.create_invoice" (HANDOFF section 5 rule 1). */
+export function liveConfirmPhrase(action: ActionName): string {
+  return livePhrase(action);
 }
 
 /** Validates a mode change. Returns an error message, or null when allowed. */
@@ -89,6 +95,8 @@ export function checkSwitch(r: SwitchRequest): string | null {
     if (!r.connection || r.connection.status !== 'connected') return 'Xero is not connected.';
     if (!hasWriteScopes(r.connection.scopes)) return `Reconnect Xero with the write scopes first (${WRITE_SCOPES.join(', ')}).`;
   }
-  if ((r.typed ?? '').trim() !== r.action) return `Type ${r.action} to confirm.`;
+  // Exact match: no trimming, no case folding. "LIVE x " or "live x" do not confirm.
+  const phrase = liveConfirmPhrase(r.action);
+  if (!typedMatches(r.typed, phrase)) return `Type ${phrase} to confirm.`;
   return null;
 }

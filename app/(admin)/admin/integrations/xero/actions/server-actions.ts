@@ -11,20 +11,24 @@ import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const PAGE = '/admin/integrations/xero/actions';
+const PAGES = ['/admin/integrations/xero', '/admin/integrations/xero/actions'];
 
 export type SwitchState = { ok?: string; error?: string };
 
 const SwitchInput = z.object({
   action: z.enum(ACTIONS),
   mode: z.enum(MODES),
-  confirm: z.string().max(80).optional().nullable(),
+  // Not trimmed or normalised: checkSwitch compares it with "LIVE <action>" exactly.
+  confirm: z.string().max(120).optional().nullable(),
 });
 
-/** Changes an action's mode. Live needs xero.actions.configure, write scopes and the typed action name. Audited. */
-export async function setActionMode(_prev: SwitchState, fd: FormData): Promise<SwitchState> {
+/**
+ * Changes an action's mode (Off / Dry-run / Live). Admin only (xero.actions.configure). Live also needs write
+ * scopes (for actions that write to Xero) and the exact typed phrase "LIVE <action>". Every change is audited.
+ */
+export async function switchActionMode(input: unknown): Promise<SwitchState> {
   const member = await requirePerm('xero.actions.configure');
-  const parsed = SwitchInput.safeParse({ action: fd.get('action'), mode: fd.get('mode'), confirm: fd.get('confirm') });
+  const parsed = SwitchInput.safeParse(input);
   if (!parsed.success) return { error: 'Choose an action and a mode.' };
   const { action, mode, confirm } = parsed.data;
   const db = createAdminClient();
@@ -45,7 +49,7 @@ export async function setActionMode(_prev: SwitchState, fd: FormData): Promise<S
     org_id: member.orgId, actor_user: member.userId, action: mode === 'live' ? 'xero.action.live' : 'xero.action.mode',
     entity: 'xero_action', entity_id: action, meta: { from, to: mode, confirmed: mode === 'live' },
   });
-  revalidatePath(PAGE);
+  for (const p of PAGES) revalidatePath(p);
   return { ok: `${action}: ${from} -> ${mode}.` };
 }
 
@@ -59,6 +63,6 @@ export async function planMergeFor(_prev: SwitchState, fd: FormData): Promise<Sw
   if (!data) return { error: 'Invoice not found in the mirror.' };
   await enqueue(db, member.orgId, queueOf('invoice.merge_attachments'), { invoiceId: data.invoice_id });
   await db.from('audit_log').insert({ org_id: member.orgId, actor_user: member.userId, action: 'xero.action.merge_plan', entity: 'xero_invoice', entity_id: data.invoice_id });
-  revalidatePath(PAGE);
+  revalidatePath('/admin/integrations/xero/actions');
   return { ok: 'Merge plan queued. It appears below after the next job run.' };
 }

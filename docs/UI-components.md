@@ -35,8 +35,9 @@ only (see `app/globals.css`); no hex or Tailwind palette colours. Gallery: **`/a
 ## Pure helpers (unit-tested)
 
 - `lib/money/fx.ts`: `formatZar` ("R 486,750.00"), `formatUsd` ("$26,450.00"), `formatAmount`, `approxUsd(amount,
-  currency, rate)` (null unless the currency is ZAR and the rate is positive). There is no ZAR to USD rate source
-  yet: pass a rate only from a real source, never a hard-coded one.
+  currency, rate)` (null unless the currency is ZAR and the rate is positive). The only rate source is the manual
+  `fx.zar_usd` setting (Settings > Organisation, read with `fxRateOf` in `lib/settings/fx.ts`): pass a rate only from
+  there, never a hard-coded one.
 - `lib/ui/time.ts` (Africa/Johannesburg): `sastClock` ("09:14 SAST"), `dayTime` ("Today 09:14", "Yesterday 15:40",
   "27 Oct 15:40"), `shortDateTime` ("29 Oct, 09:14"), `shortDate` ("29 Oct 2026"), `longDate`
   ("Thursday 29 October 2026"), `longDateTime` ("29 Oct 2026, 14:31 SAST").
