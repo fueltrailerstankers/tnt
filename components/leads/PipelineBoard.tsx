@@ -11,14 +11,14 @@ import { ZarAmount } from '@/components/ui/ZarAmount';
 import { StatusChip } from '@/components/ui/StatusChip';
 import type { UiSource } from '@/lib/leads-view/actions';
 import {
-  ageLabel, ageWords, branchOptions, buildBoard, duplicateReason, filterBoard, openSummary, sourceBadge, xeroStatusLabel,
+  ageLabel, ageWords, branchOptions, buildBoard, duplicateActions, duplicateReason, filterBoard, openSummary, sourceBadge, xeroStatusLabel,
   type BoardFilters, type BoardLead,
 } from '@/lib/leads-view/model';
 import { normEmail, normPhone } from '@/lib/leads/normalise';
 import { longDateTime } from '@/lib/ui/time';
 import { AddLead } from './AddLead';
 import { DuplicateTag, LeadStatusChip, LeadsViewSwitch, QuoteSums, SourceTag, STAGE_DOT } from './LeadBits';
-import { NoteForm, StagePills } from './LeadControls';
+import { DuplicateActions, NoteForm, StagePills } from './LeadControls';
 
 /** Cards drawn per column; the rest are counted and linked to the inbox. */
 const CARDS_PER_COLUMN = 50;
@@ -217,16 +217,18 @@ function DrawerBody({ lead, original, who, manage }: { lead: BoardLead; original
     { email_norm: normEmail(lead.email), phone_norm: normPhone(lead.phone) },
     { email_norm: normEmail(original.email), phone_norm: normPhone(original.phone) },
   ) : null;
+  const dup = duplicateActions(lead, original, manage);
   return (
     <>
       {manage ? <StagePills key={lead.id} id={lead.id} status={lead.status} /> : null}
       {lead.duplicate_of ? (
-        <div className="flex items-start gap-2.5 rounded-md bg-status-yellow-bg px-3.5 py-3 text-body text-status-yellow-fg">
+        <div className="flex flex-wrap items-start gap-2.5 rounded-md bg-status-yellow-bg px-3.5 py-3 text-body text-status-yellow-fg">
           <Icon name="warning" size={18} strokeWidth={2} className="mt-0.5 flex-none" />
-          <p className="m-0">
+          <p className="m-0 min-w-0 flex-1">
             <strong>Possible duplicate of {original ? <Link href={`/admin/leads/${original.id}`} className="text-status-yellow-fg underline">{original.name || 'an earlier lead'}</Link> : 'an earlier lead'}</strong>
             {reason ? ` · ${reason}` : ''}
           </p>
+          <DuplicateActions key={`${lead.id}:${lead.duplicate_of}`} id={lead.id} originalId={lead.duplicate_of} originalLabel={original?.name || 'the earlier lead'} merge={dup.merge} notDuplicate={dup.notDuplicate} />
         </div>
       ) : null}
       <dl className="m-0 grid grid-cols-2 gap-3 text-small">

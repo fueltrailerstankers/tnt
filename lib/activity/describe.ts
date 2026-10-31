@@ -36,7 +36,7 @@ export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
   'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
   'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
-  'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
+  'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'lead.merge', 'lead.not_duplicate', 'lead.branch', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
   'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
 ] as const;
 
@@ -86,6 +86,9 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'xero.disconnect': text = said('disconnected Xero'); break;
     case 'xero.sync.manual': text = said('ran a Xero sync'); break;
     case 'xero.action.mode': text = said(`set a Xero action to ${str(m.to) ?? 'a new mode'}`); break;
+    case 'lead.merge': text = said('merged a duplicate lead into its original'); break;
+    case 'lead.not_duplicate': text = said('marked a lead as not a duplicate'); break;
+    case 'lead.branch': text = said(str(m.to) ? `set a lead's branch to ${str(m.to)}` : "cleared a lead's branch"); break;
     case 'stock.dispatch': text = said(`dispatched unit${str(m.vin) ? ` ${str(m.vin)}` : ''}`); break;
     case 'stock.move': text = said(`moved unit${str(m.vin) ? ` ${str(m.vin)}` : ''}${str(m.to) ? ` to ${str(m.to)}` : ''}`); break;
     case 'stock.correct': text = said(`corrected unit${str(m.vin) ? ` ${str(m.vin)}` : ''}`); break;

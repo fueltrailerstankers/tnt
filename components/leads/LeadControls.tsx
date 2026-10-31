@@ -2,9 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useId, useState, useTransition, type FormEvent } from 'react';
-import { addLeadNote, setLeadAssignee, setLeadStatus } from '@/app/(admin)/admin/leads/actions';
+import { addLeadNote, markNotDuplicate, mergeLead, setLeadAssignee, setLeadBranch, setLeadStatus } from '@/app/(admin)/admin/leads/actions';
 import { Button } from '@/components/ui/Button';
-import { Label, Select, Textarea } from '@/components/ui/Field';
+import { Input, Label, Select, Textarea } from '@/components/ui/Field';
 import { actionMessage, type ActionResult } from '@/lib/leads-view/actions';
 import { BOARD_STAGES, STATUS_LABEL } from '@/lib/leads-view/model';
 import { LEAD_STATUSES } from '@/lib/leads/schema';
@@ -144,5 +144,81 @@ export function NoteForm({ id, label = 'Add a note', placeholder = 'Call outcome
         <Button type="submit" size={36} loading={pending} disabled={!body.trim()} className="ml-auto">Save note</Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Branch (0023 lead_set_branch): free text with suggestions from the branches in use; blank clears it. Same rule as
+ * the Add lead form (letter first; letters, spaces, dots, apostrophes, hyphens; 60 characters).
+ */
+export function BranchForm({ id, branch, branches }: { id: string; branch: string | null; branches: readonly string[] }) {
+  const field = useId();
+  const list = useId();
+  const [value, setValue] = useState(branch ?? '');
+  const { pending, outcome, run } = useSave();
+  const unchanged = value.trim() === (branch ?? '');
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (unchanged) return;
+    run(() => setLeadBranch({ id, branch: value }), value.trim() ? `Branch set to ${value.trim()}.` : 'Branch cleared.');
+  };
+  return (
+    <form onSubmit={submit} className="flex flex-col">
+      <Label htmlFor={field}>Branch</Label>
+      <div className="flex gap-2">
+        <Input
+          id={field} name="branch" value={value} maxLength={60} placeholder="Not set" autoComplete="off"
+          pattern="[A-Za-z][A-Za-z .'\-]*" title="Letters, spaces, dots, apostrophes or hyphens"
+          list={branches.length ? list : undefined} onChange={(e) => setValue(e.target.value)} className="h-11 py-0 lg:h-[38px]"
+        />
+        {branches.length ? <datalist id={list}>{branches.map((b) => <option key={b} value={b} />)}</datalist> : null}
+        <Button type="submit" variant="secondary" size={38} className="max-lg:h-11" loading={pending} disabled={unchanged}>Save</Button>
+      </div>
+      <OutcomeText outcome={outcome} />
+    </form>
+  );
+}
+
+const bannerButton = 'inline-flex h-11 items-center rounded-pill px-3 text-small font-semibold text-inherit disabled:opacity-60 lg:h-8';
+
+/**
+ * Duplicate banner actions (design Leads: "Merge into …" and "Not a duplicate"). Merge asks for a confirmation first;
+ * it keeps the original, links this lead to it (nothing is deleted) and then shows the original when `openOriginal`.
+ */
+export function DuplicateActions({ id, originalId, originalLabel, merge, notDuplicate, openOriginal = false }: {
+  id: string;
+  originalId: string;
+  originalLabel: string;
+  merge: boolean;
+  notDuplicate: boolean;
+  openOriginal?: boolean;
+}) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const { pending, outcome, run } = useSave();
+  if (!merge && !notDuplicate) return null;
+  const doMerge = () => run(() => mergeLead({ id, into: originalId }), `Merged into ${originalLabel}.`, () => {
+    setConfirming(false);
+    if (openOriginal) router.push(`/admin/leads/${originalId}`);
+  });
+  const dismiss = () => run(() => markNotDuplicate({ id, of: originalId }), 'Marked as not a duplicate.');
+  return (
+    <div className="flex basis-full flex-col gap-1" data-testid="lead-duplicate-actions">
+      {confirming ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="m-0 flex-[1_1_220px] text-small">
+            Merge this lead into <strong>{originalLabel}</strong>? It is closed and linked to that lead; its details, notes and history are kept.
+          </p>
+          <button type="button" onClick={doMerge} disabled={pending} aria-busy={pending || undefined} className={`${bannerButton} border border-current bg-transparent`}>Confirm merge</button>
+          <button type="button" onClick={() => setConfirming(false)} disabled={pending} className={`${bannerButton} bg-transparent underline`}>Cancel</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {merge ? <button type="button" onClick={() => setConfirming(true)} disabled={pending} className={`${bannerButton} border border-current bg-transparent`}>Merge into {originalLabel}</button> : null}
+          {notDuplicate ? <button type="button" onClick={dismiss} disabled={pending} aria-busy={pending || undefined} className={`${bannerButton} bg-transparent underline`}>Not a duplicate</button> : null}
+        </div>
+      )}
+      <p role={outcome?.kind === 'error' ? 'alert' : 'status'} className="m-0 min-h-4 text-[12px] leading-4">{outcome?.text ?? ''}</p>
+    </div>
   );
 }
