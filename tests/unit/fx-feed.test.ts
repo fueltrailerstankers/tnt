@@ -6,6 +6,7 @@ import {
 import { runFxRefresh } from '@/lib/settings/fx-job';
 import { fxRateOf } from '@/lib/settings/fx';
 import { FakeSupabase, type Row } from './fake-supabase';
+import { describe as describeAudit } from '@/lib/activity/describe';
 
 const ORG_A = '00000000-0000-4000-8000-0000000000a1';
 const ORG_B = '00000000-0000-4000-8000-0000000000b2';
@@ -183,5 +184,16 @@ describe('runFxRefresh', () => {
     expect(setting(fake, ORG_A, 'fx.zar_usd')).toBe('0.0500');
     expect(setting(fake, ORG_A, 'fx.zar_usd_source')).toBe('feed');
     expect(fake.tables.audit_log).toHaveLength(0);
+  });
+});
+
+describe('activity wording', () => {
+  const row = (action: string, actor: string | null, meta: Record<string, unknown>) => ({ id: 1, created_at: NOW.toISOString(), actor_user: actor, action, entity: 'app_setting', entity_id: 'fx.auto', meta });
+  const names = new Map([['u1', 'Test Admin']]);
+  it('describes the feed toggle and feed or manual rate changes', () => {
+    expect(describeAudit(row('settings.fx_auto', 'u1', { from: 'off', to: 'on' }), names).text).toBe('Test Admin turned the daily ZAR to USD feed on');
+    expect(describeAudit(row('settings.fx', null, { from: '0.05', to: '0.055', source: 'feed' }), names).text).toBe('The daily feed set the ZAR to USD rate to 0.055');
+    expect(describeAudit(row('settings.fx', 'u1', { from: null, to: '0.0547', source: 'manual' }), names).text).toBe('Test Admin set the ZAR to USD rate to 0.0547');
+    expect(describeAudit(row('settings.fx', 'u1', { from: '0.0547', to: null, source: 'manual' }), names).text).toBe('Test Admin removed the ZAR to USD rate');
   });
 });
