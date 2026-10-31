@@ -27,6 +27,8 @@ export interface EmailRow {
   at: string;
 }
 
+const DELIVERED = new Set(['sent', 'delivered', 'opened']);
+
 /** Emails sent for the entry: recipients and subject only (email_log never stores bodies). */
 export function EmailsCard({ emails, now }: { emails: EmailRow[]; now: string }) {
   return (
@@ -40,10 +42,19 @@ export function EmailsCard({ emails, now }: { emails: EmailRow[]; now: string })
                 {m.subject} <span aria-hidden="true">→</span><span className="sr-only">to</span> {m.to.join(', ')}
               </span>
               <span className="flex flex-wrap items-center gap-x-2 text-[12px] leading-4 text-fg-muted">
-                <span className={`inline-flex items-center gap-1 font-semibold ${m.failed ? 'text-status-red-fg' : 'text-status-green-fg'}`}>
-                  <Icon name={m.failed ? 'warning' : 'check'} size={12} strokeWidth={2.5} />
-                  {m.status}
-                </span>
+                {m.failed ? (
+                  <span className="inline-flex items-center gap-1 font-semibold text-status-red-fg">
+                    <Icon name="warning" size={12} strokeWidth={2.5} />
+                    {m.status}
+                  </span>
+                ) : DELIVERED.has(m.status.toLowerCase()) ? (
+                  <span className="inline-flex items-center gap-1 font-semibold text-status-green-fg">
+                    <Icon name="check" size={12} strokeWidth={2.5} />
+                    {m.status}
+                  </span>
+                ) : (
+                  <span className="font-semibold text-fg-muted">{m.status}</span>
+                )}
                 <time dateTime={m.at}>{dayTime(m.at, now)} SAST</time>
               </span>
               {m.error ? <span className="break-words text-[12px] leading-4 text-fg-muted">{m.error}</span> : null}

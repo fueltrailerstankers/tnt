@@ -38,7 +38,8 @@ async function submitInspection(page: Page, last: string) {
   await page.locator('textarea[name="cl.2.comments"]').fill(`Secret comment ${run}`);
   await sign(page, 'InspectorSignature');
   await page.getByRole('button', { name: 'SubmitInspection' }).click();
-  await expect(page.getByText(THANKS)).toBeVisible();
+  // The first public save of a run compiles the action, PDF and email paths in next dev: allow for that.
+  await expect(page.getByText(THANKS)).toBeVisible({ timeout: 30_000 });
   const [e] = await sql<{ id: string; number: number }>(
     `select e.id, e.number from entries e join forms f on f.id = e.form_id where f.slug = 'trailer-inspection-checklist' and e.summary = $1`, [`Detail ${last}`]);
   return e;
