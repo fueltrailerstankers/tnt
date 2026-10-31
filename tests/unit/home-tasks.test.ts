@@ -281,7 +281,7 @@ describe('tasks', () => {
     expect(s.phone).toEqual({ title: 'Store Room #61', meta: '1 below minimum' });
 
     const job = rows.find((r) => r.testId.startsWith('task-job-'))!;
-    expect(job).toMatchObject({ title: 'xero.setQuoteStatus', status: 'Failed', meta: '429 Too Many Requests · 5 attempts', primary: null, secondary: { label: 'Details' } });
+    expect(job).toMatchObject({ title: 'xero.setQuoteStatus', status: 'Failed', meta: '429 Too Many Requests · 5 attempts', primary: { type: 'job-retry', label: 'Retry', jobId: job.id.slice(4) }, secondary: { label: 'Details' } });
     expect(job.home).toMatchObject({ kind: 'Failed', title: 'Job xero.setQuoteStatus failed', meta: '429 rate limit · 13:58 SAST · auto-retry exhausted', href: '/admin/tasks?filter=failed-jobs' });
 
     const sync = rows.find((r) => r.testId === 'task-sync-invoices')!;

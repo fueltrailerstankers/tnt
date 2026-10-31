@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { badgeLabel, phoneTabKeys, visibleNav } from '@/lib/ui/nav';
 import { searchAccessOf } from '@/lib/ui/search';
 import { initials, loadShellData } from '@/lib/ui/shell-data';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import { ShellFrame } from './ShellFrame';
 import type { ShellNavItem } from './types';
 
@@ -32,15 +33,18 @@ export async function AppShell({ member, signOut, children }: { member: Member; 
     badge: n.badge ? badgeLabel(counts[n.badge]) : '',
   }));
   const name = data.userName?.trim() || 'Account';
+  // Toasts for every staff page (useToast in client components); the provider owns the live regions.
   return (
-    <ShellFrame
-      items={items}
-      user={{ name, initials: initials(data.userName, member.role), role: member.role }}
-      xero={data.xero ? { connected: data.xero.connected, lastSync: sastTime(data.xero.lastSync) } : null}
-      searchAccess={searchAccessOf(member)}
-      signOut={signOut}
-    >
-      {children}
-    </ShellFrame>
+    <ToastProvider>
+      <ShellFrame
+        items={items}
+        user={{ name, initials: initials(data.userName, member.role), role: member.role }}
+        xero={data.xero ? { connected: data.xero.connected, lastSync: sastTime(data.xero.lastSync) } : null}
+        searchAccess={searchAccessOf(member)}
+        signOut={signOut}
+      >
+        {children}
+      </ShellFrame>
+    </ToastProvider>
   );
 }

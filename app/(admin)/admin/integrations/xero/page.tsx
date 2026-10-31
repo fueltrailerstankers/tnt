@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ActionModeControl } from '@/components/integrations/ActionModeControl';
 import { DisconnectXero } from '@/components/integrations/DisconnectXero';
 import { DryRunDiff } from '@/components/integrations/DryRunDiff';
+import { OpsButton } from '@/components/integrations/OpsButton';
 import { Meter } from '@/components/integrations/Meter';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +19,7 @@ import { requirePerm } from '@/lib/security/require';
 import { loadActions, loadConnectionInfo, loadHealth, loadRunRequests } from '@/lib/settings/xero-load';
 import {
   accessTokenMeter, ACTION_TRIGGER, actionStats, entityRows, failureItems, MODE_LABEL, pickDryRun, rateMeters, refreshTokenMeter, runStamp,
+  webhookEventRows,
 } from '@/lib/settings/xero-page';
 import { stampLabel } from '@/lib/tasks/format';
 import { shortDate } from '@/lib/ui/time';
@@ -63,6 +65,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
   const rate = rateMeters(info.rate, now);
   const entities = entityRows(health.states, now);
   const failures = failureItems(health, now);
+  const events = webhookEventRows(health.recent, now);
 
   // Dry-run diff: the chosen action (?diff=) or the first with a recorded dry run.
   const diffAction = isActionName(sp.diff) ? sp.diff : acts.actions.find((a) => pickDryRun(acts.runs.map((r) => ({ ...r, planned_requests: null })), a.action))?.action ?? acts.actions[0].action;
@@ -172,12 +175,14 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
                     <span className="text-small font-semibold"><span className="font-mono">{f.job}</span> · {f.error}</span>
                     <span className="text-[12px] text-fg-muted">{f.meta}</span>
                   </span>
-                  {manage && connected && f.action ? (
+                  {manage && f.action === 'retry' && connected ? (
                     <form action={syncNow}>
-                      <Button type="submit" variant="secondary" size={32} aria-describedby={f.action === 'replay' ? 'replay-note' : undefined}>
-                        {f.action === 'retry' ? 'Retry' : 'Replay webhook'}
-                      </Button>
+                      <Button type="submit" variant="secondary" size={32}>Retry</Button>
                     </form>
+                  ) : manage && f.action === 'retry-job' && f.target ? (
+                    <OpsButton kind="retry" id={f.target} label={`Retry job ${f.job}`} testId={`retry-${f.key}`}>Retry</OpsButton>
+                  ) : manage && f.action === 'replay' && f.target ? (
+                    <OpsButton kind="replay" id={f.target} label={`Replay ${f.job}`} testId={`replay-${f.key}`}>Replay webhook</OpsButton>
                   ) : null}
                 </li>
               ))}
@@ -185,13 +190,41 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
           ) : (
             <EmptyState variant="plain" icon="check" title="No failures in the last 24 hours" />
           )}
-          {failures.some((f) => f.action === 'replay') && manage ? (
-            <p id="replay-note" className="m-0 border-t border-border px-4 py-2 text-[12px] text-fg-muted">
-              Retry and Replay webhook run Sync now: the changed records are fetched from Xero again. Webhook processing is idempotent, so a replay never duplicates anything.
+          {failures.some((f) => f.action === 'replay' || f.action === 'retry-job') && manage ? (
+            <p className="m-0 border-t border-border px-4 py-2 text-[12px] text-fg-muted">
+              Retry re-queues that job; Replay webhook processes the stored event again (the record is read from Xero again, nothing is written to Xero). Both are idempotent, so they never duplicate anything.
             </p>
           ) : null}
         </Card>
       </div>
+
+      <Card padding="none" aria-labelledby="events-h" data-testid="xero-events">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3.5">
+          <h2 id="events-h" className="m-0 text-[15px] font-semibold">Webhook events</h2>
+          <span className="text-[12px] text-fg-muted">{events.length ? `Latest ${events.length} · ` : ''}Replay processes the stored copy again</span>
+        </div>
+        {events.length ? (
+          <div className="relative overflow-x-auto" role="region" aria-label="Webhook events" tabIndex={0}>
+            <table className={`${tableClass} min-w-[560px] text-small`}>
+              <thead className={theadClass}><tr><th className="px-4 py-2">Event</th><th className="p-2">Received</th><th className="p-2">Status</th><th className="py-2 pl-2 pr-4"><span className="sr-only">Replay</span></th></tr></thead>
+              <tbody>
+                {events.map((e) => (
+                  <tr key={e.id} className="h-11 border-t border-border" data-testid={`event-${e.id}`}>
+                    <td className="px-4 font-mono text-[12px] font-semibold">{e.kind}</td>
+                    <td className="px-2 text-fg-muted">{e.when}</td>
+                    <td className="px-2 py-1.5"><StatusChip status={e.status} color={e.tone} />{e.detail ? <span className="ml-2 text-[12px] text-fg-muted">{e.detail}</span> : null}</td>
+                    <td className="py-1.5 pl-2 pr-4 text-right">
+                      {manage && e.replayable ? <OpsButton kind="replay" id={e.id} size={30} label={`Replay ${e.kind} event received ${e.when}`}>Replay</OpsButton> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState variant="plain" icon="file" title="No webhook events yet" body="Events appear here when Xero sends them to the webhook URL." />
+        )}
+      </Card>
 
       <Card padding="none" aria-labelledby="actions-h">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3.5">
