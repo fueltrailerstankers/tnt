@@ -35,7 +35,7 @@ describe('status path and Store Room flow', () => {
     const sr = spec('store-room');
     const flow = statusFlow(sr, 'APPROVAL');
     expect(flow.map((f) => [f.label, f.state, f.tone])).toEqual([
-      ['Submitted (archived)', 'done', 'teal'],
+      ['Submitted (archived)', 'done', 'gray'],
       ['APPROVAL', 'current', 'red'],
       ['APPROVED EMAILED', 'todo', 'green'],
     ]);

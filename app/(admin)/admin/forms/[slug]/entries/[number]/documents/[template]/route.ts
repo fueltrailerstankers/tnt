@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { adminForm } from '@/lib/admin/context';
+import { decryptAuditRow } from '@/lib/entry-view/protected';
 import { loadEntryByNumber } from '@/lib/forms/entries';
 import { ensureDocument, readStoredDocument } from '@/lib/pdf/documents';
 
@@ -11,6 +12,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const { member, userDb, db, form, org } = await adminForm(slug, 'entries.read');
   const entry = await loadEntryByNumber(userDb, form, Number.parseInt(number, 10));
   if (!entry) notFound();
+  // Encrypted forms: a PDF of the entry is a decrypted copy, so it is audited like opening the entry (ids only).
+  if (form.encrypt) {
+    const { error } = await db.from('audit_log').insert(decryptAuditRow(member, entry.id, form.slug, entry.number, 'document'));
+    if (error) return new Response('Could not record the download.', { status: 500 });
+  }
   const t = Number.parseInt(template, 10);
   const version = new URL(req.url).searchParams.get('version');
 

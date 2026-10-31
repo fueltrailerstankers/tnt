@@ -65,7 +65,7 @@ export function statusFlow(spec: FormSpec, status: string): FlowStep[] {
     label: s.archived ? `${s.name} (archived)` : s.name,
     status: s.name,
     n: i + 1,
-    tone: toneFor(s.name, s.color),
+    tone: s.archived ? 'gray' : toneFor(s.name, s.color),
     state: at < 0 ? 'todo' : i < at || (i === at && at === last) ? 'done' : i === at ? 'current' : 'todo',
   }));
 }

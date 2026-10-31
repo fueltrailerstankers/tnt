@@ -35,7 +35,7 @@ export const FILTER_AREAS = AREAS.filter((a) => AREA_ACTIONS[a]);
 export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
   'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
-  'form.public_link', 'entry.status', 'entry.delete', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
+  'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
   'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
   'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
 ] as const;
@@ -79,6 +79,8 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'form.public_link': text = said(`turned a form's public link ${m.active ? 'on' : 'off'}`); break;
     case 'entry.status': text = said(`changed an entry's status${str(m.from) && str(m.to) ? ` from ${str(m.from)} to ${str(m.to)}` : ''}`); break;
     case 'entry.delete': text = said(`deleted entry${str(m.number) ? ` #${str(m.number)}` : ''}${str(m.form) ? ` of ${str(m.form)}` : ''}`); break;
+    case 'entry.decrypt': text = said(`opened encrypted entry${str(m.number) ? ` #${str(m.number)}` : ''}${str(m.form) ? ` of ${str(m.form)}` : ''}${m.via === 'document' ? ' (PDF)' : ''}`); break;
+    case 'entry.reveal': text = said(`revealed a protected field${Array.isArray(m.fields) && m.fields.length ? ` (${(m.fields as unknown[]).map(String).join(', ')})` : ''} on an entry${str(m.form) ? ` of ${str(m.form)}` : ''}`); break;
     case 'entries.export': text = said(`exported entries${str(m.format) ? ` (${str(m.format)})` : ''}`); break;
     case 'xero.connect': text = said('connected Xero'); break;
     case 'xero.disconnect': text = said('disconnected Xero'); break;
