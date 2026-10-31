@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { areaOf, areaOrFilter, describe as describeRow, filterQuery, hrefFor, parseFilters, toCsv, type AuditRow } from '@/lib/activity/describe';
 import { AREAS, PRESET_ACCESS, type AccessMap } from '@/lib/security/can';
 import {
-  AddInput, acceptMode, accessChanges, accessFromForm, banDecision, changeError, generatePassword, grantsAdminOnlyWrite, INVITE_ACCEPT_WINDOW_MS, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, PasswordInput,
+  AddInput, acceptMode, accessChanges, accessFromForm, banDecision, changeError, generatePassword, grantsAdminOnlyWrite, INVITE_ACCEPT_WINDOW_MS, confirmLink, ConfirmQuery, EditInput, enabledStatus, InviteInput, inviteState, PasswordInput,
   resolveAccess, type MemberState,
 } from '@/lib/users/rules';
 
@@ -210,5 +210,16 @@ describe('activity log', () => {
     expect(csv.split('\r\n')[0]).toBe('"Time","Who","Area","Action","What","Record","Record id"');
     expect(csv).toContain(`"'=1+1"`);
     expect(csv).toContain('"Pat Admin"');
+  });
+});
+
+describe('inviteState', () => {
+  it('is pending until accepted, then accepted', () => {
+    expect(inviteState({ status: 'invited', invitedAt: 'a', acceptedAt: null })).toEqual({ label: 'Pending', color: 'yellow', at: 'a' });
+    expect(inviteState({ status: 'active', invitedAt: 'a', acceptedAt: 'b' })).toEqual({ label: 'Accepted', color: 'green', at: 'b' });
+  });
+  it('keeps a disabled member who never accepted as pending', () => {
+    expect(inviteState({ status: 'disabled', invitedAt: 'a', acceptedAt: null }).label).toBe('Pending');
+    expect(inviteState({ status: 'disabled', invitedAt: 'a', acceptedAt: 'b' }).label).toBe('Accepted');
   });
 });

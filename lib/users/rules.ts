@@ -140,6 +140,16 @@ export const PRESET_LABEL = (preset: string) => (preset === 'custom' ? 'Custom' 
 export const STATUS_LABEL: Record<MemberStatus, string> = { invited: 'Invited', active: 'Active', disabled: 'Disabled' };
 export const STATUS_COLOR: Record<MemberStatus, 'yellow' | 'green' | 'gray'> = { invited: 'yellow', active: 'green', disabled: 'gray' };
 
+/**
+ * The invite column on the members list: Pending until they accept, Accepted once they have, Disabled if switched off.
+ * A member added with a temporary password has no invite to accept, so it reads Accepted from the start.
+ */
+export function inviteState(m: { status: MemberStatus; invitedAt: string | null; acceptedAt: string | null }): { label: 'Pending' | 'Accepted'; color: 'yellow' | 'green'; at: string | null } {
+  return m.status === 'invited' || !m.acceptedAt
+    ? { label: 'Pending', color: 'yellow', at: m.invitedAt }
+    : { label: 'Accepted', color: 'green', at: m.acceptedAt };
+}
+
 /** Where the invite email and copied links land: our /auth/confirm, then the set-password page. */
 export const ACCEPT_PATH = '/admin/account/password';
 
