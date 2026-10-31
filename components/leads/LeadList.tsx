@@ -3,10 +3,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChips, type FilterChip } from '@/components/ui/FilterChips';
 import { Icon } from '@/components/ui/Icon';
 import { inboxQuery, type InboxData } from '@/lib/leads-view/load';
-import { ageLabel, ageWords, INBOX_VIEW_LABEL, PHONE_VIEWS, STATUS_LABEL, STATUS_TONE, type InboxView } from '@/lib/leads-view/model';
+import { ageLabel, ageWords, INBOX_VIEW_LABEL, PHONE_VIEWS, STATUS_LABEL, type InboxView } from '@/lib/leads-view/model';
 import { DuplicateTag, LeadStatusChip, SourceTag } from './LeadBits';
-
-const DOT = { teal: 'teal', yellow: 'yellow', accent: 'yellow', green: 'green', gray: 'gray', red: 'red' } as const;
 
 /** Lead list (inbox left column; the whole page on phones until a lead is opened). */
 export function LeadList({ data, selectedId, now, className = '' }: { data: InboxData; selectedId: string | null; now: Date; className?: string }) {
@@ -21,7 +19,6 @@ export function LeadList({ data, selectedId, now, className = '' }: { data: Inbo
     value: v,
     label: v === 'open' ? 'Open' : STATUS_LABEL[v],
     count: v === 'open' ? open : counts[v],
-    dot: v === 'open' ? 'all' : DOT[STATUS_TONE[v]],
     href: `/admin/leads${v === 'open' ? inboxQuery(params, { view: null, status: null, page: null }) : inboxQuery(params, { view: null, status: v, page: null })}`,
   }));
   const rowHref = (id: string) => `/admin/leads/${id}${inboxQuery(params)}`;
@@ -34,7 +31,22 @@ export function LeadList({ data, selectedId, now, className = '' }: { data: Inbo
     <section aria-label="Lead list" className={`min-w-0 overflow-hidden rounded-md border border-border bg-surface shadow-card ${className}`}>
       <div className="flex flex-col gap-2 border-b border-border px-3 py-2.5">
         <div className="hidden lg:block"><FilterChips label="Filter leads" chips={desktopChips} value={data.active} size="sm" /></div>
-        <div className="lg:hidden"><FilterChips label="Stage" chips={phoneChips} value={data.active} size="lg" scroll /></div>
+        {/* Phone stage chips: 44px targets (design PhoneLeads), links so the URL holds the filter. */}
+        <div role="group" aria-label="Stage" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 lg:hidden">
+          {phoneChips.map((c) => {
+            const on = c.value === data.active;
+            return (
+              <Link
+                key={c.value}
+                href={c.href!}
+                aria-current={on ? 'page' : undefined}
+                className={`inline-flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-pill border px-3.5 text-small font-semibold no-underline ${on ? 'border-fg bg-fg text-bg' : 'border-border bg-surface text-fg'}`}
+              >
+                {c.label}<span className="tabular-nums">{` · ${c.count ?? 0}`}</span>
+              </Link>
+            );
+          })}
+        </div>
         <form method="get" action="/admin/leads" role="search" className="flex items-center gap-2 rounded-sm border border-border bg-surface-2 px-2.5 focus-within:outline-2 focus-within:outline-focus">
           <Icon name="search" size={14} strokeWidth={2} className="flex-none text-fg-muted" />
           {hidden.map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}

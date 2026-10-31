@@ -219,7 +219,7 @@ function DrawerBody({ lead, original, who, manage }: { lead: BoardLead; original
   ) : null;
   return (
     <>
-      {manage ? <StagePills key={lead.status} id={lead.id} status={lead.status} /> : null}
+      {manage ? <StagePills key={lead.id} id={lead.id} status={lead.status} /> : null}
       {lead.duplicate_of ? (
         <div className="flex items-start gap-2.5 rounded-md bg-status-yellow-bg px-3.5 py-3 text-body text-status-yellow-fg">
           <Icon name="warning" size={18} strokeWidth={2} className="mt-0.5 flex-none" />

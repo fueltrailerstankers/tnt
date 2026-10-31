@@ -168,13 +168,15 @@ test.describe('desktop 1440', () => {
     await expect(modal.getByText('Give a valid email, or a phone number with at least 9 digits.')).toBeVisible();
     await shot(page, 'add-lead-1440-light');
 
+    await expect(modal.getByLabel('Name')).toHaveValue(`Karoo Demo Transport ${tag} (walk-in)`); // kept after the error
     await modal.getByLabel('Phone').fill(`023 555 ${digits}`);
     await modal.getByLabel('Product / interest').fill('Diesel bowser');
     await modal.getByRole('button', { name: 'Save lead' }).click();
     await expect(page).toHaveURL(/\/admin\/leads\/[0-9a-f-]{36}$/);
     const id = page.url().split('/').pop()!;
     await expect(page.getByTestId('lead-duplicate')).toContainText('same phone number');
-    expect(await sql(`select source, duplicate_of from public.leads where id = $1`, [id])).toEqual([{ source: 'manual', duplicate_of: L.karoo }]);
+    expect(await sql(`select source, name, duplicate_of from public.leads where id = $1`, [id]))
+      .toEqual([{ source: 'manual', name: `Karoo Demo Transport ${tag} (walk-in)`, duplicate_of: L.karoo }]);
   });
 });
 

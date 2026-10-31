@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, useTransition, type MouseEvent } from 'react';
+import { useRef, useState, useTransition, type FormEvent, type MouseEvent } from 'react';
 import { addLead } from '@/app/(admin)/admin/leads/actions';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -29,7 +29,11 @@ export function AddLead({ sources, branches = [] }: { sources: readonly UiSource
     setOpen(true);
   };
 
-  const submit = (fd: FormData) => {
+  // onSubmit (not a form action): React resets a form after its action runs, which would clear what was typed
+  // when the server asks for a fix.
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
     start(async () => {
       const r = await addLead(fd);
       if (!r.ok) {
@@ -64,7 +68,7 @@ export function AddLead({ sources, branches = [] }: { sources: readonly UiSource
           </>
         )}
       >
-        <form ref={form} action={submit} noValidate className="flex flex-col gap-3">
+        <form ref={form} onSubmit={submit} noValidate className="flex flex-col gap-3">
           {errors.form ? <p role="alert" className="m-0 rounded-sm bg-status-red-bg px-3 py-2 text-small text-status-red-fg">{errors.form}</p> : null}
           <LeadFormFields idPrefix="add-lead" errors={errors} sources={sources} branches={branches} />
           <p className="m-0 text-[12px] leading-4 text-fg-muted">{DEDUPE_NOTE}</p>
