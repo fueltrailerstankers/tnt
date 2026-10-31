@@ -124,38 +124,43 @@ test('a lead whose email matches a Xero contact shows the matched quote', async 
   await signIn(page, `/admin/leads/${lead.id}`);
   const xero = page.getByTestId('lead-xero');
   await expect(xero.getByRole('link', { name: quoteNumber })).toHaveAttribute('href', `/admin/xero/quotes/${quoteId}`);
-  await expect(xero).toContainText('SENT');
+  await expect(xero).toContainText('Sent'); // Xero SENT, shown as users know it
 });
 
 test('manual lead creation, status change, assignment and a note from the inbox', async ({ page }) => {
   const name = `Walk-in Visitor ${run}`;
   await signIn(page, '/admin/leads');
-  await page.getByRole('link', { name: 'New lead' }).click();
-  await expect(page).toHaveURL(/\/admin\/leads\/new$/);
-  await page.getByLabel('Name').fill(name);
-  await page.getByLabel('Phone').fill('011 555 0123');
-  await page.getByLabel('Product / interest').fill('Water tanker');
-  await page.getByRole('button', { name: 'Create lead' }).click();
+  // Add lead opens the modal (the link also works as the /admin/leads/new page without JavaScript).
+  await expect(page.getByRole('link', { name: 'Add lead' })).toHaveAttribute('href', '/admin/leads/new');
+  await page.getByRole('link', { name: 'Add lead' }).click();
+  const modal = page.getByRole('dialog', { name: 'Add lead' });
+  await modal.getByLabel('Name').fill(name);
+  await modal.getByLabel('Phone').fill('011 555 0123');
+  await modal.getByLabel('Product / interest').fill('Water tanker');
+  await modal.getByRole('button', { name: 'Save lead' }).click();
 
   await expect(page).toHaveURL(/\/admin\/leads\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole('heading', { name })).toBeVisible();
-  await expect(page.getByTestId('lead-status')).toHaveText('new');
+  const main = page.getByRole('main');
+  await expect(main.getByRole('heading', { name })).toBeVisible();
+  await expect(page.getByTestId('lead-status')).toHaveText('New');
   const id = page.url().split('/').pop()!;
   const [row] = await sql<{ source: string; phone_norm: string }>(`select source, phone_norm from public.leads where id = $1`, [id]);
   expect(row).toEqual({ source: 'manual', phone_norm: '115550123' });
   expect(await sql(`select 1 from public.email_log where lead_id = $1`, [id])).toHaveLength(0); // manual: no notification
 
-  await page.getByLabel('Status').selectOption('contacted');
-  await page.getByRole('button', { name: 'Set status' }).click();
-  await expect(page.getByTestId('lead-status')).toHaveText('contacted');
+  await main.getByLabel('Status').selectOption('contacted');
+  await main.getByRole('button', { name: 'Set status' }).click();
+  await expect(page.getByTestId('lead-status')).toHaveText('Contacted');
 
-  await page.getByLabel('Assign to').selectOption({ label: 'Test Admin' });
-  await page.getByRole('button', { name: 'Assign' }).click();
-  await expect(page.getByText('Assigned toTest Admin')).toBeVisible();
+  await main.getByLabel('Assign to').selectOption({ label: 'Test Admin' });
+  await main.getByRole('button', { name: 'Assign' }).click();
+  await expect(main.getByRole('status').filter({ hasText: 'Lead assigned.' })).toBeVisible();
+  await expect(main.getByLabel('Assign to').locator('option:checked')).toHaveText('Test Admin');
 
-  await page.getByLabel('Add a note').fill('Called back, wants a quote.');
-  await page.getByRole('button', { name: 'Add note' }).click();
-  await expect(page.getByTestId('lead-timeline')).toContainText('Called back, wants a quote.');
+  await main.getByLabel('Add a note').fill('Called back, wants a quote.');
+  await main.getByRole('button', { name: 'Save note' }).click();
+  await expect(page.getByTestId('lead-notes')).toContainText('Called back, wants a quote.');
+  await expect(page.getByTestId('lead-timeline')).toContainText('Note added');
 
   const audits = await sql<{ action: string; meta: Record<string, unknown> }>(`select action, meta from public.audit_log where entity = 'lead' and entity_id = $1 order by id`, [id]);
   expect(audits.map((a) => a.action)).toEqual(['lead.create', 'lead.status', 'lead.assign']);

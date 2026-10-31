@@ -133,7 +133,7 @@ test.describe.serial('users, access levels and activity log', () => {
 
     // Leads: read only.
     await page.goto('/admin/leads');
-    await expect(page.getByRole('link', { name: 'New lead' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Add lead' })).toHaveCount(0);
     expect((await page.goto('/admin/leads/new'))?.status()).toBe(403);
 
     // None: 403 on the page.
