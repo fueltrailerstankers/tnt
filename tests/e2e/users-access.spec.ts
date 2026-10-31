@@ -20,6 +20,13 @@ async function token(request: APIRequestContext, email: string, password: string
 const rest = (request: APIRequestContext, tok: string, path: string) =>
   request.get(`${STUB}/rest/v1/${path}`, { headers: { ...ANON, Authorization: `Bearer ${tok}` } });
 
+/** Opens an invite link: the landing page does not use the token; Continue does (mail scanners only open links). */
+async function openInvite(page: Page, link: string) {
+  await page.goto(link);
+  await expect(page).toHaveURL(/\/auth\/accept\?/);
+  await page.getByRole('button', { name: 'Continue' }).click();
+}
+
 async function setPassword(page: Page, password: string) {
   await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible();
   await page.getByLabel('New password', { exact: true }).fill(password);
@@ -94,7 +101,11 @@ test.describe.serial('users, access levels and activity log', () => {
   test('the invite is accepted: set password, then only the allowed menus; read-only areas have no write buttons', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await ctx.newPage();
+    // Opening the link alone (as a mail scanner would) does not use it.
     await page.goto(inviteLink);
+    await expect(page.getByRole('heading', { name: "You're invited" })).toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page).toHaveURL(/\/admin\/account\/password$/);
     // No access until the password is set: the admin area sends them back.
     await page.goto('/admin/forms');
@@ -171,11 +182,11 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(mails[0].redirect_to).toMatch(/\/auth\/confirm\?next=%2Fadmin%2Faccount%2Fpassword$/);
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const mp = await ctx.newPage();
-    await mp.goto(`/auth/confirm?token_hash=${mails[0].token_hash}&type=invite`);
+    await openInvite(mp, `/auth/confirm?token_hash=${mails[0].token_hash}&type=invite`);
     await setPassword(mp, MANAGER.password);
     // The same link works once.
     const again = await (await browser.newContext()).newPage();
-    await again.goto(`/auth/confirm?token_hash=${mails[0].token_hash}&type=invite`);
+    await openInvite(again, `/auth/confirm?token_hash=${mails[0].token_hash}&type=invite`);
     await expect(again).toHaveURL(/\/login\?error=link$/);
     await expect(again.getByRole('main').getByRole('alert')).toContainText('invalid or has expired');
 
@@ -414,7 +425,9 @@ test.describe.serial('users, access levels and activity log', () => {
     const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [O.email]);
     // The person opens the link (confirms the account) but never finishes.
     const ctx = await browser.newContext();
-    await (await ctx.newPage()).goto(first);
+    const op = await ctx.newPage();
+    await openInvite(op, first);
+    await expect(op).toHaveURL(/\/admin\/account\/password$/);
     await ctx.close();
     // Cancel, and delete the profile row by hand as an admin might.
     await page.goto(`/admin/settings/users/${row.user_id}`);
@@ -437,7 +450,7 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(m).toEqual({ status: 'invited', invite_new_account: true });
     const ctx2 = await browser.newContext();
     const xp = await ctx2.newPage();
-    await xp.goto(again);
+    await openInvite(xp, again);
     await setPassword(xp, 'opened-own-password-e2e');
     await ctx2.close();
     const [after] = await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [row.user_id]);
@@ -450,7 +463,7 @@ test.describe.serial('users, access levels and activity log', () => {
       headers: { apikey: 'stub-service-key', Authorization: 'Bearer stub-service-key' },
     });
     const { hashed_token } = (await r.json()) as { hashed_token: string };
-    await page.goto(`/auth/confirm?token_hash=${hashed_token}&type=recovery`);
+    await openInvite(page, `/auth/confirm?token_hash=${hashed_token}&type=recovery`);
     await expect(page).toHaveURL(/\/login\?error=link$/);
   });
 

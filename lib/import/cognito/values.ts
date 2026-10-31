@@ -128,7 +128,9 @@ export function toChoice(v: unknown, options: string[], multi: boolean | undefin
  */
 export const DERIVED_PARTS: Record<'name' | 'address', string[]> = {
   name: ['FirstAndLast', 'LastFirst', 'FullName', 'MiddleInitial'],
-  address: ['FullAddress', 'FullInternationalAddress', 'Type', 'Latitude', 'Longitude'],
+  // StreetAddress, CityStatePostalCode and CountryCode are Cognito's summaries of Line1/Line2, City+State+PostalCode
+  // and Country (seen on the live Request For Invoice export), so nothing is lost by not storing them.
+  address: ['FullAddress', 'FullInternationalAddress', 'StreetAddress', 'CityStatePostalCode', 'CountryCode', 'Type', 'Latitude', 'Longitude'],
 };
 
 /**
