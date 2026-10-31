@@ -11,7 +11,7 @@ import { cognitoApiBase, HttpCognitoSource } from './api';
 import { orderForms, runImportSlice, type PlannedSources } from './importer';
 import { apiKeyInfo, loadApiKey } from './key';
 import {
-  errorCode, IMPORT_QUEUE, ImportJobError, lookupSources, matchForms, mergePlanned, nextAttempt, parseCursor, parseOptions, parseReport,
+  errorCode, IMPORT_QUEUE, ImportJobError, lookupSources, matchForms, mergePlanned, nextAttempt, retryWaitMs, parseCursor, parseOptions, parseReport,
   type FormMatch, type PlatformFormRef, type RunCursor, type RunMode, type RunStatus,
 } from './progress';
 import { emptyFormReport } from './report';
@@ -366,7 +366,7 @@ export async function importSlice(db: SupabaseClient, orgId: string, runId: stri
         if (e instanceof SourceDeadlineError) {
           // Out of time inside a request, or Cognito asked to wait longer than the slice has: keep the last
           // checkpoint, free the run and continue later. The attempt guard above ends a loop at one position.
-          const wait = e.code === 'step_deadline' ? 0 : Math.min(RETRY_MAX_MS, Math.max(RETRY_MIN_MS, e.retryAfterMs));
+          const wait = e.code === 'step_deadline' ? 0 : retryWaitMs(e.retryAfterMs, attempt.n, RETRY_MIN_MS, RETRY_MAX_MS);
           const visible = e.code === 'step_deadline' ? {} : { error: e.code };
           const noted = checkpointed ? {} : { cursor: { ...cursor, attempt: { ...attempt, ...(e.code === 'step_deadline' ? {} : { last: e.code }) } } };
           await save({ ...release, ...visible, ...noted });

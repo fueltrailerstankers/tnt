@@ -7,7 +7,7 @@ vi.mock('server-only', () => ({}));
 import { sealData } from '@/lib/forms/entries';
 import { CognitoApiError, cognitoApiBase, HttpCognitoSource, privateAddress } from '@/lib/import/cognito/api';
 import { runImportSlice } from '@/lib/import/cognito/importer';
-import { errorCode, MAX_POSITION_ATTEMPTS, nextAttempt, parseCursor } from '@/lib/import/cognito/progress';
+import { errorCode, MAX_POSITION_ATTEMPTS, MAX_WAIT_ATTEMPTS, nextAttempt, parseCursor, retryWaitMs } from '@/lib/import/cognito/progress';
 import { FileTooLargeError, SourceDeadlineError, type CognitoEntry, type CognitoFileRef, type CognitoSource, type DownloadedFile } from '@/lib/import/cognito/source';
 import { MAX_FILE_BYTES } from '@/lib/spec/values';
 import { FakeSource, allFixtures, platform } from './cognito-fake';
@@ -162,9 +162,21 @@ describe('M1: attempts per position', () => {
       c = parseCursor(JSON.parse(JSON.stringify({ ...c, attempt: r.attempt })));
     }
     expect(nextAttempt(c).giveUp).toBe('stuck_entry');
-    expect(nextAttempt({ ...c, attempt: { ...c.attempt!, last: 'cognito_rate_limited' } }).giveUp).toBe('cognito_rate_limited');
+    // Cognito asking to wait gets more attempts before the run gives up with that reason.
+    expect(nextAttempt({ ...c, attempt: { ...c.attempt!, last: 'cognito_rate_limited' } }).giveUp).toBeNull();
+    expect(nextAttempt({ ...c, attempt: { ...c.attempt!, n: MAX_WAIT_ATTEMPTS, last: 'cognito_rate_limited' } }).giveUp).toBe('cognito_rate_limited');
     // Progress (another position) starts the count again.
     expect(nextAttempt({ ...c, position: { kind: 'number', next: 8, misses: 0 } })).toMatchObject({ attempt: { n: 1 }, giveUp: null });
+  });
+
+  it('retryWaitMs honours Retry-After, doubles per attempt and stays within bounds', () => {
+    expect(retryWaitMs(0, 1)).toBe(30_000);
+    expect(retryWaitMs(0, 2)).toBe(60_000);
+    expect(retryWaitMs(0, 4)).toBe(240_000);
+    expect(retryWaitMs(0, 12)).toBe(600_000);
+    expect(retryWaitMs(90_000, 1)).toBe(90_000);
+    expect(retryWaitMs(5_000, 1)).toBe(30_000);
+    expect(retryWaitMs(3_600_000, 1)).toBe(600_000);
   });
 
   it('parseCursor keeps a well-formed attempt record only', () => {
