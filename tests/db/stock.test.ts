@@ -584,6 +584,86 @@ describe('stock_correct_unit', () => {
   });
 });
 
+describe('0017 expected version (p_expected_updated_at)', () => {
+  const MOVE_V = `select * from public.stock_move_unit(p_org => $1, p_unit => $2, p_location => $3, p_reason => $4, p_deal_year => $5, p_deal_number => $6, p_expected_updated_at => $7)`;
+  const CORRECT_V = `select * from public.stock_correct_unit($1, $2, $3, $4)`;
+  const unitRow = (id: string) => one(`select location_id, status, notes, transfer_reason, updated_at, to_json(updated_at)#>>'{}' as v from public.stock_units where id = $1`, [id]);
+
+  it('a stale expected version is refused with UNIT_CHANGED and nothing changes', async () => {
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const before = await unitRow(U_DBN);
+      const stale = '2000-01-01T00:00:00Z';
+      expect(await code(CORRECT_V, [ORG_E, U_DBN, JSON.stringify({ notes: 'Synthetic note' }), stale], 'UNIT_CHANGED')).toEqual({ unit_id: U_DBN });
+      expect(await code(MOVE_V, [ORG_E, U_DBN, 'JHB', 'Swap stock', null, null, stale], 'UNIT_CHANGED')).toEqual({ unit_id: U_DBN });
+      expect(await unitRow(U_DBN)).toEqual(before);
+      expect(await auditRows('stock.correct')).toHaveLength(0);
+      expect(await auditRows('stock.move')).toHaveLength(0);
+      // Someone else wrote the unit after it was read: the version read before is now stale.
+      await ok(CORRECT, [ORG_E, U_DBN, JSON.stringify({ notes: 'Synthetic note' })]);
+      await code(MOVE_V, [ORG_E, U_DBN, 'JHB', 'Swap stock', null, null, before.v], 'UNIT_CHANGED');
+      expect((await unitRow(U_DBN)).location_id).toBe('DBN');
+    });
+  });
+
+  it('a matching version works (exact to the microsecond), for correct and move', async () => {
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const { v } = await unitRow(U_DBN);
+      expect(v).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(await ok(CORRECT_V, [ORG_E, U_DBN, JSON.stringify({ notes: 'Synthetic note' }), v])).toMatchObject({ notes: 'Synthetic note' });
+      const after = await unitRow(U_DBN);
+      expect(await ok(MOVE_V, [ORG_E, U_DBN, 'JHB', 'Swap stock', null, null, after.v])).toMatchObject({ location_id: 'JHB', transfer_reason: 'Swap stock' });
+      expect(await auditRows('stock.move')).toHaveLength(1);
+    });
+    // Factory staff's Factory -> branch move with a deal and the current version.
+    await as(db, 'authenticated', FACTORY_E, async () => {
+      const { v } = await unitRow(U_FACT);
+      expect(await ok(MOVE_V, [ORG_E, U_FACT, 'CPT', null, 2026, 102, v])).toMatchObject({ location_id: 'CPT', deal_id: D_102 });
+    });
+  });
+
+  it('no version behaves as before: positional 0011 calls and named calls without the argument (dispatch page)', async () => {
+    await as(db, 'authenticated', FACTORY_E, async () => {
+      const named = `select * from public.stock_move_unit(p_org => $1, p_unit => $2, p_location => $3, p_reason => $4, p_deal_year => $5, p_deal_number => $6)`;
+      expect(await ok(named, [ORG_E, U_FACT, 'CPT', null, 2026, 102])).toMatchObject({ location_id: 'CPT', deal_id: D_102 });
+    });
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      expect(await ok(MOVE, [ORG_E, U_DBN, 'JHB', 'Swap stock', null, null])).toMatchObject({ location_id: 'JHB' });
+      expect(await ok(CORRECT, [ORG_E, U_DBN, JSON.stringify({ notes: 'Synthetic note' })])).toMatchObject({ notes: 'Synthetic note' });
+      expect(await ok(CORRECT_V, [ORG_E, U_DBN, JSON.stringify({ status: 'reserved' }), null])).toMatchObject({ status: 'reserved' });
+      await code(MOVE, [ORG_E, '00000000-0000-0000-0000-00000000dead', 'CPT', 'Swap stock', null, null], 'UNIT_NOT_FOUND');
+      // A missing unit is still UNIT_NOT_FOUND with a version given.
+      await code(MOVE_V, [ORG_E, '00000000-0000-0000-0000-00000000dead', 'CPT', 'Swap stock', null, null, '2000-01-01T00:00:00Z'], 'UNIT_NOT_FOUND');
+    });
+  });
+
+  it('roles are checked first, as before: non-admins and other orgs get FORBIDDEN, never UNIT_CHANGED', async () => {
+    const stale = '2000-01-01T00:00:00Z';
+    for (const u of [STAFF_E, FACTORY_E, REVIEWER_E, ADMIN_A]) {
+      await as(db, 'authenticated', u, () => code(CORRECT_V, [ORG_E, U_DBN, JSON.stringify({ notes: 'x' }), stale], 'FORBIDDEN'));
+    }
+    for (const u of [STAFF_E, FACTORY_E]) {
+      await as(db, 'authenticated', u, () => code(MOVE_V, [ORG_E, U_DBN, 'JHB', 'Swap stock', null, null, null], 'FORBIDDEN'));
+    }
+    for (const u of [REVIEWER_E, INSPECTOR_E, ADMIN_A]) {
+      await as(db, 'authenticated', u, () => code(MOVE_V, [ORG_E, U_FACT, 'JHB', null, null, null, stale], 'FORBIDDEN'));
+    }
+  });
+
+  it('privileges: clients call only the public names; the 0011 bodies and the version helper are internal', async () => {
+    const r = await db.query(
+      `select p.oid::regprocedure::text as f, has_function_privilege('authenticated', p.oid, 'execute') as auth,
+              has_function_privilege('anon', p.oid, 'execute') as anon, p.prosecdef as definer, p.proconfig as cfg
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname in ('stock_move_unit', 'stock_correct_unit', 'stock_move_unit_unchecked', 'stock_correct_unit_unchecked', 'stock_check_unit_version')
+       order by 1`);
+    const by = Object.fromEntries(r.rows.map((x) => [x.f.replace(/\(.*/, ''), x]));
+    expect(Object.keys(by).sort()).toEqual(['stock_check_unit_version', 'stock_correct_unit', 'stock_correct_unit_unchecked', 'stock_move_unit', 'stock_move_unit_unchecked']);
+    expect(r.rows).toHaveLength(5);   // one function per name: no ambiguous overloads
+    for (const f of ['stock_move_unit', 'stock_correct_unit']) expect(by[f], f).toMatchObject({ auth: true, anon: false, definer: true, cfg: ['search_path=""'] });
+    for (const f of ['stock_move_unit_unchecked', 'stock_correct_unit_unchecked', 'stock_check_unit_version']) expect(by[f], f).toMatchObject({ auth: false, anon: false });
+  });
+});
+
 describe('stock_dismiss_deal / stock_restore_deal', () => {
   it('admin dismisses with a reason (on the deal and in the history, not in the audit) and restores', async () => {
     await as(db, 'authenticated', ADMIN_E, async () => {
@@ -737,6 +817,39 @@ describe('stock_apply_invoice', () => {
       await db.query(`update public.stock_invoice_exceptions set resolved_at = now(), resolution = 'Checked' where org_id = $1 and invoice_number = 'INV-E-400'`, [ORG_E]);
       expect(r(await ok(APPLY, applyArgs('INV-E-400', 'TESTVINAVL0000004', 'exception:voided', 'live')))).toMatchObject({ recorded: false });
       expect(await count(`select count(*) as n from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-400'`, [ORG_E])).toBe(1);
+    });
+  });
+
+  it('0019: a resolved exception blocks only the same or an older Xero state; a later change raises a new one', async () => {
+    const APPLY7 = `select public.stock_apply_invoice($1, $2, $3, $4, $5, $6, $7) as r`;
+    const T1 = '2026-05-01T10:00:00Z';
+    const T2 = '2026-05-02T10:00:00Z';
+    const n = () => count(`select count(*) as n from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]);
+    await as(db, 'service_role', null, async () => {
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T1]))).toMatchObject({ recorded: true });
+      // Open: the same or a later state adds nothing.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T2]))).toMatchObject({ recorded: false });
+      expect(await one(`select source_updated_utc from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]))
+        .toEqual({ source_updated_utc: new Date(T1) });
+      await db.query(`update public.stock_invoice_exceptions set resolved_at = now(), resolution = 'Checked' where org_id = $1 and invoice_number = 'INV-E-410'`, [ORG_E]);
+      // Resolved for T1: T1 again (nightly sweep) is not raised again.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T1]))).toMatchObject({ recorded: false });
+      expect(await n()).toBe(1);
+      // The invoice changed again in Xero (T2) and still breaks the rules: a new open exception.
+      expect(r(await ok(APPLY7, [...applyArgs('INV-E-410', 'TESTVINAVL0000004', 'exception:voided', 'live', 'xero-inv-410'), T2]))).toMatchObject({ recorded: true });
+      expect(await n()).toBe(2);
+      expect(await count(`select count(*) as n from public.stock_invoice_exceptions where org_id = $1 and invoice_number = 'INV-E-410' and resolved_at is null`, [ORG_E])).toBe(1);
+    });
+  });
+
+  it('0019: factory staff cannot read the credit notes mirror; staff can', async () => {
+    await db.query(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, credit_note_type, raw) values ($1, 't-e', 'cn-e-1', 'ACCRECCREDIT', '{}') on conflict do nothing`, [ORG_E]);
+    expect(await as(db, 'authenticated', FACTORY_E, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(0);
+    expect(await as(db, 'authenticated', STAFF_E, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(1);
+    expect(await as(db, 'authenticated', ADMIN_A, () => count(`select count(*) as n from public.xero_credit_notes where org_id = $1`, [ORG_E]))).toBe(0);
+    await as(db, 'authenticated', ADMIN_E, async () => {
+      const { err } = await attempt(`insert into public.xero_credit_notes(org_id, tenant_id, credit_note_id, raw) values ($1, 't', 'cn-x', '{}')`, [ORG_E]);
+      expect(err).not.toBeNull();
     });
   });
 

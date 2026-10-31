@@ -1,5 +1,6 @@
-// ImportSink over the service-role Supabase client. Used only by scripts/import-cognito.ts (an operator-run
-// script, not a request path), so there is no user and no requirePerm: access is the service-role key itself.
+// ImportSink over the service-role Supabase client. Used by scripts/import-cognito.ts (an operator-run script: access
+// is the service-role key itself) and by the in-app 'cognito.import' job (lib/import/cognito/job.ts), whose runs
+// are created only by the import page's actions after requirePerm('import.run').
 // Error messages are reduced to the table/operation name so no value (file name, path) reaches the console.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { fetchAll } from '@/lib/db/paging';

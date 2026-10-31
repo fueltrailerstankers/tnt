@@ -5,7 +5,7 @@
 //   POST /connect/token                authorization_code and refresh_token grants (Basic auth; single-use rotating
 //                                      refresh tokens)
 //   GET  /connections                  one ORGANISATION tenant
-//   GET  /api.xro/2.0/...              Contacts, Quotes, Invoices, Payments (+ /{id}, Invoices/{id}/Attachments)
+//   GET  /api.xro/2.0/...              Contacts, Quotes, Invoices, CreditNotes, Payments (+ /{id}, Invoices/{id}/Attachments)
 //   Any non-GET to /api.xro/ -> 405, and it is logged so the no-writes test can see it.
 //
 // Test controls: GET /__health, GET /__log, GET /__data, POST /__reset, POST /__expire-access-token, POST /__mutate.
@@ -150,7 +150,24 @@ function buildData() {
       Invoice: { InvoiceID: i.InvoiceID, InvoiceNumber: i.InvoiceNumber, CurrencyCode: i.CurrencyCode },
     }));
 
-  return { contacts, quotes, invoices, payments, attachments };
+  // Credit notes (read-only GET /CreditNotes): two sales credit notes, one allocated to an invoice, and a bill credit.
+  const creditNotes = [1, 2, 3].map((k) => ({
+    CreditNoteID: uuid('f0000000', k),
+    CreditNoteNumber: `CN-${String(k).padStart(4, '0')}`,
+    Type: k === 3 ? 'ACCPAYCREDIT' : 'ACCRECCREDIT',
+    Reference: `Synthetic credit ${k}`,
+    Status: 'AUTHORISED',
+    Contact: contactRef(k),
+    Date: netDate('2026-09-15T00:00:00Z'),
+    DateString: isoDay('2026-09-15'),
+    CurrencyCode: 'ZAR',
+    Total: 100 * k,
+    RemainingCredit: k === 1 ? 0 : 100 * k,
+    Allocations: k === 1 ? [{ Amount: 100, Invoice: { InvoiceID: invoices[0].InvoiceID, InvoiceNumber: invoices[0].InvoiceNumber } }] : [],
+    UpdatedDateUTC: netDate('2026-09-15T12:00:00Z'),
+  }));
+
+  return { contacts, quotes, invoices, payments, attachments, creditNotes };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -256,6 +273,7 @@ function api(req, url) {
   if (p === '/Quotes') return list(req, url, 'Quotes', data.quotes, { statusParam: true, dateRange: true });
   if (p === '/Invoices') return list(req, url, 'Invoices', data.invoices, { pageSizeParam: true });
   if (p === '/Payments') return list(req, url, 'Payments', data.payments, { pageSizeParam: true });
+  if (p === '/CreditNotes') return list(req, url, 'CreditNotes', data.creditNotes, {});
   if ((m = p.match(/^\/Invoices\/([0-9a-f-]{36})\/Attachments$/))) {
     if (!data.invoices.some((i) => i.InvoiceID === m[1])) throw new Bad(404, 'not found');
     return { Attachments: data.attachments[m[1]] ?? [] };
