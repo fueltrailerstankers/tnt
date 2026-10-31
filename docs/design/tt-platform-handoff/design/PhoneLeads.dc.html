@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Leads on phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+</style>
+</helmet>
+<div style="{{tv}}; width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <header style="flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; background: var(--side); color: var(--sidetext)">
+    <div style="display: flex; align-items: center; gap: 8px">
+      <sc-if value="{{inList}}" hint-placeholder-val="{{ true }}"><a href="PhoneHome.dc.html" aria-label="Back to home" style="width: 44px; height: 44px; border-radius: 16px; color: var(--sidetext); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a></sc-if>
+      <sc-if value="{{inDetail}}" hint-placeholder-val="{{ false }}"><button onClick="{{back}}" aria-label="Back to leads" style="width: 44px; height: 44px; border: 0; border-radius: 16px; background: transparent; color: var(--sidetext); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button></sc-if>
+      <span style="flex: 1; font-size: 17px; font-weight: 700">{{title}}</span>
+      <button aria-label="Add lead" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    </div>
+    <sc-if value="{{inList}}" hint-placeholder-val="{{ true }}">
+      <div role="tablist" aria-label="Stage" style="display: flex; gap: 6px; overflow-x: auto">
+        <sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+          <button role="tab" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="flex: none; height: 34px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; {{c.style}}">{{c.label}} {{c.n}}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </header>
+
+  <main style="flex: 1; overflow-y: auto; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 10px">
+    <sc-if value="{{inList}}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{rows}}" as="l" hint-placeholder-count="5">
+        <button onClick="{{l.open}}" style="display: flex; flex-direction: column; gap: 8px; min-height: 72px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer">
+          <span style="display: flex; justify-content: space-between; gap: 8px; width: 100%"><span style="font-size: 15px; font-weight: 700">{{l.company}}</span><span style="font-size: 12px; color: var(--muted)">{{l.age}}</span></span>
+          <span style="font-size: 13px; color: var(--muted)">{{l.need}}</span>
+          <span style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center">
+            <span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 700; {{l.tone}}"><span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor"></span>{{l.stage}}</span>
+            <span style="font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; {{l.srcTone}}">{{l.source}}</span>
+            <sc-if value="{{l.dup}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: var(--yelb); color: var(--yelt)">Duplicate?</span></sc-if>
+          </span>
+        </button>
+      </sc-for>
+    </sc-if>
+
+    <sc-if value="{{inDetail}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted)">{{cur.id}} · {{cur.source}}</span>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 700">{{cur.company}}</h1>
+        <span style="font-size: 14px; color: var(--muted)">{{cur.need}}</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <a href="#" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 999px; background: var(--accent); color: var(--onaccent); text-decoration: none; font-size: 15px; font-weight: 700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>Call</a>
+        <a href="#" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 999px; border: 1px solid var(--strong); color: var(--text); text-decoration: none; font-size: 15px; font-weight: 700">Email</a>
+      </div>
+      <sc-if value="{{cur.dup}}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="padding: 12px 14px; border-radius: 16px; background: var(--yelb); color: var(--yelt); font-size: 14px"><strong>Possible duplicate of L-0917</strong> · same phone. Merge from the desktop inbox.</div>
+      </sc-if>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 700">Stage</span>
+        <div role="radiogroup" aria-label="Stage" style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{stages}}" as="st" hint-placeholder-count="5">
+            <button role="radio" aria-checked="{{st.on}}" onClick="{{st.pick}}" style="height: 40px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; {{st.style}}">{{st.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); display: grid; grid-template-columns: 84px 1fr; gap: 8px; font-size: 14px">
+        <span style="color: var(--muted)">Contact</span><span>{{cur.contact}}</span>
+        <span style="color: var(--muted)">Phone</span><span>{{cur.phone}}</span>
+        <span style="color: var(--muted)">Owner</span><span>{{cur.owner}}</span>
+        <span style="color: var(--muted)">Xero</span><span>{{cur.xero}}</span>
+      </div>
+      <label for="pl-note" style="font-size: 13px; font-weight: 700">Add note</label>
+      <textarea id="pl-note" rows="3" placeholder="Call outcome, next step…" style="padding: 12px; border-radius: 16px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 16px; resize: none"></textarea>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = !!this.props.dark;
+    const tone = { New: 'background: var(--tealb); color: var(--tealt)', Contacted: 'background: var(--yelb); color: var(--yelt)', Quoted: 'background: var(--accentsoft); color: var(--accenttext)', Won: 'background: var(--grnb); color: var(--grnt)', Lost: 'background: var(--grayb); color: var(--grayt)' };
+    const src = { Manual: 'background: var(--surface2); color: var(--muted)', Test: 'background: var(--yelb); color: var(--yelt)' };
+    const moved = s.moved || {};
+    const base = [
+      { id: 'L-0932', company: 'Sample Agri Supplies', need: 'Mini tanker 1 000 L', stage: 'New', source: 'Manual', age: '4 h', dup: false, contact: 'S. Demo', phone: '+27 31 555 0190', owner: 'Thandi M.', xero: 'No quote yet' },
+      { id: 'L-0931', company: 'Karoo Demo Transport', need: '2-compartment diesel bowser', stage: 'New', source: 'Manual', age: '2 d', dup: true, contact: 'K. Sample', phone: '+27 23 555 0101', owner: 'Zanele D.', xero: 'No quote yet' },
+      { id: 'L-0930', company: 'Test Fleet (Pty) Ltd', need: 'Two 38 000 L fuel tankers', stage: 'Contacted', source: 'Manual', age: '3 d', dup: false, contact: 'T. Demo', phone: '+27 31 555 0177', owner: 'Pieter V.', xero: 'No quote yet' },
+      { id: 'L-0917', company: 'Karoo Demo Transport', need: 'Diesel bowser quote', stage: 'Quoted', source: 'Manual', age: '6 d', dup: true, contact: 'K. Sample', phone: '+27 23 555 0101', owner: 'Thandi M.', xero: 'QU-10476 · Sent · R 198,400' },
+      { id: 'L-0928', company: 'Webhook test lead', need: 'Integration test payload', stage: 'New', source: 'Test', age: '6 d', dup: false, contact: 'Test Runner', phone: '+27 00 555 0000', owner: 'Unassigned', xero: '—' },
+      { id: 'L-0929', company: 'Demo Haulage CC', need: 'Flat-deck trailer, 12 m', stage: 'Won', source: 'Manual', age: '10 d', dup: false, contact: 'D. Example', phone: '+27 21 555 0133', owner: 'Pieter V.', xero: 'QU-10479 · Accepted · R 312,900' }
+    ];
+    const leads = base.map(l => ({ ...l, stage: moved[l.id] || l.stage }));
+    const filter = s.filter || 'Open';
+    const open = s.open || null;
+    const cur = leads.find(l => l.id === open);
+    const isOpen = (l) => l.stage !== 'Won' && l.stage !== 'Lost';
+    const filters = ['Open', 'New', 'Contacted', 'Quoted', 'Won'];
+    const match = (f, l) => f === 'Open' ? isOpen(l) : l.stage === f;
+    return {
+      tv: this.themeVars(dark),
+      inList: !cur, inDetail: !!cur,
+      title: cur ? 'Lead' : 'Leads',
+      back: () => this.setState({ open: null }),
+      chips: filters.map(f => ({ label: f, n: leads.filter(l => match(f, l)).length, on: f === filter ? 'true' : 'false',
+        style: f === filter ? 'border: 0; background: var(--accent); color: var(--onaccent)' : 'border: 1px solid var(--sideborder); background: transparent; color: var(--sidetext)',
+        pick: () => this.setState({ filter: f }) })),
+      rows: leads.filter(l => match(filter, l)).map(l => ({ ...l, tone: tone[l.stage], srcTone: src[l.source], open: () => this.setState({ open: l.id }) })),
+      cur: cur || { id: '', company: '', need: '', source: '', dup: false, contact: '', phone: '', owner: '', xero: '' },
+      stages: ['New', 'Contacted', 'Quoted', 'Won', 'Lost'].map(st => ({ label: st, on: cur && cur.stage === st ? 'true' : 'false',
+        style: cur && cur.stage === st ? 'border: 1px solid var(--accent); background: var(--accentsoft); color: var(--accenttext)' : 'border: 1px solid var(--border); background: var(--surface); color: var(--text)',
+        pick: () => { if (cur) this.setState({ moved: { ...moved, [cur.id]: st } }); } }))
+    };
+  }
+}
+</script>
+</body>
+</html>

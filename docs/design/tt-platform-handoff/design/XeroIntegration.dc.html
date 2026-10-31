@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Xero integration</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+.search:focus-within{outline:2px solid #C25A12;outline-offset:1px}
+</style>
+</helmet>
+<div style="{{tv}}; position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <aside aria-label="Main navigation" style="flex: 1 1 232px; min-width: 0; box-sizing: border-box; background: var(--side); border-right: 1px solid var(--sideborder); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+    <a href="Home.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; text-decoration: none; color: var(--sidetext)">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 14px; font-weight: 600">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Operations portal</span></span>
+    </a>
+    <nav style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+        <a href="{{n.href}}" aria-current="{{n.current}}" style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 14px; {{n.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>
+          <span style="flex: 1">{{n.label}}</span>
+          <sc-if value="{{n.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{n.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </nav>
+    <div style="margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--sideborder); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sidemuted)">
+      <span style="display: flex; align-items: center; gap: 6px; color: var(--sidetext); font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3CCB7F"></span>Xero connected</span>
+      <span>Synced 2 min ago · 14:30 SAST</span>
+    </div>
+  </aside>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 28px; border-bottom: 1px solid var(--border); background: var(--surface)">
+      <label class="search" style="flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--muted)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg>
+        <input aria-label="Search by quote no, VIN or invoice no" placeholder="Search quote no, VIN or invoice no" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline: none">
+        <kbd style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border: 1px solid var(--strong); border-radius: 6px; color: var(--muted)">/</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+        <button aria-label="{{themeAria}}" onClick="{{toggleTheme}}" style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"></path></svg></button>
+        <button aria-haspopup="menu" aria-label="User menu, Zanele D., Admin" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">ZD</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 13px; font-weight: 600">Zanele D.</span><span style="font-size: 11px; color: var(--muted)">Admin · Durban</span></span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1360px; box-sizing: border-box">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <nav aria-label="Breadcrumb" style="font-size: 13px; color: var(--muted); display: flex; gap: 6px"><span>Integrations</span><span>/</span><span style="color: var(--text)">Xero</span></nav>
+        <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">Xero</h1>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 18px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Connection</h2><span style="display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--grnb); color: var(--grnt)"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>Connected</span></div>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px">
+            <span style="color: var(--muted)">Organisation</span><span style="font-weight: 500">[Xero organisation name]</span>
+            <span style="color: var(--muted)">Connected by</span><span>Zanele D. · 2 Sep 2026</span>
+            <span style="color: var(--muted)">Scopes</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px">accounting.transactions, accounting.contacts, offline_access</span>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: auto">
+            <button style="flex: 1; height: 38px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600">Reconnect with Xero (OAuth)</button>
+            <button style="height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--redt); font: inherit; font-size: 14px; font-weight: 500">Disconnect</button>
+          </div>
+        </section>
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 18px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Tokens</h2>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Access token</span><span style="font-weight: 600">22 min left · auto-refresh</span></div>
+            <div style="height: 6px; border-radius: 3px; background: var(--border)"><div style="width: 73%; height: 6px; border-radius: 3px; background: var(--grnt)"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Refresh token</span><span style="font-weight: 600">54 days left</span></div>
+            <div style="height: 6px; border-radius: 3px; background: var(--border)"><div style="width: 90%; height: 6px; border-radius: 3px; background: var(--grnt)"></div></div>
+          </div>
+          <span style="font-size: 12px; color: var(--muted)">Last refreshed 14:08 SAST · expiry alert to admin at 7 days</span>
+        </section>
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 18px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Rate-limit headroom</h2>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>This minute</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600">8 / 60 left</span></div>
+            <div style="height: 6px; border-radius: 3px; background: var(--border)"><div style="width: 13%; height: 6px; border-radius: 3px; background: var(--red)"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Today</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600">4,612 / 5,000 left</span></div>
+            <div style="height: 6px; border-radius: 3px; background: var(--border)"><div style="width: 92%; height: 6px; border-radius: 3px; background: var(--grnt)"></div></div>
+          </div>
+          <span style="font-size: 12px; color: var(--muted)">Jobs back off automatically under 10 / min.</span>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <section style="flex: 1 1 460px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border)"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Last sync per entity</h2><button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 500">Sync all now</button></div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 8px 16px; font-weight: 600">Entity</th><th style="padding: 8px; font-weight: 600">Last success</th><th style="padding: 8px; font-weight: 600">Records</th><th style="padding: 8px 16px 8px 8px; font-weight: 600">State</th></tr></thead>
+            <tbody>
+              <sc-for list="{{entities}}" as="e" hint-placeholder-count="5">
+                <tr style="border-top: 1px solid var(--border)"><td style="padding: 0 16px; height: 40px; font-weight: 500">{{e.name}}</td><td style="padding: 0 8px; color: var(--muted)">{{e.when}}</td><td style="padding: 0 8px; font-family: 'JetBrains Mono', ui-monospace, monospace">{{e.n}}</td><td style="padding: 0 16px 0 8px"><span style="display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{e.tone}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>{{e.state}}</span></td></tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </section>
+        <section style="flex: 1 1 460px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border)"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Failures · 24 h</h2><span style="font-size: 12px; color: var(--muted)">Webhook key verified · last event 14:29</span></div>
+          <ul style="list-style: none; margin: 0; padding: 0">
+            <sc-for list="{{failures}}" as="f" hint-placeholder-count="3">
+              <li style="display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border)">
+                <span style="flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace">{{f.job}}</span> · {{f.err}}</span><span style="font-size: 12px; color: var(--muted)">{{f.meta}}</span></span>
+                <button onClick="{{f.act}}" style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{f.label}}</button>
+              </li>
+            </sc-for>
+          </ul>
+        </section>
+      </div>
+
+      <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border)">
+          <div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Write actions</h2><span style="font-size: 13px; color: var(--muted)">Replace Make.com one action at a time. Dry-run logs the request without sending it.</span></div>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 13px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 8px 16px; font-weight: 600">Action</th><th style="padding: 8px; font-weight: 600">Trigger</th><th style="padding: 8px; font-weight: 600">Last 7 days</th><th style="padding: 8px; font-weight: 600">Mode</th><th style="padding: 8px 16px 8px 8px; font-weight: 600"></th></tr></thead>
+            <tbody>
+              <sc-for list="{{actions}}" as="a" hint-placeholder-count="5">
+                <tr style="border-top: 1px solid var(--border); {{a.bg}}">
+                  <td style="padding: 10px 16px"><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 600">{{a.name}}</span></td>
+                  <td style="padding: 10px 8px; color: var(--muted)">{{a.trigger}}</td>
+                  <td style="padding: 10px 8px; color: var(--muted)">{{a.stats}}</td>
+                  <td style="padding: 10px 8px">
+                    <div role="radiogroup" aria-label="{{a.name}} mode" style="display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border)">
+                      <sc-for list="{{a.segs}}" as="sg" hint-placeholder-count="3">
+                        <button role="radio" aria-checked="{{sg.on}}" onClick="{{sg.pick}}" style="height: 28px; padding: 0 12px; border-radius: 999px; border: 0; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; {{sg.style}}">{{sg.label}}</button>
+                      </sc-for>
+                    </div>
+                  </td>
+                  <td style="padding: 10px 16px 10px 8px; text-align: right"><button onClick="{{a.showDiff}}" style="height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer">View dry-run diff</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="diff-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border)">
+          <h2 id="diff-h" style="margin: 0; font-size: 15px; font-weight: 600">Dry-run diff · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace">{{diffName}}</span></h2>
+          <span style="font-size: 12px; color: var(--muted)">Run #8807 · INV-20931 · 28 Oct 13:20 SAST · <strong style="color: var(--yelt)">2 differences</strong></span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr))">
+          <div style="border-right: 1px solid var(--border); min-width: 0">
+            <div style="padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2)">Portal would send</div>
+            <pre style="margin: 0; padding: 10px 0; overflow-x: auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px"><sc-for list="{{left}}" as="ln" hint-placeholder-count="10"><span style="display: block; padding: 0 16px; {{ln.bg}}">{{ln.t}}</span></sc-for></pre>
+          </div>
+          <div style="min-width: 0">
+            <div style="padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2)">Make.com sent</div>
+            <pre style="margin: 0; padding: 10px 0; overflow-x: auto; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; line-height: 20px"><sc-for list="{{right}}" as="ln" hint-placeholder-count="10"><span style="display: block; padding: 0 16px; {{ln.bg}}">{{ln.t}}</span></sc-for></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <sc-if value="{{confirmOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: var(--overlay); display: flex; align-items: flex-start; justify-content: center; padding-top: 220px">
+      <div role="dialog" aria-modal="true" aria-labelledby="live-h" style="width: 480px; max-width: calc(100% - 32px); background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 14px">
+        <h3 id="live-h" style="margin: 0; font-size: 17px; font-weight: 600">Switch <span style="font-family: 'JetBrains Mono', ui-monospace, monospace">{{pending}}</span> to Live?</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--muted)">The portal will start writing to Xero for this action. Turn off the matching Make.com scenario first, or Xero will get duplicate writes.</p>
+        <label for="live-in" style="font-size: 13px; font-weight: 600">Type <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1px 5px; border-radius: 6px; background: var(--surface2)">LIVE {{pending}}</span> to confirm</label>
+        <input id="live-in" value="{{typed}}" onChange="{{onType}}" autocomplete="off" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">
+        <div style="display: flex; justify-content: flex-end; gap: 8px">
+          <button onClick="{{cancelLive}}" style="height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer">Cancel</button>
+          <button onClick="{{confirmLive}}" disabled="{{cantConfirm}}" style="height: 38px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--red); color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; opacity: {{confirmOpacity}}">Go live</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  nav(active) {
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4' };
+    const items = [['Home','home','Home.dc.html'],['Tasks','tasks','Tasks.dc.html',5],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','Leads.dc.html',2],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return items.map(([label, ic, href, badge]) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, current: label === active ? 'page' : 'false', style: label === active ? 'background: var(--sideactive); color: #FFFFFF; font-weight: 600' : 'color: var(--sidemuted)' }));
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const tone = { ok:'background: var(--grnb); color: var(--grnt)', fail:'background: var(--redb); color: var(--redt)', run:'background: var(--tealb); color: var(--tealt)' };
+    const modes = s.modes || { setQuoteStatus: 'Live', upsertContact: 'Dry-run', createInvoiceFromQuote: 'Dry-run', uploadInvoiceAttachment: 'Off', setInvoiceReference: 'Off' };
+    const defs = [
+      ['setQuoteStatus', 'Deal submitted', '41 sent · 0 errors'],
+      ['upsertContact', 'Request for Invoice submitted', '18 dry-runs · 1 diff'],
+      ['createInvoiceFromQuote', 'Request for Invoice with 1st deposit', '17 dry-runs · 2 diffs'],
+      ['uploadInvoiceAttachment', 'Deposit files uploaded', 'Off · Make.com handles it'],
+      ['setInvoiceReference', 'Release Form created', 'Off · Make.com handles it']
+    ];
+    const segStyle = { 'Off': 'background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12)', 'Dry-run': 'background: var(--yelb); color: var(--yelt)', 'Live': 'background: var(--red); color: #FFFFFF' };
+    const diffName = s.diff || 'createInvoiceFromQuote';
+    const pending = s.pending || null;
+    const typed = s.typed || '';
+    const target = pending ? 'LIVE ' + pending : '';
+    const n = (t) => ({ t, bg: '' });
+    const add = (t) => ({ t, bg: 'background: var(--grnb); color: var(--grnt)' });
+    const del = (t) => ({ t, bg: 'background: var(--redb); color: var(--redt)' });
+    const retry = s.retried || {};
+    return {
+      tv: this.themeVars(dark),
+      themeAria: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      themeIcon: dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      nav: this.nav('Integrations'),
+      entities: [
+        { name: 'Quotes', when: '14:30 SAST', n: '1,204', state: 'OK', tone: tone.ok },
+        { name: 'Invoices', when: '13:12 SAST', n: '986', state: retry.inv ? 'Retrying' : 'Failed', tone: retry.inv ? tone.run : tone.fail },
+        { name: 'Contacts', when: '14:30 SAST', n: '642', state: 'OK', tone: tone.ok },
+        { name: 'Payments', when: '14:28 SAST', n: '1,377', state: 'OK', tone: tone.ok },
+        { name: 'Attachments', when: '14:20 SAST', n: '2,915', state: 'OK', tone: tone.ok }
+      ],
+      failures: [
+        { job: 'xero.syncInvoices', err: '429 Too Many Requests', meta: '13:58 SAST · 3 attempts · run #8812', label: retry.inv ? 'Queued' : 'Retry', act: () => this.setState({ retried: { ...retry, inv: true } }) },
+        { job: 'webhook.invoice.updated', err: 'signature ok, handler timeout', meta: '11:47 SAST · event INV-20930', label: retry.wh ? 'Replayed' : 'Replay webhook', act: () => this.setState({ retried: { ...retry, wh: true } }) },
+        { job: 'xero.uploadAttachment', err: '413 file too large', meta: '09:05 SAST · deposit-2.pdf · 26 MB', label: 'View', act: () => {} }
+      ],
+      actions: defs.map(([name, trigger, stats]) => ({ name, trigger, stats,
+        bg: name === diffName ? 'background: var(--accentsoft)' : '',
+        showDiff: () => this.setState({ diff: name }),
+        segs: ['Off', 'Dry-run', 'Live'].map(m => ({ label: m, on: modes[name] === m ? 'true' : 'false', style: modes[name] === m ? segStyle[m] : 'background: transparent; color: var(--muted)',
+          pick: () => { if (m === 'Live' && modes[name] !== 'Live') { this.setState({ pending: name, typed: '' }); } else { this.setState({ modes: { ...modes, [name]: m } }); } } })) })),
+      diffName: diffName,
+      left: [n('POST /api.xro/2.0/Invoices'), n('{'), n('  "Type": "ACCREC",'), n('  "Contact": { "ContactID": "c7e1…demo" },'), add('  "Reference": "QU-10482 / TT9DEMO24D0010482",'), n('  "LineAmountTypes": "Inclusive",'), n('  "LineItems": [ …3 lines from QU-10482 ],'), add('  "DueDate": "2026-11-24",'), n('  "Status": "AUTHORISED"'), n('}')],
+      right: [n('POST /api.xro/2.0/Invoices'), n('{'), n('  "Type": "ACCREC",'), n('  "Contact": { "ContactID": "c7e1…demo" },'), del('  "Reference": "QU-10482",'), n('  "LineAmountTypes": "Inclusive",'), n('  "LineItems": [ …3 lines from QU-10482 ],'), del('  "DueDate": "2026-11-25",'), n('  "Status": "AUTHORISED"'), n('}')],
+      confirmOpen: !!pending, pending: pending || '', typed: typed,
+      onType: (e) => this.setState({ typed: e.target.value }),
+      cantConfirm: typed !== target, confirmOpacity: typed === target ? '1' : '0.45',
+      cancelLive: () => this.setState({ pending: null, typed: '' }),
+      confirmLive: () => { if (typed === target) this.setState({ modes: { ...modes, [pending]: 'Live' }, pending: null, typed: '' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

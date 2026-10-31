@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+a{color:#B4500C}a:hover{color:#8F3F0A}
+button:focus-visible,input:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid #C25A12;outline-offset:2px}
+.search:focus-within{outline:2px solid #C25A12;outline-offset:1px}
+</style>
+</helmet>
+<div style="{{tv}}; min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif">
+
+  <aside aria-label="Main navigation" style="flex: 1 1 232px; min-width: 0; box-sizing: border-box; background: var(--side); border-right: 1px solid var(--sideborder); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+    <a href="Home.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; text-decoration: none; color: var(--sidetext)">
+      <span style="width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--onaccent); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 600">T&amp;T</span>
+      <span style="display: flex; flex-direction: column; line-height: 1.2"><span style="font-size: 14px; font-weight: 600">Trailers &amp; Tankers</span><span style="font-size: 12px; color: var(--sidemuted)">Operations portal</span></span>
+    </a>
+    <nav style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+        <a href="{{n.href}}" aria-current="{{n.current}}" style="display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 999px; text-decoration: none; font-size: 14px; {{n.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>
+          <span style="flex: 1">{{n.label}}</span>
+          <sc-if value="{{n.hasBadge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--red); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{n.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </nav>
+    <div style="margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid var(--sideborder); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sidemuted)">
+      <span style="display: flex; align-items: center; gap: 6px; color: var(--sidetext); font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3CCB7F"></span>Xero connected</span>
+      <span>Synced 2 min ago · 14:30 SAST</span>
+    </div>
+  </aside>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 28px; border-bottom: 1px solid var(--border); background: var(--surface)">
+      <label class="search" style="flex: 1 1 280px; max-width: 560px; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--muted)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"></path></svg>
+        <input aria-label="Search by quote no, VIN or invoice no" placeholder="Search quote no, VIN or invoice no" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--text); outline: none">
+        <kbd style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border: 1px solid var(--strong); border-radius: 6px; color: var(--muted)">/</kbd>
+      </label>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+        <button aria-label="{{themeAria}}" onClick="{{toggleTheme}}" style="width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"></path></svg></button>
+        <button aria-haspopup="menu" aria-label="User menu, Zanele D., Admin" style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: var(--accentsoft); color: var(--accenttext); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">ZD</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 13px; font-weight: 600">Zanele D.</span><span style="font-size: 11px; color: var(--muted)">Admin · Durban</span></span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 1360px; box-sizing: border-box">
+      <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em">Settings</h1>
+      <div role="tablist" aria-label="Settings sections" style="display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border)">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+          <button role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="flex: none; height: 40px; padding: 0 14px; border: 0; background: transparent; font: inherit; font-size: 14px; cursor: pointer; {{t.style}}">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{isOrg}}" hint-placeholder-val="{{ true }}">
+        <section style="max-width: 720px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); padding: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 18px">
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="o-n" style="font-size: 13px; font-weight: 600">Organisation name</label><input id="o-n" value="Trailers &amp; Tankers" style="height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="o-c" style="font-size: 13px; font-weight: 600">Display currency</label><select id="o-c" style="height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"><option>USD · US dollar</option><option>ZAR · South African rand</option></select><span style="font-size: 12px; color: var(--muted)">Xero amounts always show in ZAR with a badge.</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="o-tz" style="font-size: 13px; font-weight: 600">Timezone</label><select id="o-tz" style="height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"><option>Africa/Johannesburg (SAST, UTC+2)</option></select></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><label for="o-fx" style="font-size: 13px; font-weight: 600">ZAR → USD rate source</label><select id="o-fx" style="height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 14px"><option>Manual · [rate]</option><option>Daily feed</option></select></div>
+          <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px"><button style="height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600">Save changes</button></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isUsers}}" hint-placeholder-val="{{ false }}">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border)">
+            <span style="display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 10px; border-radius: 10px; background: var(--yelb); color: var(--yelt); font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.01"></path></svg>Everyone is Admin for now. Roles are ready for when you split permissions.</span>
+            <button style="height: 34px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600">Invite user</button>
+          </div>
+          <div style="overflow-x: auto"><table style="width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 9px 16px; font-weight: 600">Name</th><th style="padding: 9px 8px; font-weight: 600">Email</th><th style="padding: 9px 8px; font-weight: 600">Branch</th><th style="padding: 9px 8px; font-weight: 600">Role</th><th style="padding: 9px 16px 9px 8px; font-weight: 600">Last active</th></tr></thead>
+            <tbody><sc-for list="{{users}}" as="u" hint-placeholder-count="6"><tr style="border-top: 1px solid var(--border)"><td style="padding: 0 16px; height: 44px; font-weight: 500">{{u.n}}</td><td style="padding: 0 8px; color: var(--muted)">{{u.e}}</td><td style="padding: 0 8px">{{u.b}}</td><td style="padding: 0 8px"><select aria-label="Role for {{u.n}}" style="height: 32px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--strong); background: var(--surface); color: var(--text); font: inherit; font-size: 13px"><option>Admin</option><option>Sales</option><option>Accounts</option><option>Branch</option><option>Factory</option><option>Inspector</option></select></td><td style="padding: 0 16px 0 8px; color: var(--muted)">{{u.l}}</td></tr></sc-for></tbody>
+          </table></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isNotif}}" hint-placeholder-val="{{ false }}">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border)"><span style="font-size: 13px; color: var(--muted)">Who gets emailed for each event. Branch blank = all branches.</span><button style="height: 34px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--accent); color: var(--onaccent); font: inherit; font-size: 14px; font-weight: 600">Add recipient</button></div>
+          <div style="overflow-x: auto"><table style="width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 9px 16px; font-weight: 600">Event key</th><th style="padding: 9px 8px; font-weight: 600">Address</th><th style="padding: 9px 8px; font-weight: 600">Branch</th><th style="padding: 9px 16px 9px 8px; font-weight: 600; text-align: right">Actions</th></tr></thead>
+            <tbody><sc-for list="{{recips}}" as="r" hint-placeholder-count="7"><tr style="border-top: 1px solid var(--border)"><td style="padding: 0 16px; height: 44px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{r.k}}</td><td style="padding: 0 8px">{{r.a}}</td><td style="padding: 0 8px; color: var(--muted)">{{r.b}}</td><td style="padding: 0 16px 0 8px; text-align: right"><button aria-label="Edit recipient" style="height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px">Edit</button></td></tr></sc-for></tbody>
+          </table></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isAudit}}" hint-placeholder-val="{{ false }}">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="overflow-x: auto"><table style="width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 9px 16px; font-weight: 600">When (SAST)</th><th style="padding: 9px 8px; font-weight: 600">Who</th><th style="padding: 9px 8px; font-weight: 600">Action</th><th style="padding: 9px 16px 9px 8px; font-weight: 600">Target</th></tr></thead>
+            <tbody><sc-for list="{{audit}}" as="a" hint-placeholder-count="7"><tr style="border-top: 1px solid var(--border)"><td style="padding: 0 16px; height: 42px; color: var(--muted); white-space: nowrap">{{a.w}}</td><td style="padding: 0 8px">{{a.u}}</td><td style="padding: 0 8px">{{a.a}}</td><td style="padding: 0 16px 0 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{a.t}}</td></tr></sc-for></tbody>
+          </table></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isJobs}}" hint-placeholder-val="{{ false }}">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cardshadow); overflow: hidden">
+          <div style="overflow-x: auto"><table style="width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px">
+            <thead><tr style="background: var(--surface2); text-align: left; font-size: 12px; color: var(--muted)"><th style="padding: 9px 16px; font-weight: 600">Run</th><th style="padding: 9px 8px; font-weight: 600">Job</th><th style="padding: 9px 8px; font-weight: 600">Started</th><th style="padding: 9px 8px; font-weight: 600">Duration</th><th style="padding: 9px 8px; font-weight: 600">State</th><th style="padding: 9px 16px 9px 8px; font-weight: 600"></th></tr></thead>
+            <tbody><sc-for list="{{jobs}}" as="j" hint-placeholder-count="7"><tr style="border-top: 1px solid var(--border)"><td style="padding: 0 16px; height: 42px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{j.id}}</td><td style="padding: 0 8px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px">{{j.n}}</td><td style="padding: 0 8px; color: var(--muted)">{{j.s}}</td><td style="padding: 0 8px; color: var(--muted)">{{j.d}}</td><td style="padding: 0 8px"><span style="display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; {{j.tone}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor"></span>{{j.st}}</span></td><td style="padding: 0 16px 0 8px; text-align: right"><button style="height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px">Logs</button></td></tr></sc-for></tbody>
+          </table></div>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"tab":{"editor":"enum","options":["Organisation","Users & roles","Notification recipients","Audit log","Job runs"],"default":"Notification recipients"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  themeVars(d) {
+    const L = { bg:'#F6F7F9', surface:'#FFFFFF', surface2:'#F2F4F7', border:'#E4E7EC', strong:'#C4CAD4', text:'#101828', muted:'#475467', subtle:'#5D6679', accent:'#F47B20', onaccent:'#17181A', accentsoft:'#FFF1E6', accenttext:'#B4500C', side:'#1C1D21', sideborder:'#2C2E33', sidetext:'#F4F4F5', sidemuted:'#B0B4BC', sideactive:'#2F3137', grayb:'#ECEEF2', grayt:'#3F4652', tealb:'#DBF3F1', tealt:'#0B6560', yelb:'#FBF0C4', yelt:'#6E5100', grnb:'#DCF2E3', grnt:'#16613A', redb:'#FDE2DF', redt:'#B42318', red:'#D92D20', cardshadow:'0 1px 2px rgba(16,24,40,.04), 0 2px 8px rgba(16,24,40,.05)', shadow:'0 4px 8px rgba(16,24,40,.04), 0 20px 40px rgba(16,24,40,.14)', overlay:'rgba(16,18,24,.45)' };
+    const D = { bg:'#0B0D12', surface:'#14171E', surface2:'#1D2129', border:'#2A2F39', strong:'#3A404C', text:'#ECEEF2', muted:'#A9AFBB', subtle:'#8F96A3', accent:'#FF8A3D', onaccent:'#17181A', accentsoft:'#3A2210', accenttext:'#FFA466', side:'#101114', sideborder:'#23252A', sidetext:'#ECEEF2', sidemuted:'#A2A6AE', sideactive:'#26282D', grayb:'#262A33', grayt:'#C5CAD3', tealb:'#0F302E', tealt:'#5FD3C9', yelb:'#3A3010', yelt:'#F2CF5B', grnb:'#12301F', grnt:'#6DD596', redb:'#3D1714', redt:'#FF8A80', red:'#C93A2E', cardshadow:'0 1px 2px rgba(0,0,0,.35)', shadow:'0 12px 32px rgba(0,0,0,.5)', overlay:'rgba(0,0,0,.6)' };
+    const t = d ? D : L;
+    return Object.keys(t).map(k => '--' + k + ':' + t[k]).join(';');
+  }
+  nav(active) {
+    const I = { home:'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z', tasks:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', forms:'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5', deals:'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18', quotes:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', invoices:'M4 4h16v16H4zM4 9h16M9 9v11', documents:'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', leads:'M3 13l3-9h12l3 9M3 13v6h18v-6M3 13h5l1 3h6l1-3h5', integrations:'M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3', settings:'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4' };
+    const items = [['Home','home','Home.dc.html'],['Tasks','tasks','Tasks.dc.html',5],['Forms','forms','FormsIndex.dc.html'],['Deals','deals','DealFile.dc.html'],['Quotes','quotes','XeroMirror.dc.html'],['Invoices','invoices','XeroMirror.dc.html'],['Documents','documents','Entries.dc.html'],['Leads','leads','Leads.dc.html',2],['Integrations','integrations','XeroIntegration.dc.html'],['Settings','settings','Settings.dc.html']];
+    return items.map(([label, ic, href, badge]) => ({ label, d: I[ic], href, badge: badge || '', hasBadge: !!badge, current: label === active ? 'page' : 'false', style: label === active ? 'background: var(--sideactive); color: #FFFFFF; font-weight: 600' : 'color: var(--sidemuted)' }));
+  }
+  renderVals() {
+    const s = this.state || {};
+    const dark = s.dark != null ? s.dark : !!this.props.dark;
+    const tab = s.tab || this.props.tab || 'Notification recipients';
+    const tone = { ok:'background: var(--grnb); color: var(--grnt)', fail:'background: var(--redb); color: var(--redt)', run:'background: var(--tealb); color: var(--tealt)', dry:'background: var(--yelb); color: var(--yelt)' };
+    const tabs = ['Organisation', 'Users & roles', 'Notification recipients', 'Audit log', 'Job runs'];
+    return {
+      tv: this.themeVars(dark),
+      themeAria: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      themeIcon: dark ? 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4' : 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      toggleTheme: () => this.setState({ dark: !dark }),
+      nav: this.nav('Settings'),
+      tabs: tabs.map(t => ({ label: t, on: t === tab ? 'true' : 'false', style: t === tab ? 'color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent)' : 'color: var(--muted)', pick: () => this.setState({ tab: t }) })),
+      isOrg: tab === 'Organisation', isUsers: tab === 'Users & roles', isNotif: tab === 'Notification recipients', isAudit: tab === 'Audit log', isJobs: tab === 'Job runs',
+      users: [
+        { n: 'Zanele D.', e: 'admin@example.com', b: 'Durban', l: 'Now' }, { n: 'Pieter V.', e: 'sales.cpt@example.com', b: 'Cape Town', l: '12 min ago' },
+        { n: 'Thandi M.', e: 'sales.dbn@example.com', b: 'Durban', l: '1 h ago' }, { n: 'Ayesha K.', e: 'accounts@example.com', b: 'Head office', l: 'Today 08:10' },
+        { n: 'Store B. Sample', e: 'store.dbn@example.com', b: 'Factory', l: 'Yesterday' }, { n: 'Inspector A. Demo', e: 'inspector.a@example.com', b: 'Factory', l: 'Today 09:14' }
+      ],
+      recips: [
+        { k: 'deal.submitted', a: 'accounts@example.com', b: '—' }, { k: 'rfi.submitted', a: 'accounts@example.com', b: '—' },
+        { k: 'inspection.submitted', a: 'inspections-dbn@example.com', b: 'Durban' }, { k: 'inspection.approved', a: 'sales.cpt@example.com', b: 'Cape Town' },
+        { k: 'release.created', a: 'releases-cpt@example.com', b: 'Cape Town' }, { k: 'storeroom.approval', a: 'admin@example.com', b: 'Durban' },
+        { k: 'job.failed', a: 'admin@example.com', b: '—' }
+      ],
+      audit: [
+        { w: '29 Oct 14:31', u: 'Zanele D.', a: 'Switched write action to Dry-run', t: 'createInvoiceFromQuote' },
+        { w: '29 Oct 14:02', u: 'Zanele D.', a: 'Viewed protected fields', t: 'Deal #512' },
+        { w: '29 Oct 11:40', u: 'Pieter V.', a: 'Exported entries (XLSX)', t: 'Trailer Inspection · 214 rows' },
+        { w: '29 Oct 10:15', u: 'Thandi M.', a: 'Approved entry', t: 'Inspection #210' },
+        { w: '28 Oct 16:05', u: 'Store B. Sample', a: 'Submitted entry', t: 'Store Room #61' },
+        { w: '28 Oct 13:20', u: 'System', a: 'Auto-created Release Form', t: 'INV-20926' },
+        { w: '28 Oct 09:00', u: 'Zanele D.', a: 'Changed recipient', t: 'release.created · Cape Town' }
+      ],
+      jobs: [
+        { id: '#8812', n: 'xero.syncInvoices', s: '13:58', d: '4.1 s', st: 'Failed', tone: tone.fail },
+        { id: '#8811', n: 'xero.syncQuotes', s: '14:30', d: '2.8 s', st: 'Succeeded', tone: tone.ok },
+        { id: '#8810', n: 'pdf.render · DeliveryNote', s: '15:02', d: '1.9 s', st: 'Succeeded', tone: tone.ok },
+        { id: '#8807', n: 'xero.createInvoiceFromQuote', s: '13:20', d: '0.6 s', st: 'Dry-run', tone: tone.dry },
+        { id: '#8806', n: 'email.sendReleaseForm', s: '13:20', d: '—', st: 'Running', tone: tone.run },
+        { id: '#8790', n: 'email.sendReleaseForm', s: '11:20', d: '1.1 s', st: 'Failed', tone: tone.fail },
+        { id: '#8788', n: 'xero.syncPayments', s: '14:28', d: '3.3 s', st: 'Succeeded', tone: tone.ok }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
