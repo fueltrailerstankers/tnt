@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { QrCodeButton } from '@/components/qr/QrCode';
 import { EntriesTable, type GridField, type GridRow } from '@/components/entries/EntriesTable';
 import { FormTabs } from '@/components/entries/FormTabs';
 import { ViewMenu, type GridView } from '@/components/entries/ViewMenu';
@@ -9,7 +10,8 @@ import { Icon } from '@/components/ui/Icon';
 import { Pagination } from '@/components/ui/Pagination';
 import { buttonClass } from '@/components/ui/styles';
 import { adminForm } from '@/lib/admin/context';
-import { safeNewHref } from '@/lib/admin/forms-index';
+import { publicUrl, safeNewHref } from '@/lib/admin/forms-index';
+import { appEnv } from '@/lib/env';
 import {
   currentViewId, exportHref, gridColumns, gridHref, gridCell, gridViewQuery, hasFilters, PAGE_SIZE, parseGridQuery,
   viewChips, viewParam, visibleFieldColumns,
@@ -151,6 +153,9 @@ export default async function EntriesGrid({ params, searchParams }: { params: Pr
       {form.isActive || manage ? (
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-small">
           {form.isActive ? <Link href={`/f/${slug}`} className={buttonClass('link', 36, 'min-h-11 sm:min-h-0')}>Public link</Link> : null}
+          {form.isActive ? (
+            <QrCodeButton value={publicUrl(appEnv().APP_URL, `/f/${slug}`)} label={ui.label} className={buttonClass('link', 36, 'min-h-11 sm:min-h-0')} />
+          ) : null}
           {manage ? <Link href={`/admin/forms/${slug}/settings`} className={buttonClass('link', 36, 'min-h-11 sm:min-h-0')}>Form settings</Link> : null}
           {manage ? <Link href={`/admin/forms/${slug}/design`} className={buttonClass('link', 36, 'min-h-11 sm:min-h-0')}>Design</Link> : null}
         </div>
