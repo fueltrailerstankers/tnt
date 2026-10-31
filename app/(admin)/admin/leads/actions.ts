@@ -52,6 +52,7 @@ export async function addLead(fd: FormData): Promise<AddLeadResult> {
     revalidateLeads();
     return { ok: true, id: r.id, duplicate: Boolean(r.duplicateOf) };
   } catch {
+    console.error('leads.addLead: could not create the lead'); // no input values: they are personal data
     return { ok: false, error: 'save', fields: [] };
   }
 }

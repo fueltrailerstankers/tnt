@@ -98,7 +98,7 @@ export function PipelineBoard({ leads, total, members, sourceNames, me, manage, 
       </div>
 
       <div role="group" aria-label="Filter the board" className="flex flex-wrap items-center gap-2">
-        <label className="flex h-11 min-w-0 flex-[0_1_280px] items-center gap-1.5 rounded-sm border border-border bg-surface px-3 text-fg-muted focus-within:outline-2 focus-within:outline-focus lg:h-[34px]">
+        <label className="flex h-11 min-w-0 flex-[1_1_100%] sm:flex-[0_1_280px] items-center gap-1.5 rounded-sm border border-border bg-surface px-3 text-fg-muted focus-within:outline-2 focus-within:outline-focus lg:h-[34px]">
           <Icon name="search" size={14} strokeWidth={2} />
           <span className="sr-only">Search leads</span>
           <input
@@ -132,7 +132,7 @@ export function PipelineBoard({ leads, total, members, sourceNames, me, manage, 
         {total > leads.length ? <p className="m-0 text-[12px] text-fg-muted">Showing the newest {leads.length} of {total} leads.</p> : null}
       </div>
 
-      <div className="grid auto-cols-[minmax(264px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2" data-testid="pipeline-board">
+      <div className="grid auto-cols-[minmax(264px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2 [contain:inline-size]" data-testid="pipeline-board">
         {columns.map((c) => {
           const headId = `stage-${c.stage}`;
           return (

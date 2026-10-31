@@ -52,10 +52,10 @@ export function StatusForm({ id, status }: { id: string; status: string }) {
     <form onSubmit={submit} className="flex flex-col">
       <Label htmlFor={field}>Status</Label>
       <div className="flex gap-2">
-        <Select id={field} name="status" value={value} onChange={(e) => setValue(e.target.value)} className="h-[38px] py-0">
+        <Select id={field} name="status" value={value} onChange={(e) => setValue(e.target.value)} className="h-11 py-0 lg:h-[38px]">
           {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
         </Select>
-        <Button type="submit" variant="secondary" size={38} loading={pending} disabled={value === status}>Set status</Button>
+        <Button type="submit" variant="secondary" size={38} className="max-lg:h-11" loading={pending} disabled={value === status}>Set status</Button>
       </div>
       <OutcomeText outcome={outcome} />
     </form>
@@ -74,11 +74,11 @@ export function AssignForm({ id, assigned, members }: { id: string; assigned: st
     <form onSubmit={submit} className="flex flex-col">
       <Label htmlFor={field}>Assign to</Label>
       <div className="flex gap-2">
-        <Select id={field} name="assigned_to" value={value} onChange={(e) => setValue(e.target.value)} className="h-[38px] py-0">
+        <Select id={field} name="assigned_to" value={value} onChange={(e) => setValue(e.target.value)} className="h-11 py-0 lg:h-[38px]">
           <option value="">Unassigned</option>
           {members.map((m) => <option key={m.userId} value={m.userId}>{m.label}</option>)}
         </Select>
-        <Button type="submit" variant="secondary" size={38} loading={pending} disabled={value === (assigned ?? '')}>Assign</Button>
+        <Button type="submit" variant="secondary" size={38} className="max-lg:h-11" loading={pending} disabled={value === (assigned ?? '')}>Assign</Button>
       </div>
       <OutcomeText outcome={outcome} />
     </form>
