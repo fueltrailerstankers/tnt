@@ -25,10 +25,18 @@ only (see `app/globals.css`); no hex or Tailwind palette colours. Gallery: **`/a
 | `Drawer` | Right panel, `role=dialog` + `aria-modal`, labelled by its title, labelled close button focused on open, Tab trap, Escape/scrim close, focus restore, scroll lock. Keep `?id=` in the URL so Back closes it. |
 | `Modal` | Centred dialog (sm/md/lg), `role=dialog` or `alertdialog`, `aria-modal`, labelled and described, labelled close button, focus on the first input or action, Escape/scrim close (not while `pending`). |
 | `TypedConfirmModal` | Confirmation that enables its button only when the typed text equals the phrase exactly (`typedMatches` in `lib/ui/confirm.ts`; the server action must re-check). Shows server errors under the input. |
-| `Toast`, `ToastProvider`, `useToast` | Toast cards (success, info, error; Dismiss; optional link). The provider keeps persistent live regions: success/info are announced politely, errors assertively; max 3; 5 s auto-dismiss paused on hover/focus; errors stay. No personal data in toast text. |
+| `Toast`, `ToastProvider`, `useToast` | Toast cards (success, info, error; Dismiss; optional link). The provider keeps persistent live regions: success/info are announced politely (`aria-live=polite`), errors assertively; max 3; 5 s auto-dismiss paused on hover/focus; errors stay. Cards slide in only under `prefers-reduced-motion: no-preference` (`.toast-enter` in `app/globals.css`). `AppShell` mounts one `ToastProvider` for every staff page, so any client component under `/admin` can call `useToast().toast({ tone, title, body })`. Token colours only. No personal data, ids, file names or tokens in toast text. |
 | `Timeline` | Who did what and which fields changed (names only, never values), times in SAST ("Today 09:14 SAST"). |
 | `ZarAmount`, `UsdAmount` | Xero money with its currency badge and an optional muted "≈ USD" line (only with a real rate); portal USD amounts. |
 | `ProtectedField` | Server-masked value with a lock; admins get Reveal/Hide through an audited server action. |
+
+### Toasts on staff pages
+
+Use a toast for the result of an in-place action that does not navigate (e.g. `components/integrations/OpsButton.tsx`:
+Replay / Retry). Pattern: call the server action in `startTransition`, which returns `{ ok, message }` copy (never ids or
+payload values); on success `toast({ tone: 'success', title, body: message })` and `router.refresh()`; on failure
+`toast({ tone: 'error', ... })` (errors stay until dismissed). Pages that redirect with `?saved=` keep their inline
+`Alert` notices.
 
 `useDialog` (Drawer, Modal) holds the dialog behaviour; the key and focus rules are pure in `lib/ui/focus-trap.ts`.
 

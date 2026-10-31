@@ -16,7 +16,7 @@ export function verifySignature(rawBody: string | Buffer, header: string | null,
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
-const Event = z.object({
+export const XeroEventSchema = z.object({
   resourceUrl: z.string().optional(),
   resourceId: z.string(),
   eventDateUtc: z.string(),
@@ -25,10 +25,10 @@ const Event = z.object({
   tenantId: z.string(),
   tenantType: z.string().optional(),
 });
-export type XeroEvent = z.infer<typeof Event>;
+export type XeroEvent = z.infer<typeof XeroEventSchema>;
 
 export const Payload = z.object({
-  events: z.array(Event),
+  events: z.array(XeroEventSchema),
   firstEventSequence: z.number().optional(),
   lastEventSequence: z.number().optional(),
   entropy: z.string().optional(),

@@ -20,7 +20,7 @@ export const AREA_ACTIONS: Partial<Record<Area, readonly string[]>> = {
   deals: ['deal.pack_download'],
   leads: ['lead.', 'leads.'],
   stock: ['stock.'],
-  integrations: ['xero.', 'deal.', 'rfi.', 'release.', 'delivery.', 'invoice.'],
+  integrations: ['xero.', 'deal.', 'rfi.', 'release.', 'delivery.', 'invoice.', 'integration.', 'job.'],
   settings: ['settings.', 'form.'],
   users: ['user.', 'auth.', 'admin.'],
   activity: ['audit.'],
@@ -38,7 +38,7 @@ export const KNOWN_ACTIONS = [
   'auth.sign_in', 'auth.sign_out', 'auth.sign_in_failed', 'auth.password', 'user.accept', 'user.invite', 'user.invite_link',
   'user.invite_resend', 'user.add', 'user.update', 'user.disable', 'user.enable', 'user.remove', 'user.name', 'audit.export', 'settings.org',
   'form.public_link', 'entry.status', 'entry.delete', 'entry.decrypt', 'entry.reveal', 'entries.export', 'deal.pack_download', 'xero.connect', 'xero.disconnect', 'xero.sync.manual',
-  'xero.action.mode', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
+  'xero.action.mode', 'integration.replay', 'job.retry', 'lead.create', 'lead.assign', 'lead.status', 'stock.dispatch', 'stock.move', 'stock.correct', 'stock.dismiss',
   'stock.restore', 'stock.reserve', 'stock.sell', 'stock.exception', 'stock.export',
 ] as const;
 
@@ -88,6 +88,8 @@ export function describe(row: AuditRow, names: ReadonlyMap<string, string>): Des
     case 'xero.connect': text = said('connected Xero'); break;
     case 'xero.disconnect': text = said('disconnected Xero'); break;
     case 'xero.sync.manual': text = said('ran a Xero sync'); break;
+    case 'integration.replay': text = said(`replayed a stored ${str(m.source) === 'leads' ? 'lead intake' : str(m.source) === 'xero' ? 'Xero webhook' : 'webhook'} event`); break;
+    case 'job.retry': text = said(`retried a failed job${str(m.queue) ? ` (${str(m.queue)})` : ''}`); break;
     case 'xero.action.mode': text = said(`set a Xero action to ${str(m.to) ?? 'a new mode'}`); break;
     case 'stock.dispatch': text = said(`dispatched unit${str(m.vin) ? ` ${str(m.vin)}` : ''}`); break;
     case 'stock.move': text = said(`moved unit${str(m.vin) ? ` ${str(m.vin)}` : ''}${str(m.to) ? ` to ${str(m.to)}` : ''}`); break;
@@ -138,7 +140,8 @@ export function hrefFor(row: Pick<AuditRow, 'entity' | 'entity_id' | 'meta'>): s
     }
     case 'xero_invoice': return `/admin/xero/invoices/${id}`;
     case 'xero_quote': return `/admin/xero/quotes/${id}`;
-    case 'xero_connection': return '/admin/integrations/xero';
+    case 'xero_connection': case 'integration_event': return '/admin/integrations/xero';
+    case 'outbox_job': return '/admin/tasks?filter=failed-jobs';
     case 'stock_unit': return vin && ID.test(vin) ? `/admin/stock/units?q=${encodeURIComponent(vin)}` : '/admin/stock/units';
     case 'stock_deal': return '/admin/stock/deals';
     case 'stock_invoice_exception': return '/admin/stock/invoices';

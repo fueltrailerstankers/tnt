@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { TONE_FILL } from '@/components/home/tone';
+import { OpsButton } from '@/components/integrations/OpsButton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Icon } from '@/components/ui/Icon';
 import { StatusChip } from '@/components/ui/StatusChip';
@@ -168,6 +169,10 @@ export function TaskList({ rows, filters, initialFilter }: { rows: TaskRow[]; fi
                     <form action={syncNow}>
                       <PostButton label={t.primary.label} quiet disabled={isPending} />
                     </form>
+                  ) : t.primary?.type === 'job-retry' ? (
+                    <OpsButton kind="retry" id={t.primary.jobId} variant="secondary" size={44} className="lg:h-[34px]" label={`Retry job ${t.title}`}>
+                      {t.primary.label}
+                    </OpsButton>
                   ) : t.primary?.type === 'link' ? (
                     <Link href={t.primary.href} className={PRIMARY}>{t.primary.label}</Link>
                   ) : null}

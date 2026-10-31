@@ -42,6 +42,8 @@ export type TaskPrimary =
   | { type: 'inspection'; action: 'review' | 'approve'; label: string; entryId: string; version: string; number: number }
   | { type: 'store-room'; label: string; number: number; status: string }
   | { type: 'sync-retry'; label: string }
+  /** Re-queues one failed outbox job in place (retryJobAction, integrations.manage). */
+  | { type: 'job-retry'; label: string; jobId: string }
   | { type: 'link'; label: string; href: string };
 
 export interface TaskRow {
@@ -255,8 +257,7 @@ export function buildTasks(input: BuildInput): TaskRow[] {
         title: j.queue, href: XERO_PAGE, status: 'Failed',
         meta: `${jobErrorLabel(j.lastError, 'long')} · ${plural(j.attempts, 'attempt')}`,
         sortAt: j.failedAt, age: ageLabel(j.failedAt, now), secondary: { label: 'Details', href: XERO_PAGE },
-        // No server action re-queues an outbox job yet, so there is no Retry here (reported as a gap).
-        primary: null,
+        primary: { type: 'job-retry', label: 'Retry', jobId: j.id },
         home: {
           kind: 'Failed', kindTone: 'red', title: `Job ${j.queue} failed`, action: 'Open', href: jobsHref,
           meta: `${jobErrorLabel(j.lastError, 'short')} · ${sastClock(j.failedAt)} · auto-retry exhausted`,
