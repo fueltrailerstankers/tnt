@@ -30,8 +30,8 @@ describe('nav follows the access map', () => {
     expect(settingsTabs(usersOnly).map((t) => t.key)).toEqual(['users']);
     const activityOnly = member('staff', { activity: 'read' });
     expect(settingsTabs(activityOnly).map((t) => t.key)).toEqual(['activity']);
-    expect(settingsTabs(member('staff', { settings: 'read' })).map((t) => t.key)).toEqual(['organisation', 'forms']);
-    expect(settingsTabs(member('admin')).map((t) => t.key)).toEqual(['organisation', 'users', 'activity', 'forms']);
+    expect(settingsTabs(member('staff', { settings: 'read' })).map((t) => t.key)).toEqual(['organisation', 'notifications', 'jobs', 'forms']);
+    expect(settingsTabs(member('admin')).map((t) => t.key)).toEqual(['organisation', 'users', 'notifications', 'activity', 'jobs', 'forms']);
     expect(keys(member('staff'))).not.toContain('settings');
   });
 

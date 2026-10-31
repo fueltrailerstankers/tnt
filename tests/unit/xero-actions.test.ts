@@ -1,6 +1,6 @@
 // M3 planners, modes, redaction and triggers. Synthetic data only: no real people, emails or documents.
 import { describe, expect, it } from 'vitest';
-import { checkSwitch, dryRunDoesNothing, hasWriteScopes, NO_XERO_WRITES_NOTE, parseMode, resolveMode, WRITE_SCOPES } from '@/lib/integrations/xero/write/modes';
+import { checkSwitch, dryRunDoesNothing, liveConfirmPhrase, hasWriteScopes, NO_XERO_WRITES_NOTE, parseMode, resolveMode, WRITE_SCOPES } from '@/lib/integrations/xero/write/modes';
 import { planDealImport } from '@/lib/integrations/xero/write/plan-deal';
 import { planDeliveryInvoice } from '@/lib/integrations/xero/write/plan-delivery';
 import { mergedNameOf, planMerge } from '@/lib/integrations/xero/write/plan-merge';
@@ -83,15 +83,32 @@ describe('modes', () => {
     expect(resolveMode('release.on_paid', 'live', read).mode).toBe('live');
   });
 
-  it('switching to live needs permission, write scopes and the typed action name', () => {
+  it('switching to live needs permission, write scopes and exactly "LIVE <action>"', () => {
     const write = { status: 'connected', scopes: [...WRITE_SCOPES] };
-    const base = { action: 'rfi.create_invoice' as const, to: 'live' as const, mayConfigure: true, connection: write, typed: 'rfi.create_invoice' };
+    const base = { action: 'rfi.create_invoice' as const, to: 'live' as const, mayConfigure: true, connection: write, typed: 'LIVE rfi.create_invoice' };
+    expect(liveConfirmPhrase('rfi.create_invoice')).toBe('LIVE rfi.create_invoice');
     expect(checkSwitch(base)).toBeNull();
     expect(checkSwitch({ ...base, mayConfigure: false })).toMatch(/permission/);
-    expect(checkSwitch({ ...base, typed: 'yes' })).toMatch(/Type rfi.create_invoice/);
+    expect(checkSwitch({ ...base, typed: 'yes' })).toBe('Type LIVE rfi.create_invoice to confirm.');
+    // The bare action name (the M3 phrase) no longer confirms.
+    expect(checkSwitch({ ...base, typed: 'rfi.create_invoice' })).toMatch(/Type LIVE rfi.create_invoice/);
+    // Exact: no trimming, no case folding, no extra inner spaces, no other action's phrase.
+    for (const typed of [' LIVE rfi.create_invoice', 'LIVE rfi.create_invoice ', 'LIVE rfi.create_invoice\n', 'live rfi.create_invoice', 'LIVE  rfi.create_invoice',
+      'LIVE rfi.create_invoicex', 'LIVE delivery.update_invoice', 'LIVE', '', null, undefined]) {
+      expect(checkSwitch({ ...base, typed }), JSON.stringify(typed)).toMatch(/Type LIVE rfi.create_invoice/);
+    }
+    // Permission is checked before the phrase: a correct phrase never helps a non-admin.
+    expect(checkSwitch({ ...base, mayConfigure: false, typed: 'LIVE rfi.create_invoice' })).toMatch(/permission/);
     expect(checkSwitch({ ...base, connection: { status: 'connected', scopes: ['accounting.transactions.read'] } })).toMatch(/write scopes/);
-    expect(checkSwitch({ ...base, action: 'invoice.merge_attachments', typed: 'invoice.merge_attachments' })).toMatch(/pdf-lib/);
+    expect(checkSwitch({ ...base, connection: null })).toMatch(/not connected/);
+    expect(checkSwitch({ ...base, action: 'invoice.merge_attachments', typed: 'LIVE invoice.merge_attachments' })).toMatch(/pdf-lib/);
+    // Actions without Xero writes need no write scopes, but still the exact phrase.
+    expect(checkSwitch({ ...base, action: 'release.on_paid', connection: null, typed: 'LIVE release.on_paid' })).toBeNull();
+    expect(checkSwitch({ ...base, action: 'release.on_paid', connection: null, typed: 'release.on_paid' })).toMatch(/Type LIVE release.on_paid/);
+    // Off and dry run need no phrase.
     expect(checkSwitch({ ...base, to: 'dry_run', typed: null })).toBeNull();
+    expect(checkSwitch({ ...base, to: 'off', typed: 'anything' })).toBeNull();
+    expect(checkSwitch({ ...base, to: 'off', mayConfigure: false })).toMatch(/permission/);
   });
 });
 
