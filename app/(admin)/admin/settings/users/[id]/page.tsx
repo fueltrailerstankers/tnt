@@ -89,11 +89,11 @@ export default async function UserDetail({ params, searchParams }: { params: Pro
           {target.status === 'invited' && !target.inviteNewAccount ? <p className="text-fg-muted">This person already had an account: they accept by signing in with their own password. No invite link is made for existing accounts.</p> : null}
           {!self ? (
             <details className="rounded-sm border border-border p-3">
-              <summary className="cursor-pointer font-semibold">Remove from organisation</summary>
+              <summary className="cursor-pointer font-semibold">{target.status === 'invited' ? 'Cancel invite' : 'Remove from organisation'}</summary>
               <form action={removeUser.bind(null, target.userId)} className="mt-3 space-y-3">
-                <p className="text-fg-muted">They lose access to this organisation. Their history stays in the activity log.</p>
-                <label className="flex items-center gap-2"><input type="checkbox" name="confirm" value="remove" required className="size-5" /> Yes, remove {target.name}</label>
-                <button className={buttonClass('destructive', 44)}>Remove</button>
+                <p className="text-fg-muted">{target.status === 'invited' ? 'The invite link stops working. You can invite them again later.' : 'They lose access to this organisation. Their history stays in the activity log.'}</p>
+                <label className="flex items-center gap-2"><input type="checkbox" name="confirm" value="remove" required className="size-5" /> Yes, {target.status === 'invited' ? 'cancel the invite for' : 'remove'} {target.name}</label>
+                <button className={buttonClass('destructive', 44)}>{target.status === 'invited' ? 'Cancel invite' : 'Remove'}</button>
               </form>
             </details>
           ) : null}

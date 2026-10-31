@@ -52,3 +52,10 @@ export async function setBanned(admin: SupabaseClient, userId: string, banned: b
   const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: banned ? BAN : 'none' });
   return !error;
 }
+
+/** True when the Auth account never signed in or confirmed an invite (a leftover from a cancelled invite). Fails closed. */
+export async function neverSignedIn(admin: SupabaseClient, userId: string): Promise<boolean> {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data.user) return false;
+  return !data.user.email_confirmed_at && !data.user.last_sign_in_at;
+}
