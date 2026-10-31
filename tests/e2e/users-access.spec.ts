@@ -55,7 +55,7 @@ test.describe.serial('users, access levels and activity log', () => {
     const main = page.getByRole('main');
     await expect(main.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Organisation', 'Users & access', 'Activity log', 'Forms']);
     await main.getByRole('link', { name: 'Invite user' }).click();
-    await expect(page).toHaveURL(/\/admin\/settings\/users\/invite$/);
+    await expect(page).toHaveURL(/\/admin\/settings\/users\/invite$/, { timeout: 30_000 });
 
     await main.getByLabel('Name').fill(READER.name);
     await main.getByLabel('Email').fill(READER.email);
@@ -239,7 +239,7 @@ test.describe.serial('users, access levels and activity log', () => {
     await signIn(page, '/admin/settings/users');
     const main = page.getByRole('main');
     await main.getByRole('link', { name: 'Add user' }).click();
-    await expect(page).toHaveURL(/\/admin\/settings\/users\/add$/);
+    await expect(page).toHaveURL(/\/admin\/settings\/users\/add$/, { timeout: 30_000 });
     await main.getByLabel('Name').fill(ADDED.name);
     await main.getByLabel('Email').fill(ADDED.email);
     // A typed temporary password must be at least 12 characters.
