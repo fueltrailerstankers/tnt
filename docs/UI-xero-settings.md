@@ -20,9 +20,17 @@ tab shows only to members who can read it.
   The server action `switchActionMode` re-checks the same phrase in `checkSwitch` (`lib/integrations/xero/write/modes.ts`),
   requires `xero.actions.configure` (admin only), write scopes for actions that write to Xero, and writes
   `audit_log` (`xero.action.live` / `xero.action.mode`, meta `{ from, to, confirmed }`). Off and Dry-run switch at once.
-- **Retry / Replay webhook** post to the existing `syncNow` action (`integrations.manage`): a sync re-fetches the
-  changed records; webhook processing is idempotent. Retry shows for sync failures, Replay webhook for failed or stuck
-  webhook fetches (`xero.fetch` outbox jobs, `integration_events`). Other failed jobs are listed without a button.
+- **Retry (sync)** on sync failures posts to the existing `syncNow` action (`integrations.manage`).
+- **Retry (job)** on a failed outbox job calls `retryJobAction` (`app/(admin)/admin/integrations/ops-actions.ts`):
+  the same row goes back to `pending` (attempts 0, due now, lock and error cleared) only while it is still `failed`;
+  no new row is created. Audit `job.retry` (`entity` `outbox_job`, meta `{ queue, attempts }`). Same button on Tasks.
+- **Replay webhook** (failures list) and **Replay** (Webhook events card: the latest 20 stored Xero events with kind,
+  status and error label; resource ids are never shown) call `replayEventAction`: it re-queues processing of the
+  STORED raw event (`xero.fetch`: a GET of the record and a mirror upsert; `leads.intake` for lead events). It never
+  re-verifies a signature and never writes to Xero. Ignored events (unknown org or category) have no Replay. A job
+  already pending/running for the event is reused. Audit `integration.replay` (`entity` `integration_event`, meta
+  `{ source, queue, from }`). Rules are pure in `lib/integrations/ops.ts`; the runner is `lib/integrations/ops-run.ts`.
+  Results show as toasts.
 - **Dry-run diff**: left is one recorded dry run (`xero_action_runs.planned_requests`, redacted when stored). The portal
   does not store what Make.com sent, so the right column is empty until an admin pastes Make's requests (a request
   list, one request, or a `tt-make-replay/1` file, docs/M3.md). The pasted text stays in the browser, is never saved,

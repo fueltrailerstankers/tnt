@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { differenceCount, differencesLabel, diffLines, normalisePath, parseMakeRecording, requestLines, sides } from '@/lib/settings/request-diff';
 import {
-  accessTokenMeter, actionStats, entityRows, failureItems, liveBlockedReason, pickDryRun, rateMeters, refreshTokenMeter,
+  accessTokenMeter, actionStats, entityRows, failureItems, liveBlockedReason, pickDryRun, rateMeters, refreshTokenMeter, webhookEventRows,
 } from '@/lib/settings/xero-page';
 
 const NOW = '2026-10-29T12:30:00Z'; // 14:30 SAST
@@ -46,7 +46,7 @@ describe('entities and failures', () => {
     ]);
   });
 
-  it('lists 24 h failures newest first; Retry only for sync, Replay only for webhooks', () => {
+  it('lists 24 h failures newest first; sync Retry, job Retry by id, Replay only for replayable events', () => {
     const items = failureItems({
       states,
       runs: [
@@ -55,16 +55,38 @@ describe('entities and failures', () => {
         { id: 10, job: 'xero.sync.quick', started_at: '2026-10-27T07:00:00Z', error: 'xero 500' }, // older than 24 h
       ],
       outbox: [{ id: 'j1', queue: 'xero.fetch', attempts: 5, last_error: 'xero 404', created_at: '2026-10-29T09:47:00Z', locked_at: '2026-10-29T09:47:00Z' }],
-      events: [],
+      events: [
+        { id: 'e1', received_at: '2026-10-29T08:00:00Z', status: 'failed', attempts: 1, error: null, payload: { eventCategory: 'INVOICE', eventType: 'UPDATE' }, replayable: true },
+        { id: 'e2', received_at: '2026-10-29T07:30:00Z', status: 'queued', attempts: 0, error: null, payload: { eventCategory: 'SUBSCRIPTION' }, replayable: false },
+      ],
     }, NOW);
-    expect(items.map((i) => [i.job, i.action])).toEqual([
-      ['xero.sync.full', 'retry'],
-      ['xero.sync · invoices', 'retry'],
-      ['webhook · xero.fetch', 'replay'],
-      ['xero.rfi.create_invoice', null],
+    expect(items.map((i) => [i.job, i.action, i.target])).toEqual([
+      ['xero.sync.full', 'retry', null],
+      ['xero.sync · invoices', 'retry', null],
+      ['webhook · xero.fetch', 'retry-job', 'j1'],
+      ['webhook · invoice', 'replay', 'e1'],
+      ['webhook · subscription', null, null],
+      ['xero.rfi.create_invoice', null, null],
     ]);
     expect(items[0]).toMatchObject({ error: '429 Too Many Requests', meta: '13:58 SAST · run #8812' });
     expect(items[2].meta).toBe('11:47 SAST · 5 attempts');
+    expect(items[4].error).toBe('Not processed yet');
+  });
+
+  it('lists webhook events with kind, status and Replay only where the loader allowed it', () => {
+    const rows = webhookEventRows([
+      { id: 'a', received_at: '2026-10-29T11:00:00Z', status: 'processed', attempts: 1, error: null, payload: { eventCategory: 'INVOICE', eventType: 'UPDATE', resourceId: 'r' }, replayable: true },
+      { id: 'b', received_at: '2026-10-29T10:00:00Z', status: 'ignored', attempts: 0, error: null, payload: { eventCategory: 'nope<script>' }, replayable: false },
+      { id: 'c', received_at: '2026-10-29T09:00:00Z', status: 'failed', attempts: 2, error: 'xero 404', payload: null, replayable: true },
+    ], NOW);
+    expect(rows.map((r) => [r.kind, r.status, r.tone, r.replayable])).toEqual([
+      ['INVOICE · UPDATE', 'Processed', 'green', true],
+      ['Event', 'Ignored', 'gray', false],
+      ['Event', 'Failed', 'red', true],
+    ]);
+    expect(rows[2].detail).toBe('404 Not Found');
+    expect(rows[0].when).toBe('13:00 SAST');
+    expect(JSON.stringify(rows)).not.toContain('"r"');
   });
 });
 

@@ -173,7 +173,7 @@ test.describe('desktop (1440)', () => {
       await expect(job).toContainText(`e2e.mine.${run}`);
       await expect(job).toContainText('429 Too Many Requests · 5 attempts');
       await expect(job.getByRole('link', { name: 'Details' })).toHaveAttribute('href', '/admin/integrations/xero');
-      await expect(job.getByRole('button')).toHaveCount(0); // nothing re-queues an outbox job yet: no Retry
+      await expect(job.getByRole('button', { name: `Retry job e2e.mine.${run}` })).toBeVisible(); // retryJobAction re-queues it in place
       await expect(page.getByText(`e2e.other.${run}`)).toHaveCount(0);
       if (!existing.length) await expect(page.getByTestId('task-sync-invoices').getByRole('button', { name: 'Retry' })).toBeVisible();
 
