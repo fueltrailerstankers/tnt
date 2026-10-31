@@ -44,3 +44,19 @@ only (see `app/globals.css`); no hex or Tailwind palette colours. Gallery: **`/a
   `lib/ui/views.ts`, `lib/ui/initials.ts`, `lib/ui/focus-trap.ts`.
 
 Unit tests can server-render components (`tests/unit/ui-components.test.ts`); the unit project compiles JSX.
+
+## Forms index and entries grid (`components/entries/`)
+
+- `/admin/forms` (`FormCard`, `PublicLinkButton`): one card per form from `formCard()` in `lib/admin/forms-index.ts`
+  (access type from the public link and public role, encrypted / auto-created badges, entries, unread, task flag,
+  New entry via `newEntryHref`). The public link modal copies `APP_URL/f/<slug>`; no QR code. Test ids `form-card-*`.
+- `/admin/forms/[slug]` (`FormTabs`, `ViewMenu`, `EntriesTable`): URL state parsed by `parseGridQuery`; chips and
+  counts from `viewChips` + `viewCounts` (one `list_entries` call per count, RLS as the caller); search, From/To and
+  the column picker are one GET form (Apply); saved views use `lib/views/saved-views.ts` through `saveFormView` /
+  `deleteFormView`; bulk Mark read / Mark unread go through `setEntriesRead` (Zod, ids narrowed to the form);
+  Export selected adds `sel=<numbers>` to the export route. Phones (< 640px) get one card per entry instead of the
+  table (`entry-card-*`; the table rows keep `entry-*`).
+- Encrypted forms (DEAL, Delivery Note): `gridColumns` offers no field columns (picker locked), the list is read with
+  `decrypt: false`, and CSV/XLSX exports carry only number, status, timestamps and summary (`clearExportTable`).
+  Field values are decrypted only on the entry page. The grid banner (handoff copy) says each open is logged: the
+  entry page must write that audit row (rule 6).
