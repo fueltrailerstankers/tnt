@@ -1,56 +1,18 @@
 import 'server-only';
-import { searchTerm } from '@/lib/admin/format';
-import { MIRROR_PAGE, oneOf, pageOf } from '@/lib/admin/mirror';
+import { MIRROR_PAGE } from '@/lib/admin/mirror';
 import { leadMembers, type OrgMember } from '@/lib/leads/members';
-import { LEAD_STATUSES, type LeadStatus } from '@/lib/leads/schema';
+import type { LeadStatus } from '@/lib/leads/schema';
 import type { Member } from '@/lib/security/can';
 import { createClient } from '@/lib/supabase/server';
-import { activeView, INBOX_VIEWS, listFilter, type BoardLead } from './model';
+import { activeView, listFilter, type BoardLead } from './model';
+import { inboxParams, isUuid, type InboxParams } from './params';
+
+export { inboxQuery, isUuid, type InboxParams } from './params';
 
 // Reads for the Leads screens. RLS client (leads.read through has_access) and every query also filtered by the
 // member's org. Call only after requirePerm('leads.read'). Selects named columns: never `raw` (the webhook payload).
 
 type Sp = Record<string, string | string[] | undefined>;
-const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export const isUuid = (v: string) => UUID.test(v);
-
-export interface InboxParams {
-  q: string | null;
-  view: string;
-  status: LeadStatus | null;
-  source: string | null;
-  branch: string | null;
-  assigned: string | null;
-  dups: boolean;
-  page: number;
-}
-
-export function inboxParams(sp: Sp, sourceKeys: readonly string[]): InboxParams {
-  const assignedRaw = one(sp.assigned);
-  const viewRaw = one(sp.view);
-  return {
-    q: searchTerm(sp.q),
-    view: (INBOX_VIEWS as readonly string[]).includes(viewRaw) ? viewRaw : 'open',
-    status: oneOf(sp.status, LEAD_STATUSES),
-    source: oneOf(sp.source, sourceKeys),
-    branch: searchTerm(sp.branch),
-    assigned: assignedRaw === 'me' || assignedRaw === 'none' || UUID.test(assignedRaw) ? assignedRaw : null,
-    dups: one(sp.dups) === '1',
-    page: pageOf(sp.page),
-  };
-}
-
-/** Query string for the inbox with some params replaced (null removes). Holds filter values only, never lead data. */
-export function inboxQuery(p: InboxParams, over: Partial<Record<keyof InboxParams, string | null>> = {}): string {
-  const base: Record<string, string | null> = {
-    q: p.q, view: p.view === 'open' ? null : p.view, status: p.status, source: p.source, branch: p.branch,
-    assigned: p.assigned, dups: p.dups ? '1' : null, page: p.page > 1 ? String(p.page) : null,
-  };
-  const u = new URLSearchParams();
-  for (const [k, v] of Object.entries({ ...base, ...over })) if (v && !(k === 'page' && v === '1')) u.set(k, v);
-  return u.size ? `?${u}` : '';
-}
 
 export const LIST_COLUMNS = 'id, created_at, name, product, source, branch, status, assigned_to, duplicate_of, matched_quote_number, matched_invoice_number';
 
@@ -166,7 +128,7 @@ export interface DetailData {
 const REF_COLUMNS = 'id, name, created_at, created_by, email_norm, phone_norm';
 
 export async function loadLeadDetail(member: Member, id: string, db?: Db): Promise<DetailData | null> {
-  if (!UUID.test(id)) return null;
+  if (!isUuid(id)) return null;
   const c = db ?? await createClient();
   const { data: lead } = await c.from('leads').select(DETAIL_COLUMNS).eq('org_id', member.orgId).eq('id', id).maybeSingle();
   if (!lead) return null;

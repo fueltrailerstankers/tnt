@@ -204,8 +204,11 @@ export function matchesSearch(l: Pick<BoardLead, 'name' | 'email' | 'phone' | 'p
   if (!t) return true;
   const hay = [l.name, l.email, l.product].map((v) => (v ?? '').toLowerCase());
   if (hay.some((h) => h.includes(t))) return true;
+  // Phones: 9+ typed digits compare on the last 9 (as lib/leads/normalise: +27 / leading 0 drop out).
   const d = digitsOnly(t);
-  return d.length >= 3 && digitsOnly(l.phone ?? '').includes(d);
+  const p = digitsOnly(l.phone ?? '');
+  if (d.length >= 9) return p.length >= 9 && p.slice(-9).includes(d.slice(-9));
+  return d.length >= 3 && p.includes(d);
 }
 
 export function filterBoard<T extends BoardLead>(leads: readonly T[], f: BoardFilters, me: string): T[] {
