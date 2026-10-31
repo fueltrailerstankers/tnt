@@ -67,6 +67,16 @@ const CODE = /^[a-z0-9_]{1,64}$/;
 
 /** Steps that may start at the same position before the run fails ('stuck_entry', or the last retry reason). */
 export const MAX_POSITION_ATTEMPTS = 5;
+/** Cognito asked to wait (429/5xx): more patience, since each retry also waits longer (see retryWaitMs). */
+export const MAX_WAIT_ATTEMPTS = 12;
+const WAIT_CODES = new Set(['cognito_rate_limited', 'cognito_unavailable']);
+export const isWaitCode = (code: string | undefined): boolean => code !== undefined && WAIT_CODES.has(code);
+
+/** How long a run waits after Cognito asked it to: at least Retry-After, doubling per attempt at the position, capped. */
+export function retryWaitMs(retryAfterMs: number, attemptN: number, minMs = 30_000, maxMs = 10 * 60_000): number {
+  const backoff = minMs * 2 ** Math.max(0, Math.min(attemptN - 1, 10));
+  return Math.min(maxMs, Math.max(minMs, retryAfterMs, backoff));
+}
 
 export const positionKey = (p: SourcePosition | null): string => JSON.stringify(p);
 
@@ -89,7 +99,8 @@ export function nextAttempt(cursor: RunCursor): { attempt: PositionAttempts; giv
   const at = positionKey(cursor.position);
   const prev = cursor.attempt?.at === at ? cursor.attempt : undefined;
   const attempt: PositionAttempts = { at, n: (prev?.n ?? 0) + 1, ...(prev?.last ? { last: prev.last } : {}) };
-  return { attempt, giveUp: attempt.n > MAX_POSITION_ATTEMPTS ? (prev?.last ?? 'stuck_entry') : null };
+  const limit = isWaitCode(prev?.last) ? MAX_WAIT_ATTEMPTS : MAX_POSITION_ATTEMPTS;
+  return { attempt, giveUp: attempt.n > limit ? (prev?.last ?? 'stuck_entry') : null };
 }
 
 /** Union of planned ids, first-seen order. Only Cognito entry ids are kept. */

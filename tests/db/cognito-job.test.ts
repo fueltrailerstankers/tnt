@@ -11,7 +11,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 vi.mock('server-only', () => ({}));
 import { drainImportJobs, importSlice, resumeImport, stopImport } from '@/lib/import/cognito/job';
 import { saveApiKey } from '@/lib/import/cognito/key';
-import { MAX_POSITION_ATTEMPTS } from '@/lib/import/cognito/progress';
+import { MAX_POSITION_ATTEMPTS, MAX_WAIT_ATTEMPTS } from '@/lib/import/cognito/progress';
 import { SourceDeadlineError, type CognitoEntry, type CognitoSource } from '@/lib/import/cognito/source';
 import { FakeSource, allFixtures } from '../unit/cognito-fake';
 
@@ -194,16 +194,16 @@ describe('import job on the real schema', () => {
     expect(await importSlice(db, ORG, id, later(), { makeSource: fakeSource() })).toMatchObject({ outcome: 'done' });
   });
 
-  it('M1: Cognito asking to wait longer than the slice has frees the run visibly and continues after Retry-After; it gives up after the limit', async () => {
+  it('M1: Cognito asking to wait longer than the slice has frees the run visibly and continues after Retry-After (backing off); it gives up after the wait limit', async () => {
     const id = await newRun('release-form', 'dry_run');
     const limited = throwing(() => new SourceDeadlineError('cognito_rate_limited', 60_000));
-    for (let i = 1; i <= MAX_POSITION_ATTEMPTS; i++) {
+    for (let i = 1; i <= MAX_WAIT_ATTEMPTS; i++) {
       expect(await importSlice(db, ORG, id, later(), { makeSource: limited })).toMatchObject({ outcome: 'retry', error: 'cognito_rate_limited' });
       expect(await run(id)).toMatchObject({ status: 'running', error: 'cognito_rate_limited', lease_token: null });
       expect((await run(id)).cursor.attempt).toMatchObject({ n: i, last: 'cognito_rate_limited' });
     }
     const jobs = await sql<{ wait: number }>(`select extract(epoch from run_at - now())::int as wait from outbox_jobs where payload->>'run_id' = $1`, [id]);
-    expect(jobs).toHaveLength(MAX_POSITION_ATTEMPTS);
+    expect(jobs).toHaveLength(MAX_WAIT_ATTEMPTS);
     for (const j of jobs) expect(j.wait).toBeGreaterThanOrEqual(50);
     expect(await importSlice(db, ORG, id, later(), { makeSource: limited })).toMatchObject({ outcome: 'failed', error: 'cognito_rate_limited' });
     expect(await run(id)).toMatchObject({ status: 'failed', error: 'cognito_rate_limited' });
