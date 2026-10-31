@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
-  const member = await requirePerm('xero.read');
+  const member = await requirePerm('quotes.read');
   const { id } = await params;
   if (!UUID_PARAM.test(id)) notFound();
   const db = await createClient();

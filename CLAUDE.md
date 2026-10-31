@@ -105,3 +105,12 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - allowedWhen also accepts `status in ('A', 'B')`. Emails to entry addresses (`[Field]`) attach `publicDocument` (no internalOnly fields).
 - Public pages (`/f`, `/e`) get `publicSpec`, public defaults/data and `pickPublic` files/signatures only; public lookups only through `publicLookupOf` (allow-list `PUBLIC_LOOKUPS` in `lib/forms/public-policy.ts`); public upload tickets only for visible, unlocked file fields (`publicUploadAllowed`).
 - 0022: clients cannot write `public.forms` (server only, service role after `requirePerm`); triggers keep `deal`/`delivery-note` encrypted, forbid encryption changes once entries exist, keep archived forms inactive, and make every entry match its form's encryption. `sync_form_workflow` (atomic) and `form_usage` (statuses/roles in use) back the publish guards.
+## Repo notes (M7 users and access)
+- Access = per-area levels (`AREAS`: home ... activity; none/read/write) stored on `memberships.access`; presets are the roles. `can()` resolves permissions through `RULES` in `lib/security/can.ts`; `has_access(org, area, level)` is the SQL side (0021). Keep both in step: `tests/db/access.test.ts` compares the presets and clamping.
+- Only `status = 'active'` members get anything (can(), is_org_member, has_org_role, has_access). Invited members are sent to `/admin/account/password` (outside the admin layout, in the `(account)` route group).
+- New read paths: gate pages with the area permission (`deals.read`, `quotes.read`, `invoices.read`, `integrations.read`, `settings.read`, `users.read`, `audit.read`); `xero.read` is deprecated. A new org-keyed table needs a `has_access` read policy for its area.
+- `requirePerm()` answers 403 via `forbidden()` (`experimental.authInterrupts`, `app/forbidden.tsx`).
+- User changes go through `app/(admin)/admin/settings/users/actions.ts` (users.manage, guards in `lib/users/rules.ts`: self, admin_only, last_admin; trigger `memberships_last_admin` in SQL). Audit rows carry ids/codes only; invite links and tokens are never stored or logged.
+- Activity rendering and area mapping: `lib/activity/describe.ts`. Add a phrase there for new audit actions.
+- Add user (temporary password): `memberships.must_change_password`; `requirePerm()` and the admin layout redirect such members to `/admin/account/password` until they change it.
+- mini-supabase: Auth admin endpoints (invite, createUser, generate_link, users/:id ban, verify, user update) and `GET /__stub/mail?to=` for invite emails "sent".

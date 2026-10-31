@@ -87,7 +87,7 @@ afterAll(async () => { await db.end(); });
 
 describe('schema', () => {
   it('seeds exactly 7 forms', async () => {
-    const r = await db.query(`select count(*)::int as n from public.forms`);
+    const r = await db.query(`select count(*)::int as n from public.forms where org_id = $1`, [ORG_A]);
     expect(r.rows[0].n).toBe(7);
   });
 

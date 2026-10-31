@@ -48,6 +48,18 @@ async function findUnit(page: Page, number: number | string) {
   return page.getByTestId('find-result');
 }
 
+// M7: an org always keeps one active admin (0021 trigger). These tests switch the admin's own role, so a spare
+// synthetic admin keeps the org valid meanwhile; it is removed afterwards.
+const SPARE_ADMIN = '00000000-0000-0000-0000-00000000a0d9';
+test.beforeAll(async () => {
+  await sql(`insert into auth.users(id, email) values ($1, 'spare-admin-dispatch@example.invalid') on conflict do nothing`, [SPARE_ADMIN]);
+  await sql(`insert into public.memberships(org_id, user_id, role) values ($1, $2, 'admin') on conflict (org_id, user_id) do update set role = 'admin', status = 'active'`, [ORG, SPARE_ADMIN]);
+});
+test.afterAll(async () => {
+  await sql(`update public.memberships set role = 'admin', status = 'active' where org_id = $1 and user_id = $2`, [ORG, ADMIN_ID]);
+  await sql(`delete from public.memberships where org_id = $1 and user_id = $2`, [ORG, SPARE_ADMIN]);
+});
+
 test.beforeAll(async () => {
   // Pilot start date (the Setup page writes it; server-only key): every DEAL from 2020 is a stock deal.
   await sql(`insert into public.app_settings(org_id, key, value) values ($1, 'stock.deals_from', '"2020-01-01"')

@@ -55,7 +55,7 @@ export async function lookupPanelStaff(slug: string, entryId: string): Promise<A
  */
 export async function searchQuotesStaff(slug: string, q: string): Promise<QuoteOption[]> {
   const { member, userDb, form } = await adminForm(slug, 'entries.read');
-  if (!can(member, 'xero.read') || !quoteFieldOf(form.spec)) return [];
+  if (!can(member, 'quotes.read') || !quoteFieldOf(form.spec)) return [];
   const filter = quoteSearchFilter(q);
   if (!filter) return [];
   const exactNo = checkableQuoteNo(q);
@@ -74,7 +74,7 @@ export async function searchQuotesStaff(slug: string, q: string): Promise<QuoteO
  */
 export async function importQuoteStaff(slug: string, quoteNo: string): Promise<QuoteImport> {
   const { member, userDb } = await adminForm(slug, 'entries.write');
-  if (slug !== 'deal' || !can(member, 'xero.read')) return { ok: false, error: 'Import from Xero is not available for this form.' };
+  if (slug !== 'deal' || !can(member, 'quotes.read')) return { ok: false, error: 'Import from Xero is not available for this form.' };
   const no = checkableQuoteNo(quoteNo);
   if (!no) return { ok: false, error: 'Type a quote number first.' };
   const { data: quote } = await userDb.from('xero_quotes').select('quote_id, quote_number, total, currency_code')

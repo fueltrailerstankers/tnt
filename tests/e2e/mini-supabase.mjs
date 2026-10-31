@@ -3,12 +3,14 @@
 // - REST (/rest/v1): a PostgREST-compatible subset translated to SQL against a REAL local Postgres built
 //   from tests/db/shim.sql + supabase/migrations. Every request runs inside a transaction as the caller's
 //   API role (anon / authenticated with JWT claims / service_role), so RLS and grants are the real ones.
-// - Auth (/auth/v1): password grant, refresh, user, logout for synthetic users (HS256 JWTs).
+// - Auth (/auth/v1): password grant, refresh, user, logout for synthetic users (HS256 JWTs); M7 adds invite,
+//   admin createUser, generate_link / users/:id (ban), verify (token hash) and user update (password). Sent invite mails are
+//   kept in memory and listed at GET /__stub/mail?to=<email> (test-only).
 // - Storage (/storage/v1): in-memory objects with signed upload/download URLs, info, move, remove.
 //
 // All identities and data are synthetic. Supported query syntax is only what the app uses; anything else
 // returns 400 so a new pattern fails loudly instead of being silently misread.
-import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -25,9 +27,9 @@ const SECRET = randomBytes(32);
 const E2E_DB = process.env.E2E_DB_NAME ?? 'tt_e2e';
 
 export const USERS = [
-  { id: '00000000-0000-0000-0000-00000000a001', email: 'admin@example.invalid', password: 'correct-horse-battery', role: 'admin', name: 'Test Admin' },
+  { id: '00000000-0000-0000-0000-00000000a001', email: 'admin@example.invalid', password: 'correct-horse-battery', role: 'admin', name: 'Test Admin', confirmed: true },
   // M8: staff without forms.manage (the builder must refuse them).
-  { id: '00000000-0000-0000-0000-00000000a018', email: 'staff-m8@example.invalid', password: 'correct-horse-battery', role: 'staff', name: 'Test Staff M8' },
+  { id: '00000000-0000-0000-0000-00000000a018', email: 'staff-m8@example.invalid', password: 'correct-horse-battery', role: 'staff', name: 'Test Staff M8', confirmed: true },
 ];
 // M6 stock overview: a factory member (stock read + dispatch only), for the stock tab and permission checks.
 USERS.push({ id: '00000000-0000-0000-0000-00000000f101', email: 'factory-stock@example.invalid', password: 'factory-stock-e2e-only', role: 'factory', name: 'Test Factory' });
@@ -88,7 +90,113 @@ function session(u) {
     token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: refresh, user: userJson(u),
   };
 }
-const userJson = (u) => ({ id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' });
+const userJson = (u) => ({
+  id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, app_metadata: { provider: 'email' }, user_metadata: u.meta ?? {},
+  created_at: '2026-01-01T00:00:00Z', email_confirmed_at: u.confirmed ? '2026-01-01T00:00:00Z' : null, invited_at: u.invitedAt ?? null,
+  banned_until: u.bannedUntil ?? null,
+});
+const banned = (u) => Boolean(u.bannedUntil && Date.parse(u.bannedUntil) > Date.now());
+
+// ---------------------------------------------------------------------------------------------------
+// Auth admin (M7): invite, generate_link, verify, ban. One-time token hashes live in memory.
+// ---------------------------------------------------------------------------------------------------
+const otps = new Map(); // token_hash -> { userId, type, exp }
+const mail = []; // { to, type, token_hash, redirect_to } invite emails "sent"
+
+function serviceOnly(req) {
+  if (identity(req)?.role !== 'service_role') throw new HttpError(401, { code: 'no_authorization', msg: 'This endpoint requires a valid service role key' });
+}
+async function createAuthUser(email, meta) {
+  const u = { id: randomUUID(), email, password: null, confirmed: false, meta: meta ?? {}, invitedAt: new Date().toISOString() };
+  const c = new pg.Client({ connectionString: dbUrl.toString() });
+  await c.connect();
+  try { await c.query(`insert into auth.users(id, email) values ($1, $2)`, [u.id, u.email]); } finally { await c.end(); }
+  USERS.push(u);
+  return u;
+}
+function newOtp(u, type) {
+  const token_hash = createHash('sha256').update(randomBytes(32)).digest('hex');
+  otps.set(token_hash, { userId: u.id, type, exp: Date.now() + 24 * 3600 * 1000 });
+  return token_hash;
+}
+const EXISTS = () => new HttpError(422, { code: 'email_exists', msg: 'A user with this email address has already been registered' });
+
+async function authAdmin(req, url, raw) {
+  const b = raw.length ? JSON.parse(raw.toString()) : {};
+  const findByEmail = (e) => USERS.find((x) => x.email === String(e ?? '').toLowerCase());
+  if (url.pathname === '/auth/v1/invite' && req.method === 'POST') {
+    serviceOnly(req);
+    let u = findByEmail(b.email);
+    if (u?.confirmed) throw EXISTS();
+    if (!u) u = await createAuthUser(String(b.email).toLowerCase(), b.data);
+    mail.push({ to: u.email, type: 'invite', token_hash: newOtp(u, 'invite'), redirect_to: url.searchParams.get('redirect_to') });
+    return userJson(u);
+  }
+  if (url.pathname === '/auth/v1/admin/generate_link' && req.method === 'POST') {
+    serviceOnly(req);
+    let u = findByEmail(b.email);
+    if (b.type === 'invite') {
+      if (u?.confirmed) throw EXISTS();
+      if (!u) u = await createAuthUser(String(b.email).toLowerCase(), b.data);
+    } else if (b.type === 'magiclink') {
+      if (!u) throw new HttpError(404, { code: 'user_not_found', msg: 'User not found' });
+    } else throw new HttpError(400, { msg: `unsupported link type ${b.type}` });
+    const token_hash = newOtp(u, b.type);
+    return { ...userJson(u), action_link: `http://stub/auth/v1/verify?token=${token_hash}&type=${b.type}`, email_otp: '000000', hashed_token: token_hash,
+      redirect_to: url.searchParams.get('redirect_to') ?? b.redirect_to ?? null, verification_type: b.type };
+  }
+  if (url.pathname === '/auth/v1/admin/users' && req.method === 'POST') {
+    serviceOnly(req);
+    if (findByEmail(b.email)) throw EXISTS();
+    const u = await createAuthUser(String(b.email).toLowerCase(), b.user_metadata);
+    u.invitedAt = null;
+    u.confirmed = b.email_confirm === true;
+    if (typeof b.password === 'string') u.password = b.password;
+    return userJson(u);
+  }
+  let m;
+  if ((m = url.pathname.match(/^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/))) {
+    serviceOnly(req);
+    const u = USERS.find((x) => x.id === m[1]);
+    if (!u) throw new HttpError(404, { code: 'user_not_found', msg: 'User not found' });
+    if (req.method === 'GET') return userJson(u);
+    if (req.method === 'PUT') {
+      if (b.ban_duration === 'none') u.bannedUntil = null;
+      else if (typeof b.ban_duration === 'string') {
+        const h = Number(b.ban_duration.replace(/h$/, ''));
+        if (!Number.isFinite(h)) throw new HttpError(400, { msg: 'invalid ban_duration' });
+        u.bannedUntil = new Date(Date.now() + h * 3600 * 1000).toISOString();
+      }
+      if (typeof b.password === 'string') u.password = b.password;
+      return userJson(u);
+    }
+  }
+  if (url.pathname === '/auth/v1/verify' && req.method === 'POST') {
+    const o = otps.get(String(b.token_hash ?? ''));
+    const okType = o && (o.type === b.type || (b.type === 'email' && o.type === 'magiclink'));
+    if (!o || !okType || o.exp < Date.now()) throw new HttpError(403, { code: 'otp_expired', msg: 'Email link is invalid or has expired' });
+    otps.delete(String(b.token_hash));
+    const u = USERS.find((x) => x.id === o.userId);
+    if (!u || banned(u)) throw new HttpError(403, { code: 'otp_expired', msg: 'Email link is invalid or has expired' });
+    u.confirmed = true;
+    return session(u);
+  }
+  if (url.pathname === '/auth/v1/user' && req.method === 'PUT') {
+    const id = identity(req);
+    const u = id?.role === 'authenticated' ? USERS.find((x) => x.id === id.claims.sub) : null;
+    if (!u) throw new HttpError(401, { code: 'bad_jwt', msg: 'invalid JWT' });
+    if (typeof b.password === 'string') {
+      if (b.password.length < 6) throw new HttpError(422, { code: 'weak_password', msg: 'Password should be at least 6 characters.' });
+      u.password = b.password;
+    }
+    return userJson(u);
+  }
+  if (url.pathname === '/__stub/mail' && req.method === 'GET') {
+    const to = url.searchParams.get('to');
+    return mail.filter((x) => !to || x.to === to);
+  }
+  return undefined;
+}
 
 /** Maps the Authorization bearer to an API role and JWT claims. */
 function identity(req) {
@@ -423,10 +531,16 @@ const server = createServer((req, res) => {
         if (url.searchParams.get('grant_type') === 'refresh_token') {
           const uid = refreshTokens.get(b.refresh_token);
           const u = USERS.find((x) => x.id === uid);
+          if (u && banned(u)) return send(res, 400, { code: 'user_banned', msg: 'User is banned' });
           return u ? send(res, 200, session(u)) : send(res, 400, { error: 'invalid_grant', error_description: 'Invalid Refresh Token' });
         }
-        const u = USERS.find((x) => x.email === b.email && x.password === b.password);
+        const u = USERS.find((x) => x.email === String(b.email ?? '').toLowerCase() && x.password && x.password === b.password);
+        if (u && banned(u)) return send(res, 400, { code: 'user_banned', msg: 'User is banned' });
         return u ? send(res, 200, session(u)) : send(res, 400, { error: 'invalid_grant', error_description: 'Invalid login credentials', code: 'invalid_credentials' });
+      }
+      if (url.pathname.startsWith('/auth/v1/') || url.pathname.startsWith('/__stub/')) {
+        const out = await authAdmin(req, url, raw);
+        if (out !== undefined) return send(res, 200, out);
       }
       if (url.pathname === '/auth/v1/user') {
         const id = identity(req);

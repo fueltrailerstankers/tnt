@@ -99,7 +99,7 @@ export default async function InvoiceReview({ searchParams }: { searchParams: Pr
     memberNames(member.orgId, exceptions.map((e) => e.resolved_by)),
   ]);
   const vinOf = new Map(((exUnits ?? []) as Array<{ id: string; vin_norm: string }>).map((u) => [u.id, u.vin_norm]));
-  const invoiceHref = (id: string | null) => (id && can(member, 'xero.read') ? `/admin/xero/invoices/${id}` : null);
+  const invoiceHref = (id: string | null) => (id && can(member, 'invoices.read') ? `/admin/xero/invoices/${id}` : null);
 
   return (
     <section className="space-y-5">

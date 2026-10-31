@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 
-/** Account menu: name, role and sign out. Closes on Escape or an outside click. */
+/** Account menu: name, role, My account and sign out. Closes on Escape or an outside click. */
 export function UserMenu({ name, initials, role, signOut }: { name: string; initials: string; role: string; signOut: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -41,6 +42,7 @@ export function UserMenu({ name, initials, role, signOut }: { name: string; init
             <div className="font-semibold text-fg">{name}</div>
             <div className="capitalize">{role}</div>
           </div>
+          <Link role="menuitem" href="/admin/account" onClick={() => setOpen(false)} className="block w-full rounded-sm px-3 py-2 text-left text-body font-semibold text-fg no-underline hover:bg-surface-2">My account</Link>
           <form action={signOut}>
             <button role="menuitem" className="w-full rounded-sm px-3 py-2 text-left text-body font-semibold text-fg hover:bg-surface-2">Sign out</button>
           </form>

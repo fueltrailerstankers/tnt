@@ -30,8 +30,8 @@ describe('scopes', () => {
 
   it('maps each list to the permission and route its page uses', () => {
     expect(scopePermission('form:job-card')).toBe('entries.read');
-    expect(scopePermission('xero_quotes')).toBe('xero.read');
-    expect(scopePermission('xero_invoices')).toBe('xero.read');
+    expect(scopePermission('xero_quotes')).toBe('quotes.read');
+    expect(scopePermission('xero_invoices')).toBe('invoices.read');
     expect(scopePermission('leads')).toBe('leads.read');
     expect(scopePath('form:job-card')).toBe('/admin/forms/job-card');
     expect(scopePath('xero_quotes')).toBe('/admin/xero/quotes');

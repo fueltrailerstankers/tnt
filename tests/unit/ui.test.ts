@@ -122,14 +122,15 @@ describe('phone bottom bar (M6 stock)', () => {
     expect(shell).toContain('tab: tabKeys.has(n.key)');
     expect(shell).toContain('searchAccess={searchAccessOf(member)}');
     const frame = readFileSync(path.resolve(__dirname, '../../components/shell/ShellFrame.tsx'), 'utf8');
-    expect(frame.match(/<GlobalSearch [^>]*access=\{searchAccess\}/g)).toHaveLength(2);
+    // M7: only shown when something is searchable.
+    expect(frame.match(/<GlobalSearch [^>]*access=\{searchable\}/g)).toHaveLength(2);
   });
 });
 
 describe('global search for stock-only members (M6 stock)', () => {
   it('sends a VIN (and anything else) to the unit register when the member cannot read Xero', () => {
     const factory = searchAccessOf(member('factory'));
-    expect(factory).toEqual({ xero: false, stock: true });
+    expect(factory).toEqual({ deals: false, quotes: false, invoices: false, stock: true });
     expect(searchTarget('TT9DEMO24D0010482', factory)).toBe('/admin/stock/units?q=TT9DEMO24D0010482');
     expect(searchTarget('inv-20931', factory)).toBe('/admin/stock/units?q=inv-20931');
     expect(searchTarget(' 2026 / 248 ', factory)).toBe('/admin/stock/units?q=2026%20%2F%20248');
@@ -140,7 +141,7 @@ describe('global search for stock-only members (M6 stock)', () => {
       expect(searchTarget('TT9DEMO24D0010482', a), r).toBe('/admin/deal-files?q=TT9DEMO24D0010482');
       expect(searchTarget('QU-10482', a), r).toBe('/admin/xero/quotes?q=QU-10482');
     }
-    expect(searchAccessOf(null)).toEqual({ xero: false, stock: false });
-    expect(searchTarget('TT9DEMO24D0010482', { xero: false, stock: false })).toBe('/admin/deal-files?q=TT9DEMO24D0010482');
+    expect(searchAccessOf(null)).toEqual({ deals: false, quotes: false, invoices: false, stock: false });
+    expect(searchTarget('TT9DEMO24D0010482', { deals: false, quotes: false, invoices: false, stock: false })).toBeNull();
   });
 });

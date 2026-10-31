@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { INSPECTION_SLUG, STORE_ROOM_SLUG, STORE_ROOM_TASK_STATUS, type TaskRow } from '@/lib/tasks/build';
 import { loadTasks } from '@/lib/tasks/load';
+import { showsXeroStatus } from '@/lib/ui/shell-data';
 import { memberNames } from '@/lib/tasks/names';
 import { homeShowsForms } from '@/lib/ui/nav';
 import { statusColor } from '@/lib/workflow/rules';
@@ -126,7 +127,7 @@ async function xeroBlock(db: SupabaseClient, orgId: string, now: Date): Promise<
 export async function loadHome(member: Member, now: Date): Promise<HomeData> {
   const db = await createClient();
   // Factory staff have admin access but no entries: no forms, entries or counts, whose links would all be forbidden.
-  const show = { entries: homeShowsForms(member), tasks: can(member, 'tasks.read'), xero: can(member, 'xero.read') };
+  const show = { entries: homeShowsForms(member), tasks: can(member, 'tasks.read'), xero: showsXeroStatus(member) };
 
   const formsP = show.entries ? soft(loadForms(db, member.orgId)) : Promise.resolve(null);
   const [name, forms, overview, tasks, xero] = await Promise.all([

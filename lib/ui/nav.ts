@@ -10,6 +10,8 @@ export interface NavDef {
   href: string;
   icon: IconName;
   perm: Permission;
+  /** Also shown when the member holds any of these (Settings: its Users and Activity log tabs). */
+  anyOf?: readonly Permission[];
   built: boolean;
   /** Shown in the phone bottom tab bar. */
   tab?: boolean;
@@ -18,21 +20,21 @@ export interface NavDef {
 }
 
 export const NAV: readonly NavDef[] = [
-  { key: 'home', label: 'Home', href: '/admin', icon: 'home', perm: 'admin.access', built: true, tab: true },
+  { key: 'home', label: 'Home', href: '/admin', icon: 'home', perm: 'home.read', built: true, tab: true },
   { key: 'tasks', label: 'Tasks', href: '/admin/tasks', icon: 'tasks', perm: 'tasks.read', built: true, tab: true, badge: 'tasks' },
   { key: 'forms', label: 'Forms', href: '/admin/forms', icon: 'forms', perm: 'forms.read', built: true, tab: true },
-  { key: 'deals', label: 'Deals', href: '/admin/deal-files', icon: 'deals', perm: 'xero.read', built: true, tab: true },
-  { key: 'quotes', label: 'Quotes', href: '/admin/xero/quotes', icon: 'quotes', perm: 'xero.read', built: true },
-  { key: 'invoices', label: 'Invoices', href: '/admin/xero/invoices', icon: 'invoices', perm: 'xero.read', built: true },
+  { key: 'deals', label: 'Deals', href: '/admin/deal-files', icon: 'deals', perm: 'deals.read', built: true, tab: true },
+  { key: 'quotes', label: 'Quotes', href: '/admin/xero/quotes', icon: 'quotes', perm: 'quotes.read', built: true },
+  { key: 'invoices', label: 'Invoices', href: '/admin/xero/invoices', icon: 'invoices', perm: 'invoices.read', built: true },
   { key: 'stock', label: 'Stock', href: '/admin/stock', icon: 'stock', perm: 'stock.read', built: true, tab: true },
   { key: 'documents', label: 'Documents', href: '/admin/documents', icon: 'documents', perm: 'entries.read', built: false },
   { key: 'leads', label: 'Leads', href: '/admin/leads', icon: 'leads', perm: 'leads.read', built: true, tab: true, badge: 'leads' },
-  { key: 'integrations', label: 'Integrations', href: '/admin/integrations/xero', icon: 'integrations', perm: 'xero.read', built: true },
-  { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'settings', perm: 'settings.manage', built: true },
+  { key: 'integrations', label: 'Integrations', href: '/admin/integrations/xero', icon: 'integrations', perm: 'integrations.read', built: true },
+  { key: 'settings', label: 'Settings', href: '/admin/settings', icon: 'settings', perm: 'settings.read', anyOf: ['users.read', 'audit.read'], built: true },
 ];
 
 export function visibleNav(member: Member | null, defs: readonly NavDef[] = NAV): NavDef[] {
-  return defs.filter((n) => n.built && can(member, n.perm));
+  return defs.filter((n) => n.built && (can(member, n.perm) || (n.anyOf ?? []).some((p) => can(member, p))));
 }
 
 /**
