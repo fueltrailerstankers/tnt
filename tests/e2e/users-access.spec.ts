@@ -341,6 +341,43 @@ test.describe.serial('users, access levels and activity log', () => {
     await ctx.close();
   });
 
+  test('a pending invite can be resent or cancelled from the list, and the same email can be invited again', async ({ page, request }) => {
+    const P = { name: `Pen Ding ${run}`, email: `pending-${run}@example.invalid` };
+    const mailsOf = async () => (await (await request.get(`${STUB}/__stub/mail?to=${encodeURIComponent(P.email)}`)).json()) as unknown[];
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(P.name);
+    await main.getByLabel('Email').fill(P.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    expect(await mailsOf()).toHaveLength(1);
+    const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [P.email]);
+
+    // Resend from the list: a new email, back on the list.
+    await page.goto('/admin/settings/users');
+    await main.getByRole('button', { name: `Resend invite to ${P.name}` }).click();
+    await expect(main.getByRole('status')).toContainText('Invite email sent again');
+    await expect(page).toHaveURL(/\/admin\/settings\/users\?sent=1$/);
+    expect(await mailsOf()).toHaveLength(2);
+
+    // Cancel from the list (the confirm prompt is accepted): the membership is gone.
+    page.once('dialog', (d) => void d.accept());
+    await main.getByRole('button', { name: `Cancel invite ${P.name}` }).click();
+    await expect(main.getByRole('status')).toContainText('Invite cancelled');
+    await expect(main.getByTestId(`user-row-${row.user_id}`)).toHaveCount(0);
+    expect(await sql(`select 1 from public.memberships where user_id = $1`, [row.user_id])).toHaveLength(0);
+
+    // Inviting the same email again sends a fresh invite email (it never signed in, so it is not an existing account).
+    await page.goto('/admin/settings/users/invite');
+    await main.getByLabel('Name').fill(P.name);
+    await main.getByLabel('Email').fill(P.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    await expect(main.getByRole('status')).toBeVisible();
+    expect(await mailsOf()).toHaveLength(3);
+    const [again] = await sql<{ status: string; invite_new_account: boolean }>(`select status, invite_new_account from public.memberships where user_id = $1`, [row.user_id]);
+    expect(again).toEqual({ status: 'invited', invite_new_account: true });
+  });
+
   test('every user and access change, sign-in and export is in the activity log with the actor', async ({ page }) => {
     // A failed sign-in for the reader's account: recorded without the email.
     await page.goto('/login');

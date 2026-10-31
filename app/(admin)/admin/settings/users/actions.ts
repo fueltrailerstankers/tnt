@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createAccount, createLink, sendInvite, setBanned } from '@/lib/users/auth-admin';
+import { createAccount, createLink, neverSignedIn, sendInvite, setBanned } from '@/lib/users/auth-admin';
 import {
   accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, banDecision, grantsAdminOnlyWrite, InviteInput, resolveAccess,
   type AddState, type InviteState, type LinkResult,
@@ -56,11 +56,16 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
   const { data: known } = await admin.from('profiles').select('id').eq('email', email).maybeSingle();
   if (known) {
     const knownId = known.id as string;
-    if ((await memberships(knownId)).some((m) => m.org_id === member.orgId)) return fail('exists');
-    if (await addMembership(knownId, false)) return fail('auth');
-    await audit(member.orgId, member.userId, 'user.invite', knownId, { preset, access, method: 'existing' });
-    revalidatePath('/admin/settings/users');
-    return { status: 'done', userId: knownId, sent: 'existing' };
+    const theirs = await memberships(knownId);
+    if (theirs.some((m) => m.org_id === member.orgId)) return fail('exists');
+    // Left over from an invite that was cancelled before they ever signed in (no membership anywhere, never confirmed):
+    // not a real account yet, so invite it as a new one (a fresh email or link) instead of the existing-account path.
+    if (theirs.length || !(await neverSignedIn(admin, knownId))) {
+      if (await addMembership(knownId, false)) return fail('auth');
+      await audit(member.orgId, member.userId, 'user.invite', knownId, { preset, access, method: 'existing' });
+      revalidatePath('/admin/settings/users');
+      return { status: 'done', userId: knownId, sent: 'existing' };
+    }
   }
 
   // A new account: invite email, or a link for the inviter to pass on. Neither is ever made for an existing account.
@@ -151,18 +156,21 @@ export async function saveUser(userId: string, fd: FormData): Promise<void> {
   redirect(userUrl(before.userId, '?saved=1'));
 }
 
-export async function resendInvite(userId: string): Promise<void> {
+/** Resend invite. `from=list` (hidden field) returns to the members list instead of the member's page. */
+export async function resendInvite(userId: string, fd?: FormData): Promise<void> {
   const member = await requirePerm('users.manage');
+  const fromList = fd?.get('from') === 'list';
+  const back = (q: string) => (fromList ? `/admin/settings/users${q}` : userUrl(typeof userId === 'string' ? userId : '', q));
   const target = await targetOf(member.orgId, userId);
   if (!target) redirect('/admin/settings/users?error=not_found');
-  if (target.status !== 'invited' || !target.email) redirect(userUrl(target.userId, '?error=state'));
-  if (target.role === 'admin' && member.role !== 'admin') redirect(userUrl(target.userId, '?error=admin_only'));
+  if (target.status !== 'invited' || !target.email) redirect(back('?error=state'));
+  if (target.role === 'admin' && member.role !== 'admin') redirect(back('?error=admin_only'));
   // Only a brand-new account gets invite emails (an existing account accepts with its own password).
-  if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) redirect(userUrl(target.userId, '?error=existing_account'));
+  if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) redirect(back('?error=existing_account'));
   const r = await sendInvite(createAdminClient(), target.email, target.name);
-  if (!('userId' in r)) redirect(userUrl(target.userId, `?error=${r.error === 'exists' ? 'state' : 'email'}`));
+  if (!('userId' in r)) redirect(back(`?error=${r.error === 'exists' ? 'state' : 'email'}`));
   await audit(member.orgId, member.userId, 'user.invite_resend', target.userId);
-  redirect(userUrl(target.userId, '?sent=1'));
+  redirect(back('?sent=1'));
 }
 
 /** A fresh invite link for an invited member, shown once on the admin's screen. */
@@ -229,5 +237,6 @@ export async function removeUser(userId: string, fd: FormData): Promise<void> {
   if (target.status === 'disabled' && banDecision('lift', await otherMemberships(member.orgId, target.userId))) await setBanned(createAdminClient(), target.userId, false);
   await audit(member.orgId, member.userId, 'user.remove', target.userId, { preset: target.preset, status: target.status });
   revalidatePath('/admin/settings/users');
-  redirect('/admin/settings/users?removed=1');
+  // Cancelling a pending invite is the same removal (the invite link stops working: the membership is gone).
+  redirect(`/admin/settings/users?removed=${target.status === 'invited' ? 'invite' : '1'}`);
 }
