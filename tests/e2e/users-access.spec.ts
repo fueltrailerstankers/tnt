@@ -53,7 +53,7 @@ test.describe.serial('users, access levels and activity log', () => {
   test('admin invites with a custom access map and copies the invite link', async ({ page }) => {
     await signIn(page, '/admin/settings/users');
     const main = page.getByRole('main');
-    await expect(main.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Organisation', 'Users & access', 'Activity log', 'Forms']);
+    await expect(main.getByRole('navigation', { name: 'Settings sections' }).getByRole('link')).toHaveText(['Organisation', 'Users & access', 'Notification recipients', 'Activity log', 'Job runs', 'Forms']);
     await main.getByRole('link', { name: 'Invite user' }).click();
     await expect(page).toHaveURL(/\/admin\/settings\/users\/invite$/, { timeout: 30_000 });
 
