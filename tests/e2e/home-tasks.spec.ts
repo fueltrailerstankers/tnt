@@ -209,7 +209,7 @@ test.describe('desktop (1440)', () => {
       if (!existing.length) {
         await page.goto('/admin/tasks?filter=failed-jobs');
         await page.getByTestId('task-sync-invoices').getByRole('button', { name: 'Retry' }).click();
-        await expect(page).toHaveURL(/\/admin\/integrations\/xero\?synced=1$/);
+        await expect(page).toHaveURL(/\/admin\/integrations\/xero\?synced=1$/, { timeout: 60_000 }); // Sync now runs a full sync + drain
       }
     } finally {
       await sql(`update outbox_jobs set status = 'done' where queue in ($1, $2)`, [`e2e.mine.${run}`, `e2e.other.${run}`]);
