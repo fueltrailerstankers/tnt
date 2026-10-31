@@ -46,11 +46,13 @@ export default defineConfig({
       gracefulShutdown: { signal: 'SIGTERM', timeout: 2000 },
     },
     {
-      // Dev server: NEXT_PUBLIC_* values are read at runtime, so the stub URL needs no rebuild.
-      command: `pnpm exec next dev -p ${APP_PORT}`,
+      // Dev server by default: NEXT_PUBLIC_* values are read at runtime, so the stub URL needs no rebuild.
+      // E2E_PROD=1 builds and serves production instead: every route is compiled up front, so the whole suite
+      // runs without first-visit compile delays (the build bakes in the stub URL and keys below).
+      command: process.env.E2E_PROD === '1' ? `pnpm exec next build && pnpm exec next start -p ${APP_PORT}` : `pnpm exec next dev -p ${APP_PORT}`,
       url: `http://127.0.0.1:${APP_PORT}/login`,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      timeout: process.env.E2E_PROD === '1' ? 600_000 : 120_000,
       env: {
         NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${STUB_PORT}`,
         NEXT_PUBLIC_SUPABASE_ANON_KEY: 'stub-anon-key',
