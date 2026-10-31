@@ -10,7 +10,8 @@ export interface FormTab {
 /** Form switcher above the grid (handoff tab strip): links, the current one marked aria-current. Scrolls on phones. */
 export function FormTabs({ tabs, current }: { tabs: readonly FormTab[]; current: string }) {
   return (
-    <nav aria-label="Forms" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    // relative: keeps the sr-only "(encrypted)" spans inside the scroller, so they never widen the page.
+    <nav aria-label="Forms" className="relative -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <ul className="m-0 flex min-w-max list-none gap-1 border-b border-border p-0">
         {tabs.map((t) => {
           const on = t.slug === current;
