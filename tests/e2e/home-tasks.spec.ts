@@ -56,11 +56,13 @@ test.describe('desktop (1440)', () => {
     // No Xero connection yet in this database (xero.spec connects later): the tile says so.
     await expect(page.getByTestId('xero-health')).toContainText('Xero sync health');
 
-    // Forms card: seven rows in design order; inspections can only be started from the public link.
+    // Forms card: the seven kit forms in design order (M8 specs may have added more forms to this shared database;
+    // they come after); inspections can only be started from the public link.
+    const KIT = ['deal', 'request-for-invoice', 'job-card', 'trailer-inspection-checklist', 'release-form', 'delivery-note', 'store-room'];
     const rows = page.locator('[data-testid^="form-row-"]');
-    await expect(rows).toHaveCount(7);
-    await expect(rows.first()).toHaveAttribute('data-testid', 'form-row-deal');
-    await expect(rows.last()).toHaveAttribute('data-testid', 'form-row-store-room');
+    const ids = await rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!.replace('form-row-', '')));
+    expect(ids.filter((id) => KIT.includes(id))).toEqual(KIT);
+    expect(ids.slice(0, 7)).toEqual(KIT);
     await expect(page.getByRole('link', { name: 'New Trailer Inspection entry' })).toHaveAttribute('href', '/f/trailer-inspection-checklist');
     await expect(page.getByRole('link', { name: 'New Job Card entry' })).toHaveAttribute('href', '/admin/forms/job-card/new');
     await expect(page.getByTestId('unread-release-form')).toHaveText(/^\d+ new$/);
