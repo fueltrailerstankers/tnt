@@ -127,7 +127,7 @@ test('form builder: create, publish, submit, edit with guards, export/import, hi
   await expect(page.getByText('Published version 3.')).toBeVisible();
   await page.goto(`/admin/forms/${SLUG}/entries/1`);
   await expect(page.getByRole('main').locator('#f-Text')).toHaveValue('Synthetic text');
-  await expect(page.getByRole('main').getByText('Title text')).toBeVisible();
+  await expect(page.getByRole('main').locator('label[for="f-Text"]')).toContainText('Title text'); // the timeline also names the field
 
   // --- guards: a field with data cannot be deleted or retyped ---------------------------------------
   await page.goto(`/admin/forms/${SLUG}/design`);
