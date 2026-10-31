@@ -17,7 +17,7 @@ const PUBLIC = [
   '/f/trailer-inspection-checklist', '/f/job-card', '/f/job-card/thanks', '/e/not-a-real-token-but-long-enough-xx', '/login',
 ];
 
-const ADMIN = ['/admin', '/admin/tasks', '/admin/forms', '/admin/forms/release-form', '/admin/forms/deal/new', '/admin/deal-files', '/admin/xero/quotes', '/admin/xero/invoices', '/admin/integrations/xero', '/admin/settings', '/admin/leads'];
+const ADMIN = ['/admin', '/admin/tasks', '/admin/forms', '/admin/forms/release-form', '/admin/forms/deal/new', '/admin/deal-files', '/admin/xero/quotes', '/admin/xero/invoices', '/admin/integrations/xero', '/admin/settings', '/admin/leads', '/admin/leads/pipeline', '/admin/stock'];
 
 for (const [w, h] of [[1440, 900], [390, 844]] as const) {
   for (const scheme of ['light', 'dark'] as const) {
@@ -31,8 +31,7 @@ for (const [w, h] of [[1440, 900], [390, 844]] as const) {
         }
       });
 
-      // Enabled once the redesigned admin screens (UI handoff wave 2) are merged; the old pages predate the design.
-      test.fixme('admin routes have no WCAG AA violations', async ({ page }) => {
+      test('admin routes have no WCAG AA violations', async ({ page }) => {
         test.setTimeout(180_000);
         await signIn(page);
         for (const path of ADMIN) {
