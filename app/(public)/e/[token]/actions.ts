@@ -7,6 +7,7 @@ import { loadEntryById } from '@/lib/forms/entries';
 import { customerPanel, lookupExact } from '@/lib/forms/lookup';
 import type { LookupOption } from '@/lib/forms/lookup-types';
 import { issueUploads } from '@/lib/forms/storage';
+import { publicLookupOf, publicUploadAllowed } from '@/lib/forms/public-policy';
 import { validateUploadRequest } from '@/lib/forms/uploads';
 import { clientIp, rateLimit } from '@/lib/security/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -52,6 +53,7 @@ export async function requestUploadLink(token: string, field: string, files: Arr
   if (await limited('upload', 30)) return { error: 'Too many uploads. Wait a minute and try again.' };
   const ctx = await context(token);
   if (!ctx) return { error: 'This link has expired or is no longer valid.' };
+  if (!publicUploadAllowed(ctx.form.spec, field)) return { error: 'Unknown file field.' };
   const v = validateUploadRequest(ctx.form.spec, field, files);
   if (!v.ok) return { error: v.error };
   return { tickets: await issueUploads(ctx.db, field, v.files) };
@@ -60,8 +62,8 @@ export async function requestUploadLink(token: string, field: string, files: Arr
 export async function findLookupLink(token: string, value: string): Promise<{ option: LookupOption; panel: Array<[string, string]> } | null> {
   if (await limited('lookup', 10)) return null;
   const ctx = await context(token);
-  const field = ctx?.form.spec.fields.find((f) => f.type === 'lookup');
-  if (!ctx || !field || field.type !== 'lookup' || typeof value !== 'string') return null;
+  const field = ctx ? publicLookupOf(ctx.form.spec) : null; // allow-listed public lookups only (M8)
+  if (!ctx || !field || typeof value !== 'string') return null;
   const hit = await lookupExact(ctx.db, ctx.form.orgId, field.lookup.sourceForm, field.lookup.displayField, value);
   return hit ? { option: hit, panel: await customerPanel(ctx.db, ctx.form.orgId, field.lookup.sourceForm, hit.id, true) } : null;
 }

@@ -26,6 +26,8 @@ const E2E_DB = process.env.E2E_DB_NAME ?? 'tt_e2e';
 
 export const USERS = [
   { id: '00000000-0000-0000-0000-00000000a001', email: 'admin@example.invalid', password: 'correct-horse-battery', role: 'admin', name: 'Test Admin' },
+  // M8: staff without forms.manage (the builder must refuse them).
+  { id: '00000000-0000-0000-0000-00000000a018', email: 'staff-m8@example.invalid', password: 'correct-horse-battery', role: 'staff', name: 'Test Staff M8' },
 ];
 // M6 stock overview: a factory member (stock read + dispatch only), for the stock tab and permission checks.
 USERS.push({ id: '00000000-0000-0000-0000-00000000f101', email: 'factory-stock@example.invalid', password: 'factory-stock-e2e-only', role: 'factory', name: 'Test Factory' });

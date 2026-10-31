@@ -11,13 +11,18 @@ export interface FormRecord {
   encrypt: boolean;
   summaryTemplate: string;
   spec: FormSpec;
+  /** M8: published version, unparsed draft (null = none) and archive time. */
+  version?: number;
+  draftSpec?: unknown;
+  archivedAt?: string | null;
 }
 
-const COLUMNS = 'id, org_id, slug, name, is_active, encrypt_entries, entry_summary_template, spec';
+const COLUMNS = 'id, org_id, slug, name, is_active, encrypt_entries, entry_summary_template, spec, version, draft_spec, archived_at';
 
 type Row = {
   id: string; org_id: string; slug: string; name: string; is_active: boolean;
   encrypt_entries: boolean; entry_summary_template: string | null; spec: unknown;
+  version?: number; draft_spec?: unknown; archived_at?: string | null;
 };
 
 function toRecord(r: Row): FormRecord {
@@ -25,6 +30,7 @@ function toRecord(r: Row): FormRecord {
   return {
     id: r.id, orgId: r.org_id, slug: r.slug, name: r.name, isActive: r.is_active,
     encrypt: r.encrypt_entries, summaryTemplate: r.entry_summary_template ?? spec.settings.entrySummary, spec,
+    version: r.version ?? 1, draftSpec: r.draft_spec ?? null, archivedAt: r.archived_at ?? null,
   };
 }
 

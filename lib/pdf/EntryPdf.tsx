@@ -1,11 +1,12 @@
 // Generic "view" PDF (document #1) for every form: title, entry number and status, every field in
 // spec order including blanks, content blocks (T&Cs, waiver) verbatim, checklist, signatures as images.
 // The Delivery Note's #1 is this document: T&Cs, waiver and all five signatures are spec fields.
-import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
-import { contentBlocks, type Block } from '@/lib/spec/content';
+import { Document, Image, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { contentBlocks, type Block, type Span } from '@/lib/spec/content';
 import { pages } from '@/lib/spec/layout';
-import type { FormSpec } from '@/lib/spec/types';
-import { displayValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import type { FieldSpec, FormSpec } from '@/lib/spec/types';
+import { formatValue, type ChecklistRow, type EntryData } from '@/lib/spec/values';
+import { hiddenFields, isHeading } from '@/lib/spec/visibility';
 
 export interface PdfEntry {
   number: number;
@@ -47,6 +48,11 @@ export const styles = StyleSheet.create({
   content: { border: '0.5pt solid #bbb', padding: 6, marginBottom: 4 },
   para: { fontSize: 7.5, marginBottom: 3, lineHeight: 1.3 },
   bold: { fontFamily: 'Helvetica-Bold' },
+  italic: { fontFamily: 'Helvetica-Oblique' },
+  boldItalic: { fontFamily: 'Helvetica-BoldOblique' },
+  link: { color: '#1a4f8b', textDecoration: 'underline' },
+  heading: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginTop: 6, marginBottom: 2 },
+  help: { fontSize: 7, color: '#555', marginTop: 1 },
   sig: { height: 50, objectFit: 'contain', alignSelf: 'flex-start' },
   table: { borderTop: '0.5pt solid #bbb' },
   tr: { flexDirection: 'row', borderBottom: '0.5pt solid #bbb', paddingVertical: 2 },
@@ -57,16 +63,46 @@ export function formatTime(iso: string, timezone: string): string {
   return new Intl.DateTimeFormat('en-ZA', { timeZone: timezone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
 
+function spanStyle(s: Span) {
+  if (s.href) return styles.link;
+  if (s.bold && s.italic) return styles.boldItalic;
+  if (s.italic) return styles.italic;
+  return s.bold ? styles.bold : undefined;
+}
+
+function SpanText({ s }: { s: Span }) {
+  return s.href ? <Link src={s.href} style={spanStyle(s)}>{s.text}</Link> : <Text style={spanStyle(s)}>{s.text}</Text>;
+}
+
 export function Blocks({ blocks }: { blocks: Block[] }) {
   return (
     <>
-      {blocks.map((b, i) => (
-        <Text key={i} style={styles.para}>
-          {b.spans.map((s, j) => (
-            <Text key={j} style={s.bold ? styles.bold : undefined}>{s.text}</Text>
-          ))}
-        </Text>
-      ))}
+      {blocks.map((b, i) => {
+        if (b.kind === 'list') {
+          return (
+            <View key={i}>
+              {b.items.map((it, j) => (
+                <Text key={j} style={styles.para}>
+                  {b.ordered ? `${j + 1}. ` : '• '}
+                  {it.map((s, k) => <SpanText key={k} s={s} />)}
+                </Text>
+              ))}
+            </View>
+          );
+        }
+        if (b.kind === 'heading') {
+          return (
+            <Text key={i} style={[styles.para, styles.bold]}>
+              {b.spans.map((s, j) => <SpanText key={j} s={s} />)}
+            </Text>
+          );
+        }
+        return (
+          <Text key={i} style={styles.para}>
+            {b.spans.map((s, j) => (s.italic || s.href ? <SpanText key={j} s={s} /> : <Text key={j} style={s.bold ? styles.bold : undefined}>{s.text}</Text>))}
+          </Text>
+        );
+      })}
     </>
   );
 }
@@ -82,12 +118,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function EntryPdf(p: PdfProps) {
   const tz = p.timezone;
+  const hidden = hiddenFields(p.spec, p.data);
+  // M8 Documents tab (document #1 options; the kit forms set none to false, so they print as before).
+  const d1 = p.spec.documents.find((d) => d.number === 1);
+  const blankOk = d1?.includeBlankFields !== false;
+  const isBlank = (f: FieldSpec) => {
+    if (blankOk || !('name' in f) || f.type === 'section' || f.type === 'table') return false;
+    if (f.type === 'file') return !(p.files[f.name] ?? []).length;
+    if (f.type === 'signature') return !p.signatures[f.name];
+    return formatValue(f, p.data[f.name]) === '';
+  };
   return (
     <Document title={p.title} author="Trailers & Tankers" creator="Trailers & Tankers platform">
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.org}>TRAILERS & TANKERS</Text>
-          <Text style={styles.title}>{p.title}</Text>
+          {d1?.includeLogo !== false ? <Text style={styles.org}>TRAILERS & TANKERS</Text> : null}
+          {d1?.includeTitle !== false ? <Text style={styles.title}>{p.title}</Text> : null}
           <Text style={styles.meta}>
             Entry #{p.entry.number} · {p.entry.status} · created {formatTime(p.entry.createdAt, tz)} · updated {formatTime(p.entry.updatedAt, tz)}
           </Text>
@@ -96,9 +142,10 @@ export function EntryPdf(p: PdfProps) {
         {pages(p.spec).map((pg) => (
           <View key={pg.index}>
             {pg.title ? <Text style={styles.pageTitle}>{pg.title}</Text> : null}
-            {pg.rows.map((row) => (
+            {/* M8: fields hidden by showWhen for this entry are left out (none on the kit forms). */}
+            {pg.rows.map((row) => ({ row, cells: row.cells.filter((c) => !hidden.has(c.field) && !isBlank(c.field)) })).filter((r) => r.cells.length).map(({ row, cells }) => (
               <View key={row.row} style={styles.row}>
-                {row.cells.map((c, i) => (
+                {cells.map((c, i) => (
                   <View key={i} style={[styles.cell, { width: `${(c.span / 24) * 100}%` }]}>{renderCell(c.field, p)}</View>
                 ))}
               </View>
@@ -154,6 +201,14 @@ function renderCell(f: ReturnType<typeof pages>[number]['rows'][number]['cells']
         </Field>
       );
     case 'section': {
+      if (isHeading(f)) {
+        return (
+          <View wrap={false}>
+            <Text style={styles.heading}>{f.label.trim() || f.name}</Text>
+            {f.description ? <Text style={styles.help}>{f.description}</Text> : null}
+          </View>
+        );
+      }
       const rows = (p.data.checklist as ChecklistRow[] | undefined) ?? [];
       return (
         <Field label={f.label}>
@@ -176,7 +231,7 @@ function renderCell(f: ReturnType<typeof pages>[number]['rows'][number]['cells']
     default:
       return (
         <Field label={f.label.trim() || f.name}>
-          <Text style={styles.value}>{displayValue(p.data[f.name]) || ' '}</Text>
+          <Text style={styles.value}>{formatValue(f, p.data[f.name], { timeZone: p.timezone }) || ' '}</Text>
         </Field>
       );
   }

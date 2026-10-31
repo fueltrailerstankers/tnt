@@ -2,8 +2,9 @@
 // The spec stays the source of truth for fields, names, labels, order of entry data and validation; this module
 // only groups and widens cells for the screen (UI handoff: 24-column grid, cards, steps). Every input field of
 // the spec appears exactly once (tests/unit/presentation.test.ts enforces it for all seven forms).
-import { pages, type Cell, type Row } from './layout';
-import type { FormSpec } from './types';
+import { pages, type Cell, type Page, type Row } from './layout';
+import type { FieldSpec, FormSpec } from './types';
+import { isHeading } from './visibility';
 
 export type SectionKind = 'grid' | 'lines' | 'count';
 
@@ -25,6 +26,8 @@ export interface Section {
   description?: string;
   kind: SectionKind;
   rows: DisplayRow[];
+  /** M8: the heading field this card comes from (its showWhen hides the whole card). */
+  heading?: FieldSpec;
 }
 
 export interface Step {
@@ -263,9 +266,42 @@ export function present(spec: FormSpec): Step[] {
     title: p.title,
     nextButton: p.nextButton,
     backButton: p.backButton,
-    sections: [{ key: `${p.index}-0`, kind: def?.kind ?? 'grid', rows: def?.kind === 'count' ? p.rows.map((r) => ({ cells: r.cells.map((cell) => ({ cell, span: cell.span })) })) : packRows(p.rows) }],
+    sections: def?.kind === 'count'
+      ? [{ key: `${p.index}-0`, kind: 'count', rows: p.rows.map((r) => ({ cells: r.cells.map((cell) => ({ cell, span: cell.span })) })) }]
+      : headingSections(p, def?.kind ?? 'grid', spec.settings.layout !== 'exact'),
     requireSigned: [],
   }));
+}
+
+/**
+ * Section cards of a spec page. M8 heading fields (section without children) start a new card titled by the
+ * heading, with its description; the fields before the first heading form an untitled card. A page without
+ * headings (every kit form) is one card, as before.
+ */
+function headingSections(p: Page, kind: SectionKind, pack: boolean): Section[] {
+  const out: Section[] = [];
+  let current: { title?: string; description?: string; heading?: FieldSpec; rows: Row[] } = { rows: [] };
+  const flush = (key: string) => {
+    if (current.heading || current.rows.length) {
+      const rows = pack ? packRows(current.rows) : current.rows.map((r) => ({ cells: r.cells.map((cell) => ({ cell, span: cell.span })) }));
+      out.push({ key, title: current.title, description: current.description, kind, rows, ...(current.heading ? { heading: current.heading } : {}) });
+    }
+  };
+  let n = 0;
+  for (const r of p.rows) {
+    const head = r.cells.find((c) => isHeading(c.field));
+    if (!head) {
+      current.rows.push(r);
+      continue;
+    }
+    flush(n === 0 ? `${p.index}-0` : `${p.index}-h${n}`);
+    n++;
+    const f = head.field as Extract<FieldSpec, { type: 'section' }>;
+    const rest = r.cells.filter((c) => c !== head);
+    current = { title: f.label.trim() || f.name, description: f.description, heading: f, rows: rest.length ? [{ ...r, cells: rest }] : [] };
+  }
+  flush(n === 0 ? `${p.index}-0` : `${p.index}-h${n}`);
+  return out;
 }
 
 /** Step that holds a field, for jumping to the first error. -1 when not found. */

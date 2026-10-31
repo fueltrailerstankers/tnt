@@ -1,0 +1,3144 @@
+{
+ "deal": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "MONTH@1+10"
+     ],
+     [
+      "DATECREATED@1+10"
+     ],
+     [
+      "COLLECTIONLOCATION@1+12"
+     ],
+     [
+      "QUOTENO@1+10"
+     ],
+     [
+      "SALESREP@1+10"
+     ],
+     [
+      "POP@1+12"
+     ],
+     [
+      "PARTNO1@1+10"
+     ],
+     [
+      "LINE1@1+10"
+     ],
+     [
+      "PARTNO2@1+10"
+     ],
+     [
+      "LINE2@1+10"
+     ],
+     [
+      "PARTNO3@1+10"
+     ],
+     [
+      "LINE3@1+10"
+     ],
+     [
+      "PARTNO4@1+10"
+     ],
+     [
+      "LINE4@1+10"
+     ],
+     [
+      "PARTNO5@1+10"
+     ],
+     [
+      "LINE5@1+10"
+     ],
+     [
+      "PARTNO6@1+10"
+     ],
+     [
+      "LINE6@1+10"
+     ],
+     [
+      "PARTNO7@1+10"
+     ],
+     [
+      "LINE7@1+10"
+     ],
+     [
+      "PARTNO8@1+10"
+     ],
+     [
+      "LINE8@1+10"
+     ],
+     [
+      "Total@1+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "MONTH": "DEC",
+     "DATECREATED": "2026-10-29",
+     "COLLECTIONLOCATION": [
+      "JHB",
+      "DUR"
+     ],
+     "QUOTENO": "T-QUOTENO",
+     "SALESREP": "GERALD",
+     "PARTNO1": "T-PARTNO1",
+     "LINE1": "T-LINE1",
+     "PARTNO2": "T-PARTNO2",
+     "LINE2": "T-LINE2",
+     "PARTNO3": "T-PARTNO3",
+     "LINE3": "T-LINE3",
+     "PARTNO4": "T-PARTNO4",
+     "LINE4": "T-LINE4",
+     "PARTNO5": "T-PARTNO5",
+     "LINE5": "T-LINE5",
+     "PARTNO6": "T-PARTNO6",
+     "LINE6": "T-LINE6",
+     "PARTNO7": "T-PARTNO7",
+     "LINE7": "T-LINE7",
+     "PARTNO8": "T-PARTNO8",
+     "LINE8": "T-LINE8",
+     "Total": 42
+    },
+    "files": {
+     "POP": []
+    },
+    "signatures": {},
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {
+     "POP": []
+    },
+    "signatures": {},
+    "errors": {}
+   },
+   "bad": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "MONTH": "Choose one of the listed options.",
+     "DATECREATED": "Enter a valid date.",
+     "COLLECTIONLOCATION": "Choose one of the listed options.",
+     "SALESREP": "Choose one of the listed options.",
+     "POP": "Upload failed. Try adding the file again.",
+     "Total": "Enter a whole number."
+    }
+   }
+  },
+  "validate": {
+   "empty": {},
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {
+    "MONTH": "JAN",
+    "SALESREP": "MELINDA"
+   },
+   "today": {
+    "MONTH": "JAN",
+    "DATECREATED": "2026-10-29",
+    "SALESREP": "MELINDA"
+   }
+  },
+  "summary": "T-QUOTENO",
+  "display": {
+   "MONTH": "DEC",
+   "DATECREATED": "2026-10-29",
+   "COLLECTIONLOCATION": "JHB, DUR",
+   "QUOTENO": "T-QUOTENO",
+   "SALESREP": "GERALD",
+   "POP": "",
+   "PARTNO1": "T-PARTNO1",
+   "LINE1": "T-LINE1",
+   "PARTNO2": "T-PARTNO2",
+   "LINE2": "T-LINE2",
+   "PARTNO3": "T-PARTNO3",
+   "LINE3": "T-LINE3",
+   "PARTNO4": "T-PARTNO4",
+   "LINE4": "T-LINE4",
+   "PARTNO5": "T-PARTNO5",
+   "LINE5": "T-LINE5",
+   "PARTNO6": "T-PARTNO6",
+   "LINE6": "T-LINE6",
+   "PARTNO7": "T-PARTNO7",
+   "LINE7": "T-LINE7",
+   "PARTNO8": "T-PARTNO8",
+   "LINE8": "T-LINE8",
+   "Total": "42"
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "MONTH",
+     "label": "MONTH"
+    },
+    {
+     "name": "DATECREATED",
+     "label": "DATE CREATED"
+    },
+    {
+     "name": "COLLECTIONLOCATION",
+     "label": "COLLECTION LOCATION"
+    },
+    {
+     "name": "QUOTENO",
+     "label": "QUOTE NO"
+    },
+    {
+     "name": "SALESREP",
+     "label": "SALES REP"
+    },
+    {
+     "name": "PARTNO1",
+     "label": "PART NO 1"
+    },
+    {
+     "name": "LINE1",
+     "label": "LINE 1"
+    },
+    {
+     "name": "PARTNO2",
+     "label": "PART NO 2"
+    },
+    {
+     "name": "LINE2",
+     "label": "LINE 2"
+    },
+    {
+     "name": "PARTNO3",
+     "label": "PART NO 3"
+    },
+    {
+     "name": "LINE3",
+     "label": "LINE 3"
+    },
+    {
+     "name": "PARTNO4",
+     "label": "PART NO 4"
+    },
+    {
+     "name": "LINE4",
+     "label": "LINE 4"
+    },
+    {
+     "name": "PARTNO5",
+     "label": "PART NO 5"
+    },
+    {
+     "name": "LINE5",
+     "label": "LINE 5"
+    },
+    {
+     "name": "PARTNO6",
+     "label": "PART NO 6"
+    },
+    {
+     "name": "LINE6",
+     "label": "LINE 6"
+    },
+    {
+     "name": "PARTNO7",
+     "label": "PART NO 7"
+    },
+    {
+     "name": "LINE7",
+     "label": "LINE 7"
+    },
+    {
+     "name": "PARTNO8",
+     "label": "PART NO 8"
+    },
+    {
+     "name": "LINE8",
+     "label": "LINE 8"
+    },
+    {
+     "name": "Total",
+     "label": "Total"
+    }
+   ],
+   "defaults": [
+    "MONTH",
+    "DATECREATED",
+    "COLLECTIONLOCATION",
+    "QUOTENO"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "MONTH",
+     "DATE CREATED",
+     "COLLECTION LOCATION",
+     "QUOTE NO",
+     "SALES REP",
+     "PART NO 1",
+     "LINE 1",
+     "PART NO 2",
+     "LINE 2",
+     "PART NO 3",
+     "LINE 3",
+     "PART NO 4",
+     "LINE 4",
+     "PART NO 5",
+     "LINE 5",
+     "PART NO 6",
+     "LINE 6",
+     "PART NO 7",
+     "LINE 7",
+     "PART NO 8",
+     "LINE 8",
+     "Total"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "DEC",
+     "2026-10-29",
+     "JHB, DUR",
+     "T-QUOTENO",
+     "GERALD",
+     "T-PARTNO1",
+     "T-LINE1",
+     "T-PARTNO2",
+     "T-LINE2",
+     "T-PARTNO3",
+     "T-LINE3",
+     "T-PARTNO4",
+     "T-LINE4",
+     "T-PARTNO5",
+     "T-LINE5",
+     "T-PARTNO6",
+     "T-LINE6",
+     "T-PARTNO7",
+     "T-LINE7",
+     "T-PARTNO8",
+     "T-LINE8",
+     "42"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "MONTH",
+     "DATE CREATED",
+     "COLLECTION LOCATION",
+     "QUOTE NO",
+     "SALES REP",
+     "PART NO 1",
+     "LINE 1",
+     "PART NO 2",
+     "LINE 2",
+     "PART NO 3",
+     "LINE 3",
+     "PART NO 4",
+     "LINE 4",
+     "PART NO 5",
+     "LINE 5",
+     "PART NO 6",
+     "LINE 6",
+     "PART NO 7",
+     "LINE 7",
+     "PART NO 8",
+     "LINE 8",
+     "Total"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "DEC",
+     "2026-10-29",
+     "JHB, DUR",
+     "T-QUOTENO",
+     "GERALD",
+     "T-PARTNO1",
+     "T-LINE1",
+     "T-PARTNO2",
+     "T-LINE2",
+     "T-PARTNO3",
+     "T-LINE3",
+     "T-PARTNO4",
+     "T-LINE4",
+     "T-PARTNO5",
+     "T-LINE5",
+     "T-PARTNO6",
+     "T-LINE6",
+     "T-PARTNO7",
+     "T-LINE7",
+     "T-PARTNO8",
+     "T-LINE8",
+     "42"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "MONTH",
+    "DEC"
+   ],
+   [
+    "DATE CREATED",
+    "2026-10-29"
+   ],
+   [
+    "COLLECTION LOCATION",
+    "JHB, DUR"
+   ],
+   [
+    "QUOTE NO",
+    "T-QUOTENO"
+   ],
+   [
+    "SALES REP",
+    "GERALD"
+   ],
+   [
+    "POP",
+    "1 file"
+   ],
+   [
+    "PART NO 1",
+    "T-PARTNO1"
+   ],
+   [
+    "LINE 1",
+    "T-LINE1"
+   ],
+   [
+    "PART NO 2",
+    "T-PARTNO2"
+   ],
+   [
+    "LINE 2",
+    "T-LINE2"
+   ],
+   [
+    "PART NO 3",
+    "T-PARTNO3"
+   ],
+   [
+    "LINE 3",
+    "T-LINE3"
+   ],
+   [
+    "PART NO 4",
+    "T-PARTNO4"
+   ],
+   [
+    "LINE 4",
+    "T-LINE4"
+   ],
+   [
+    "PART NO 5",
+    "T-PARTNO5"
+   ],
+   [
+    "LINE 5",
+    "T-LINE5"
+   ],
+   [
+    "PART NO 6",
+    "T-PARTNO6"
+   ],
+   [
+    "LINE 6",
+    "T-LINE6"
+   ],
+   [
+    "PART NO 7",
+    "T-PARTNO7"
+   ],
+   [
+    "LINE 7",
+    "T-LINE7"
+   ],
+   [
+    "PART NO 8",
+    "T-PARTNO8"
+   ],
+   [
+    "LINE 8",
+    "T-LINE8"
+   ],
+   [
+    "Total",
+    "42"
+   ]
+  ],
+  "html": {
+   "publicNew": "5c0c9fd06c6f57fd8857159244caba1af60902ca9b82d655a9363d34942a59cb",
+   "staffExisting": "520ccaf60c8d6d5de322b7a356b48c9c93e8e4e7204f43c03a65aba3b3b1f813",
+   "readOnly": "047a34e4bc84fbc0b61f0705b3ac047ebee3e6ce259278bf86969469af2dcfdc"
+  },
+  "pdf": {
+   "sample": "433815693f76f75cf8ee935a285ddc8f6772e161f7dba97c4f61f29251a78372",
+   "blank": "806371cf6ba0e65016453f67572bdfea1278b5acc962712946d915b5dc4dc4a7"
+  }
+ },
+ "delivery-note": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "TrailerVinNO@1+12"
+     ],
+     [
+      "QuoteNo@1+12",
+      "INVOICENO@13+12"
+     ],
+     [
+      "CustomerDetailsFromQuote@1+24"
+     ],
+     [
+      "Signature4@1+6",
+      "content@7+18"
+     ],
+     [
+      "Signature@1+12",
+      "content@13+12"
+     ],
+     [
+      "content@1+24"
+     ],
+     [
+      "Signature2@1+8"
+     ],
+     [
+      "content@1+24"
+     ],
+     [
+      "Signature3@1+8",
+      "COPYOfSignatoryID@9+8",
+      "NATIS@17+8"
+     ],
+     [
+      "PAYMENT@1+12",
+      "Payment2@13+12"
+     ],
+     [
+      "DeliveryDate@1+12"
+     ],
+     [
+      "Email@1+12"
+     ],
+     [
+      "SalesRepSignature@1+6",
+      "RELEASENOTE@7+8"
+     ],
+     [
+      "Pic1FRONT@1+8"
+     ],
+     [
+      "PIC2LEFT@1+12"
+     ],
+     [
+      "PIC3RIGHT@1+12"
+     ],
+     [
+      "Pic4REAR@1+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "TrailerVinNO": "T-TrailerVinNO",
+     "QuoteNo": "11111111-1111-4111-8111-111111111111",
+     "INVOICENO": "T-INVOICENO",
+     "DeliveryDate": "2026-10-29",
+     "Email": "email@example.invalid"
+    },
+    "files": {
+     "COPYOfSignatoryID": [],
+     "NATIS": [],
+     "PAYMENT": [],
+     "Payment2": [],
+     "RELEASENOTE": [],
+     "Pic1FRONT": [],
+     "PIC2LEFT": [],
+     "PIC3RIGHT": [],
+     "Pic4REAR": []
+    },
+    "signatures": {
+     "Signature4": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     },
+     "Signature": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     },
+     "Signature2": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     },
+     "Signature3": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     },
+     "SalesRepSignature": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     }
+    },
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {
+     "COPYOfSignatoryID": [],
+     "NATIS": [],
+     "PAYMENT": [],
+     "Payment2": [],
+     "RELEASENOTE": [],
+     "Pic1FRONT": [],
+     "PIC2LEFT": [],
+     "PIC3RIGHT": [],
+     "Pic4REAR": []
+    },
+    "signatures": {
+     "Signature4": null,
+     "Signature": null,
+     "Signature2": null,
+     "Signature3": null,
+     "SalesRepSignature": null
+    },
+    "errors": {}
+   },
+   "bad": {
+    "data": {
+     "Email": "not-an-email"
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "QuoteNo": "Choose an entry from the list.",
+     "Signature4": "Signature could not be read. Sign again.",
+     "Signature": "Signature could not be read. Sign again.",
+     "Signature2": "Signature could not be read. Sign again.",
+     "Signature3": "Signature could not be read. Sign again.",
+     "COPYOfSignatoryID": "Upload failed. Try adding the file again.",
+     "NATIS": "Upload failed. Try adding the file again.",
+     "PAYMENT": "Upload failed. Try adding the file again.",
+     "Payment2": "Upload failed. Try adding the file again.",
+     "DeliveryDate": "Enter a valid date.",
+     "Email": "Enter a valid email address.",
+     "SalesRepSignature": "Signature could not be read. Sign again.",
+     "RELEASENOTE": "Upload failed. Try adding the file again.",
+     "Pic1FRONT": "Upload failed. Try adding the file again.",
+     "PIC2LEFT": "Upload failed. Try adding the file again.",
+     "PIC3RIGHT": "Upload failed. Try adding the file again.",
+     "Pic4REAR": "Upload failed. Try adding the file again."
+    }
+   }
+  },
+  "validate": {
+   "empty": {
+    "TrailerVinNO": "Enter the Trailer VIN or an Email",
+    "INVOICENO": "Enter the Trailer VIN or the Invoice No"
+   },
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {},
+   "today": {}
+  },
+  "summary": "T-TrailerVinNO",
+  "display": {
+   "TrailerVinNO": "T-TrailerVinNO",
+   "QuoteNo": "11111111-1111-4111-8111-111111111111",
+   "INVOICENO": "T-INVOICENO",
+   "CustomerDetailsFromQuote": "",
+   "Signature4": "",
+   "Signature": "",
+   "Signature2": "",
+   "Signature3": "",
+   "COPYOfSignatoryID": "",
+   "NATIS": "",
+   "PAYMENT": "",
+   "Payment2": "",
+   "DeliveryDate": "2026-10-29",
+   "Email": "email@example.invalid",
+   "SalesRepSignature": "",
+   "RELEASENOTE": "",
+   "Pic1FRONT": "",
+   "PIC2LEFT": "",
+   "PIC3RIGHT": "",
+   "Pic4REAR": ""
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "TrailerVinNO",
+     "label": "Trailer Vin NO"
+    },
+    {
+     "name": "QuoteNo",
+     "label": "Quote no:"
+    },
+    {
+     "name": "INVOICENO",
+     "label": "INVOICE NO"
+    },
+    {
+     "name": "DeliveryDate",
+     "label": "Delivery Date"
+    },
+    {
+     "name": "Email",
+     "label": "Email"
+    }
+   ],
+   "defaults": [
+    "TrailerVinNO",
+    "QuoteNo",
+    "INVOICENO",
+    "DeliveryDate"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Trailer Vin NO",
+     "Quote no:",
+     "INVOICE NO",
+     "Delivery Date",
+     "Email"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-TrailerVinNO",
+     "11111111-1111-4111-8111-111111111111",
+     "T-INVOICENO",
+     "2026-10-29",
+     "(protected)"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Trailer Vin NO",
+     "Quote no:",
+     "INVOICE NO",
+     "Delivery Date",
+     "Email"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-TrailerVinNO",
+     "11111111-1111-4111-8111-111111111111",
+     "T-INVOICENO",
+     "2026-10-29",
+     "email@example.invalid"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "Trailer Vin NO",
+    "T-TrailerVinNO"
+   ],
+   [
+    "Quote no:",
+    "11111111-1111-4111-8111-111111111111"
+   ],
+   [
+    "INVOICE NO",
+    "T-INVOICENO"
+   ],
+   [
+    "Signature",
+    "Signed"
+   ],
+   [
+    "Signature",
+    "Signed"
+   ],
+   [
+    "Signature",
+    "Signed"
+   ],
+   [
+    "Signature",
+    "Signed"
+   ],
+   [
+    "COPY of Signatory ID",
+    "1 file"
+   ],
+   [
+    "NATIS",
+    "1 file"
+   ],
+   [
+    "PAYMENT",
+    "1 file"
+   ],
+   [
+    "Payment 2",
+    "1 file"
+   ],
+   [
+    "Delivery Date",
+    "2026-10-29"
+   ],
+   [
+    "Email",
+    "(protected)"
+   ],
+   [
+    "Sales Rep Signature",
+    "Signed"
+   ],
+   [
+    "RELEASE NOTE",
+    "1 file"
+   ],
+   [
+    "Pic 1 FRONT",
+    "1 file"
+   ],
+   [
+    "PIC 2 LEFT",
+    "1 file"
+   ],
+   [
+    "PIC 3 RIGHT",
+    "1 file"
+   ],
+   [
+    "Pic 4 REAR",
+    "1 file"
+   ]
+  ],
+  "html": {
+   "publicNew": "18eeb606fa2b3e160e29efd5bec51f5ecbc36701136e72feb5563b5a38170448",
+   "staffExisting": "e3bb88ec62c951ff58d0e7599e77ca959e6792eb80005f214d5bb65f941ef6f7",
+   "readOnly": "73ec4b2bcf4cac56551fe12cb5584b5de18155a97ef8a49ed0ca3c9f39f1f906"
+  },
+  "pdf": {
+   "sample": "9c47a6bfbf4f4d958e5c0980ffc7e2b29d8a1a510f2cfd4472cd7cefc7971720",
+   "blank": "f3fa5fe1a502a093e949f2a0a84f15187de4a5d6ae8b5758ec2fd3ab45efa9ef"
+  }
+ },
+ "job-card": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "Date@1+12",
+      "QuoteNo@13+12"
+     ],
+     [
+      "Line1@1+24"
+     ],
+     [
+      "Text@1+12",
+      "Text4@13+12"
+     ],
+     [
+      "Text2@1+12",
+      "Text5@13+12"
+     ],
+     [
+      "Text3@1+12",
+      "Text6@13+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "Date": "2026-10-29",
+     "QuoteNo": "T-QuoteNo",
+     "Line1": "T-Line1",
+     "Text": "T-Text",
+     "Text4": "T-Text4",
+     "Text2": "T-Text2",
+     "Text5": "T-Text5",
+     "Text3": "T-Text3",
+     "Text6": "T-Text6"
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "bad": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "Date": "Enter a valid date."
+    }
+   }
+  },
+  "validate": {
+   "empty": {},
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {},
+   "today": {}
+  },
+  "summary": "T-QuoteNo",
+  "display": {
+   "Date": "2026-10-29",
+   "QuoteNo": "T-QuoteNo",
+   "Line1": "T-Line1",
+   "Text": "T-Text",
+   "Text4": "T-Text4",
+   "Text2": "T-Text2",
+   "Text5": "T-Text5",
+   "Text3": "T-Text3",
+   "Text6": "T-Text6"
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "Date",
+     "label": "Untitled"
+    },
+    {
+     "name": "QuoteNo",
+     "label": "Quote no"
+    },
+    {
+     "name": "Line1",
+     "label": "Line 1"
+    },
+    {
+     "name": "Text",
+     "label": "Text"
+    },
+    {
+     "name": "Text4",
+     "label": "Text4"
+    },
+    {
+     "name": "Text2",
+     "label": "Text2"
+    },
+    {
+     "name": "Text5",
+     "label": "Text5"
+    },
+    {
+     "name": "Text3",
+     "label": "Text3"
+    },
+    {
+     "name": "Text6",
+     "label": "Text6"
+    }
+   ],
+   "defaults": [
+    "Date",
+    "QuoteNo",
+    "Line1",
+    "Text"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Untitled",
+     "Quote no",
+     "Line 1",
+     "Text",
+     "Text4",
+     "Text2",
+     "Text5",
+     "Text3",
+     "Text6"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "2026-10-29",
+     "T-QuoteNo",
+     "T-Line1",
+     "T-Text",
+     "T-Text4",
+     "T-Text2",
+     "T-Text5",
+     "T-Text3",
+     "T-Text6"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Untitled",
+     "Quote no",
+     "Line 1",
+     "Text",
+     "Text4",
+     "Text2",
+     "Text5",
+     "Text3",
+     "Text6"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "2026-10-29",
+     "T-QuoteNo",
+     "T-Line1",
+     "T-Text",
+     "T-Text4",
+     "T-Text2",
+     "T-Text5",
+     "T-Text3",
+     "T-Text6"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "Untitled",
+    "2026-10-29"
+   ],
+   [
+    "Quote no",
+    "T-QuoteNo"
+   ],
+   [
+    "Line 1",
+    "T-Line1"
+   ],
+   [
+    "Text",
+    "T-Text"
+   ],
+   [
+    "Text4",
+    "T-Text4"
+   ],
+   [
+    "Text2",
+    "T-Text2"
+   ],
+   [
+    "Text5",
+    "T-Text5"
+   ],
+   [
+    "Text3",
+    "T-Text3"
+   ],
+   [
+    "Text6",
+    "T-Text6"
+   ]
+  ],
+  "html": {
+   "publicNew": "80ccdf3f1dd389fb88f26d35457173e5ad7b6133fa1e6988e8f23bee90d0357c",
+   "staffExisting": "7785238d821ec337416795abcb9a90664f96b1ccd4ca9fc6da8ee954ab94cc26",
+   "readOnly": "95707b3cbac27482ecc1301fa899e3a992f5702a6e10ea05978c9f661fb325b8"
+  },
+  "pdf": {
+   "sample": "260b73bc054b8193333a57cec3ae5b7314a06996a9d244efad5676d0b2d1da11",
+   "blank": "dee27b67d6c07d20e3fb81027e738489978fc5e6b88c8c69b10f790bf8faa4a2"
+  }
+ },
+ "release-form": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "VINNO@1+12",
+      "Email@13+12"
+     ],
+     [
+      "INVNO@1+12"
+     ],
+     [
+      "COSTOMERDETAILS@1+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "VINNO": "T-VINNO",
+     "Email": "email@example.invalid",
+     "INVNO": "T-INVNO",
+     "COSTOMERDETAILS": "T-COSTOMERDETAILS"
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "bad": {
+    "data": {
+     "Email": "not-an-email"
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "Email": "Enter a valid email address."
+    }
+   }
+  },
+  "validate": {
+   "empty": {},
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {},
+   "today": {}
+  },
+  "summary": "T-VINNO",
+  "display": {
+   "VINNO": "T-VINNO",
+   "Email": "email@example.invalid",
+   "INVNO": "T-INVNO",
+   "COSTOMERDETAILS": "T-COSTOMERDETAILS"
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "VINNO",
+     "label": "VIN NO"
+    },
+    {
+     "name": "Email",
+     "label": "Email"
+    },
+    {
+     "name": "INVNO",
+     "label": "INV NO"
+    },
+    {
+     "name": "COSTOMERDETAILS",
+     "label": "COSTOMER DETAILS"
+    }
+   ],
+   "defaults": [
+    "VINNO",
+    "Email",
+    "INVNO",
+    "COSTOMERDETAILS"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "VIN NO",
+     "Email",
+     "INV NO",
+     "COSTOMER DETAILS"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-VINNO",
+     "email@example.invalid",
+     "T-INVNO",
+     "T-COSTOMERDETAILS"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "VIN NO",
+     "Email",
+     "INV NO",
+     "COSTOMER DETAILS"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-VINNO",
+     "email@example.invalid",
+     "T-INVNO",
+     "T-COSTOMERDETAILS"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "VIN NO",
+    "T-VINNO"
+   ],
+   [
+    "Email",
+    "email@example.invalid"
+   ],
+   [
+    "INV NO",
+    "T-INVNO"
+   ],
+   [
+    "COSTOMER DETAILS",
+    "T-COSTOMERDETAILS"
+   ]
+  ],
+  "html": {
+   "publicNew": "7fbc792df36ae4268f3ac0774486185daf36104c0476706560a2fbb7bbb6ebfa",
+   "staffExisting": "2eb9b136462801c3382706ceb253f2c64a36ece23d84219d5d116d761cde135b",
+   "readOnly": "86b4adad03394ab5c203fa5e3cc4d7c807834fbf1edacad055881a39fe5c5ab3"
+  },
+  "pdf": {
+   "sample": "0b0364f2c6d2d496c39d6f2f886c8cd31cdecf81039764f2a47be17bb0fc2b4c",
+   "blank": "ca802eea7b29fc9124ecf68cb46c7127d0abf12a8c7870c0b4867be975375de1"
+  }
+ },
+ "request-for-invoice": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "QuoteNo@1+12",
+      "DATE@13+12"
+     ],
+     [
+      "SalesRep@1+12",
+      "CostomerVatNo@13+12"
+     ],
+     [
+      "BusinessRegNo@1+12",
+      "CONTACTNO@13+12"
+     ],
+     [
+      "Name@1+12",
+      "IDNO@13+12"
+     ],
+     [
+      "Address@1+24"
+     ],
+     [
+      "_1stDeposit@1+12",
+      "_2ndDeposit@13+12"
+     ],
+     [
+      "_3rdDeposit@1+12",
+      "_4thPayment@13+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "QuoteNo": "T-QuoteNo",
+     "DATE": "2026-10-29",
+     "SalesRep": "T-SalesRep",
+     "CostomerVatNo": "T-CostomerVatNo",
+     "BusinessRegNo": "T-BusinessRegNo",
+     "CONTACTNO": "T-CONTACTNO",
+     "Name": {
+      "First": "First-x",
+      "Last": "Last-x"
+     },
+     "IDNO": "T-IDNO",
+     "Address": {
+      "Line1": "Line1-x",
+      "Line2": "Line2-x",
+      "City": "City-x",
+      "State": "State-x",
+      "PostalCode": "PostalCode-x",
+      "Country": "Country-x"
+     }
+    },
+    "files": {
+     "_1stDeposit": [],
+     "_2ndDeposit": [],
+     "_3rdDeposit": [],
+     "_4thPayment": []
+    },
+    "signatures": {},
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {
+     "_1stDeposit": [],
+     "_2ndDeposit": [],
+     "_3rdDeposit": [],
+     "_4thPayment": []
+    },
+    "signatures": {},
+    "errors": {}
+   },
+   "bad": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "DATE": "Enter a valid date.",
+     "_1stDeposit": "Upload failed. Try adding the file again.",
+     "_2ndDeposit": "Upload failed. Try adding the file again.",
+     "_3rdDeposit": "Upload failed. Try adding the file again.",
+     "_4thPayment": "Upload failed. Try adding the file again."
+    }
+   }
+  },
+  "validate": {
+   "empty": {
+    "_1stDeposit": "NO PAYMENT LOADED FORM NOT SUBMITTED"
+   },
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {},
+   "today": {}
+  },
+  "summary": "First-x Last-x",
+  "display": {
+   "QuoteNo": "T-QuoteNo",
+   "DATE": "2026-10-29",
+   "SalesRep": "T-SalesRep",
+   "CostomerVatNo": "T-CostomerVatNo",
+   "BusinessRegNo": "T-BusinessRegNo",
+   "CONTACTNO": "T-CONTACTNO",
+   "Name": "First-x Last-x",
+   "IDNO": "T-IDNO",
+   "Address": "Line1-x, Line2-x, City-x, State-x, PostalCode-x, Country-x",
+   "_1stDeposit": "",
+   "_2ndDeposit": "",
+   "_3rdDeposit": "",
+   "_4thPayment": ""
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "QuoteNo",
+     "label": "Quote no"
+    },
+    {
+     "name": "DATE",
+     "label": "DATE"
+    },
+    {
+     "name": "SalesRep",
+     "label": "Sales Rep"
+    },
+    {
+     "name": "CostomerVatNo",
+     "label": "Costomer Vat no"
+    },
+    {
+     "name": "BusinessRegNo",
+     "label": "Business reg no"
+    },
+    {
+     "name": "CONTACTNO",
+     "label": "CONTACT NO"
+    },
+    {
+     "name": "Name",
+     "label": "Name"
+    },
+    {
+     "name": "IDNO",
+     "label": "ID NO"
+    },
+    {
+     "name": "Address",
+     "label": "Address"
+    }
+   ],
+   "defaults": [
+    "QuoteNo",
+    "DATE",
+    "SalesRep",
+    "CostomerVatNo"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Quote no",
+     "DATE",
+     "Sales Rep",
+     "Costomer Vat no",
+     "Business reg no",
+     "CONTACT NO",
+     "Name",
+     "ID NO",
+     "Address"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-QuoteNo",
+     "2026-10-29",
+     "T-SalesRep",
+     "T-CostomerVatNo",
+     "T-BusinessRegNo",
+     "T-CONTACTNO",
+     "First-x Last-x",
+     "T-IDNO",
+     "Line1-x, Line2-x, City-x, State-x, PostalCode-x, Country-x"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "Quote no",
+     "DATE",
+     "Sales Rep",
+     "Costomer Vat no",
+     "Business reg no",
+     "CONTACT NO",
+     "Name",
+     "ID NO",
+     "Address"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-QuoteNo",
+     "2026-10-29",
+     "T-SalesRep",
+     "T-CostomerVatNo",
+     "T-BusinessRegNo",
+     "T-CONTACTNO",
+     "First-x Last-x",
+     "T-IDNO",
+     "Line1-x, Line2-x, City-x, State-x, PostalCode-x, Country-x"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "Quote no",
+    "T-QuoteNo"
+   ],
+   [
+    "DATE",
+    "2026-10-29"
+   ],
+   [
+    "Sales Rep",
+    "T-SalesRep"
+   ],
+   [
+    "Costomer Vat no",
+    "T-CostomerVatNo"
+   ],
+   [
+    "Business reg no",
+    "T-BusinessRegNo"
+   ],
+   [
+    "CONTACT NO",
+    "T-CONTACTNO"
+   ],
+   [
+    "Name",
+    "First-x Last-x"
+   ],
+   [
+    "ID NO",
+    "T-IDNO"
+   ],
+   [
+    "Address",
+    "Line1-x, Line2-x, City-x, State-x, PostalCode-x, Country-x"
+   ],
+   [
+    "1st deposit",
+    "1 file"
+   ],
+   [
+    "2nd deposit",
+    "1 file"
+   ],
+   [
+    "3rd deposit",
+    "1 file"
+   ],
+   [
+    "4th payment",
+    "1 file"
+   ]
+  ],
+  "html": {
+   "publicNew": "d4ced286430b8b9b2987b9ec081c5ddc45bff120da83f0c2781252bf25c28c5c",
+   "staffExisting": "ae0538a14ea99786af39f6d771d5ab48140db9372d8846e80bd6825ad5057d54",
+   "readOnly": "a16191af0ed849b5bbbfa11548989c5d8642f7a09dca167c26b7821bff5de081"
+  },
+  "pdf": {
+   "sample": "e72a5d3aaf88cdef515c476e7a23aaef97990b66d09a0ac6083bb02d1c349a04",
+   "blank": "3de7c9cb744ce3f894baca2b5ba5ba444eae7915fbcf52bbacc4fa0bfe57fc00"
+  }
+ },
+ "store-room": {
+  "pages": [
+   {
+    "title": "Page 1",
+    "next": "Next",
+    "back": null,
+    "rows": [
+     [
+      "_14INCX5HoleTIRESMIN50@1+12"
+     ],
+     [
+      "_13INCH4HOLETIRESMIN10@1+12"
+     ],
+     [
+      "_16INCHX6HOLETIRES5@1+12"
+     ],
+     [
+      "OTHER@1+18"
+     ]
+    ]
+   },
+   {
+    "title": "Page 2",
+    "next": "Next",
+    "back": "Back",
+    "rows": [
+     [
+      "_1450455HOLEBRAKEDMOQ12@1+12",
+      "_2100455HOLEBRAKEDMOQ6@13+12"
+     ],
+     [
+      "_1850455HOLEBRAKEDONLYIFCHASSIS@1+12",
+      "_1150404HOLENOBRAKEONLYIFLIGHTTOWER@13+12"
+     ],
+     [
+      "_1350404HOLENOBRAKEONLYCHASSIS@1+12",
+      "OTHER2@13+12"
+     ],
+     [
+      "_8BLADELEAFSPRINGSMOQ30@1+8",
+      "_2TONCOUPLERMINONSHELF10@9+8",
+      "_3TONCOUPLERMINONSHELF6@17+8"
+     ],
+     [
+      "_48MMSINGELWHEELJOCKEYMIN10@1+12",
+      "_60MMDOUBBELWHEELJOCKEYMIN7@13+12"
+     ],
+     [
+      "RECTANGULARLAMPS6INONEMIN100@1+12",
+      "_45KGSFIREEXTINGUISHERSMIN20@13+12"
+     ],
+     [
+      "_5COREWIREMIN5@1+7",
+      "YELLOWTAPEMIN5@8+10",
+      "READYBARMIN30@18+7"
+     ],
+     [
+      "BRAKECABLELONGMIN20@1+8",
+      "BRAKECABLESHORTMIN20@9+8",
+      "WELDONUSCHACELSMIN100@17+8"
+     ],
+     [
+      "_3HOLEWELDONPLATEFORBRAKESMIN50@1+12",
+      "_5HOLEWELDONPLATEFORBRAKESMIN50@13+12"
+     ],
+     [
+      "SINGLECOMPENSATORMIN30@1+12",
+      "TWINCOMPENSATORMIN30@13+12"
+     ],
+     [
+      "CHEVRONSHORTSTICKONMIN20@1+12",
+      "WHITEREFLECTORSMIN100@13+6",
+      "REDREFLECTORMIN100@19+6"
+     ],
+     [
+      "DROPSIDEHINGESHONGPINMIN50@1+8",
+      "_45MMUBOLTMIN100@9+8",
+      "_5HOLE45MMPLATEMIN50@17+8"
+     ],
+     [
+      "_40MMUBOLTMIN100@1+6",
+      "_40MM5HOLEPLATEMIN50@7+8",
+      "_7PINTRAILERPLUGMIN50@15+10"
+     ],
+     [
+      "SINGLEDISCHOLDER1BOLTMIN50@1+24"
+     ]
+    ]
+   },
+   {
+    "title": "Page 3",
+    "next": "Submit",
+    "back": "Back",
+    "rows": [
+     [
+      "NUTS12MM@1+12",
+      "BOLT50X12@13+12"
+     ],
+     [
+      "NUTS6MM@1+12"
+     ],
+     [
+      "NUTS8MM@1+12"
+     ],
+     [
+      "WASHER6X10X2@1+12"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "_14INCX5HoleTIRESMIN50": "T-_14INCX5HoleTIRESMIN50",
+     "_13INCH4HOLETIRESMIN10": "T-_13INCH4HOLETIRESMIN10",
+     "_16INCHX6HOLETIRES5": "T-_16INCHX6HOLETIRES5",
+     "OTHER": "T-OTHER",
+     "_1450455HOLEBRAKEDMOQ12": "T-_1450455HOLEBRAKEDMOQ12",
+     "_2100455HOLEBRAKEDMOQ6": "T-_2100455HOLEBRAKEDMOQ6",
+     "_1850455HOLEBRAKEDONLYIFCHASSIS": "T-_1850455HOLEBRAKEDONLYIFCHASSIS",
+     "_1150404HOLENOBRAKEONLYIFLIGHTTOWER": "T-_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+     "_1350404HOLENOBRAKEONLYCHASSIS": "T-_1350404HOLENOBRAKEONLYCHASSIS",
+     "OTHER2": "T-OTHER2",
+     "_8BLADELEAFSPRINGSMOQ30": "T-_8BLADELEAFSPRINGSMOQ30",
+     "_2TONCOUPLERMINONSHELF10": "T-_2TONCOUPLERMINONSHELF10",
+     "_3TONCOUPLERMINONSHELF6": "T-_3TONCOUPLERMINONSHELF6",
+     "_48MMSINGELWHEELJOCKEYMIN10": "T-_48MMSINGELWHEELJOCKEYMIN10",
+     "_60MMDOUBBELWHEELJOCKEYMIN7": "T-_60MMDOUBBELWHEELJOCKEYMIN7",
+     "RECTANGULARLAMPS6INONEMIN100": "T-RECTANGULARLAMPS6INONEMIN100",
+     "_45KGSFIREEXTINGUISHERSMIN20": "T-_45KGSFIREEXTINGUISHERSMIN20",
+     "_5COREWIREMIN5": "T-_5COREWIREMIN5",
+     "YELLOWTAPEMIN5": "T-YELLOWTAPEMIN5",
+     "READYBARMIN30": "T-READYBARMIN30",
+     "BRAKECABLELONGMIN20": "T-BRAKECABLELONGMIN20",
+     "BRAKECABLESHORTMIN20": "T-BRAKECABLESHORTMIN20",
+     "WELDONUSCHACELSMIN100": "T-WELDONUSCHACELSMIN100",
+     "_3HOLEWELDONPLATEFORBRAKESMIN50": "T-_3HOLEWELDONPLATEFORBRAKESMIN50",
+     "_5HOLEWELDONPLATEFORBRAKESMIN50": "T-_5HOLEWELDONPLATEFORBRAKESMIN50",
+     "SINGLECOMPENSATORMIN30": "T-SINGLECOMPENSATORMIN30",
+     "TWINCOMPENSATORMIN30": "T-TWINCOMPENSATORMIN30",
+     "CHEVRONSHORTSTICKONMIN20": "T-CHEVRONSHORTSTICKONMIN20",
+     "WHITEREFLECTORSMIN100": "T-WHITEREFLECTORSMIN100",
+     "REDREFLECTORMIN100": "T-REDREFLECTORMIN100",
+     "DROPSIDEHINGESHONGPINMIN50": "T-DROPSIDEHINGESHONGPINMIN50",
+     "_45MMUBOLTMIN100": "T-_45MMUBOLTMIN100",
+     "_5HOLE45MMPLATEMIN50": "T-_5HOLE45MMPLATEMIN50",
+     "_40MMUBOLTMIN100": "T-_40MMUBOLTMIN100",
+     "_40MM5HOLEPLATEMIN50": "T-_40MM5HOLEPLATEMIN50",
+     "_7PINTRAILERPLUGMIN50": "T-_7PINTRAILERPLUGMIN50",
+     "SINGLEDISCHOLDER1BOLTMIN50": "T-SINGLEDISCHOLDER1BOLTMIN50",
+     "NUTS12MM": "T-NUTS12MM",
+     "BOLT50X12": "T-BOLT50X12",
+     "NUTS6MM": "T-NUTS6MM",
+     "NUTS8MM": "T-NUTS8MM",
+     "WASHER6X10X2": "T-WASHER6X10X2"
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "empty": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   },
+   "bad": {
+    "data": {},
+    "files": {},
+    "signatures": {},
+    "errors": {}
+   }
+  },
+  "validate": {
+   "empty": {},
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {},
+   "today": {}
+  },
+  "summary": "T-_14INCX5HoleTIRESMIN50",
+  "display": {
+   "_14INCX5HoleTIRESMIN50": "T-_14INCX5HoleTIRESMIN50",
+   "_13INCH4HOLETIRESMIN10": "T-_13INCH4HOLETIRESMIN10",
+   "_16INCHX6HOLETIRES5": "T-_16INCHX6HOLETIRES5",
+   "OTHER": "T-OTHER",
+   "_1450455HOLEBRAKEDMOQ12": "T-_1450455HOLEBRAKEDMOQ12",
+   "_2100455HOLEBRAKEDMOQ6": "T-_2100455HOLEBRAKEDMOQ6",
+   "_1850455HOLEBRAKEDONLYIFCHASSIS": "T-_1850455HOLEBRAKEDONLYIFCHASSIS",
+   "_1150404HOLENOBRAKEONLYIFLIGHTTOWER": "T-_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+   "_1350404HOLENOBRAKEONLYCHASSIS": "T-_1350404HOLENOBRAKEONLYCHASSIS",
+   "OTHER2": "T-OTHER2",
+   "_8BLADELEAFSPRINGSMOQ30": "T-_8BLADELEAFSPRINGSMOQ30",
+   "_2TONCOUPLERMINONSHELF10": "T-_2TONCOUPLERMINONSHELF10",
+   "_3TONCOUPLERMINONSHELF6": "T-_3TONCOUPLERMINONSHELF6",
+   "_48MMSINGELWHEELJOCKEYMIN10": "T-_48MMSINGELWHEELJOCKEYMIN10",
+   "_60MMDOUBBELWHEELJOCKEYMIN7": "T-_60MMDOUBBELWHEELJOCKEYMIN7",
+   "RECTANGULARLAMPS6INONEMIN100": "T-RECTANGULARLAMPS6INONEMIN100",
+   "_45KGSFIREEXTINGUISHERSMIN20": "T-_45KGSFIREEXTINGUISHERSMIN20",
+   "_5COREWIREMIN5": "T-_5COREWIREMIN5",
+   "YELLOWTAPEMIN5": "T-YELLOWTAPEMIN5",
+   "READYBARMIN30": "T-READYBARMIN30",
+   "BRAKECABLELONGMIN20": "T-BRAKECABLELONGMIN20",
+   "BRAKECABLESHORTMIN20": "T-BRAKECABLESHORTMIN20",
+   "WELDONUSCHACELSMIN100": "T-WELDONUSCHACELSMIN100",
+   "_3HOLEWELDONPLATEFORBRAKESMIN50": "T-_3HOLEWELDONPLATEFORBRAKESMIN50",
+   "_5HOLEWELDONPLATEFORBRAKESMIN50": "T-_5HOLEWELDONPLATEFORBRAKESMIN50",
+   "SINGLECOMPENSATORMIN30": "T-SINGLECOMPENSATORMIN30",
+   "TWINCOMPENSATORMIN30": "T-TWINCOMPENSATORMIN30",
+   "CHEVRONSHORTSTICKONMIN20": "T-CHEVRONSHORTSTICKONMIN20",
+   "WHITEREFLECTORSMIN100": "T-WHITEREFLECTORSMIN100",
+   "REDREFLECTORMIN100": "T-REDREFLECTORMIN100",
+   "DROPSIDEHINGESHONGPINMIN50": "T-DROPSIDEHINGESHONGPINMIN50",
+   "_45MMUBOLTMIN100": "T-_45MMUBOLTMIN100",
+   "_5HOLE45MMPLATEMIN50": "T-_5HOLE45MMPLATEMIN50",
+   "_40MMUBOLTMIN100": "T-_40MMUBOLTMIN100",
+   "_40MM5HOLEPLATEMIN50": "T-_40MM5HOLEPLATEMIN50",
+   "_7PINTRAILERPLUGMIN50": "T-_7PINTRAILERPLUGMIN50",
+   "SINGLEDISCHOLDER1BOLTMIN50": "T-SINGLEDISCHOLDER1BOLTMIN50",
+   "NUTS12MM": "T-NUTS12MM",
+   "BOLT50X12": "T-BOLT50X12",
+   "NUTS6MM": "T-NUTS6MM",
+   "NUTS8MM": "T-NUTS8MM",
+   "WASHER6X10X2": "T-WASHER6X10X2"
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "_14INCX5HoleTIRESMIN50",
+     "label": "14INC x 5 hole TIRES MIN 50"
+    },
+    {
+     "name": "_13INCH4HOLETIRESMIN10",
+     "label": "13INCH4 HOLE TIRES MIN 10"
+    },
+    {
+     "name": "_16INCHX6HOLETIRES5",
+     "label": "16INCH X 6 HOLE TIRES 5"
+    },
+    {
+     "name": "OTHER",
+     "label": "OTHER"
+    },
+    {
+     "name": "_1450455HOLEBRAKEDMOQ12",
+     "label": "1450 45 5 HOLE BRAKED MOQ 12"
+    },
+    {
+     "name": "_2100455HOLEBRAKEDMOQ6",
+     "label": "2100 45 5 HOLE BRAKED MOQ 6"
+    },
+    {
+     "name": "_1850455HOLEBRAKEDONLYIFCHASSIS",
+     "label": "1850 45 5 HOLE BRAKED ONLY IF CHASSIS"
+    },
+    {
+     "name": "_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+     "label": "1150 40 4 HOLE NO BRAKE ONLY IF LIGHT TOWER"
+    },
+    {
+     "name": "_1350404HOLENOBRAKEONLYCHASSIS",
+     "label": "1350 40 4 HOLE NO BRAKE ONLY CHASSIS"
+    },
+    {
+     "name": "OTHER2",
+     "label": "OTHER"
+    },
+    {
+     "name": "_8BLADELEAFSPRINGSMOQ30",
+     "label": "8 BLADE LEAF SPRINGS MOQ 30"
+    },
+    {
+     "name": "_2TONCOUPLERMINONSHELF10",
+     "label": "2 TON COUPLER MIN ON SHELF 10"
+    },
+    {
+     "name": "_3TONCOUPLERMINONSHELF6",
+     "label": "3 TON COUPLER MIN ON SHELF 6"
+    },
+    {
+     "name": "_48MMSINGELWHEELJOCKEYMIN10",
+     "label": "48 MM SINGEL WHEEL JOCKEY MIN 10"
+    },
+    {
+     "name": "_60MMDOUBBELWHEELJOCKEYMIN7",
+     "label": "60 MM DOUBBEL WHEEL JOCKEY MIN 7"
+    },
+    {
+     "name": "RECTANGULARLAMPS6INONEMIN100",
+     "label": "RECTANGULAR LAMPS 6 IN ONE MIN 100"
+    },
+    {
+     "name": "_45KGSFIREEXTINGUISHERSMIN20",
+     "label": "4.5 KGS FIRE EXTINGUISHERS MIN 20"
+    },
+    {
+     "name": "_5COREWIREMIN5",
+     "label": "5 CORE WIRE MIN 5"
+    },
+    {
+     "name": "YELLOWTAPEMIN5",
+     "label": "YELLOW TAPE MIN 5"
+    },
+    {
+     "name": "READYBARMIN30",
+     "label": "READY BAR MIN 30"
+    },
+    {
+     "name": "BRAKECABLELONGMIN20",
+     "label": "BRAKE CABLE LONG MIN 20"
+    },
+    {
+     "name": "BRAKECABLESHORTMIN20",
+     "label": "BRAKE CABLE SHORT MIN 20"
+    },
+    {
+     "name": "WELDONUSCHACELSMIN100",
+     "label": "WELD ON U SCHACELS MIN 100"
+    },
+    {
+     "name": "_3HOLEWELDONPLATEFORBRAKESMIN50",
+     "label": "3 HOLE WELD ON PLATE FOR BRAKES MIN 50"
+    },
+    {
+     "name": "_5HOLEWELDONPLATEFORBRAKESMIN50",
+     "label": "5 HOLE WELD ON PLATE FOR BRAKES MIN 50"
+    },
+    {
+     "name": "SINGLECOMPENSATORMIN30",
+     "label": "SINGLE COMPENSATOR MIN 30"
+    },
+    {
+     "name": "TWINCOMPENSATORMIN30",
+     "label": "TWIN COMPENSATOR MIN 30"
+    },
+    {
+     "name": "CHEVRONSHORTSTICKONMIN20",
+     "label": "CHEVRON SHORT STICK ON MIN 20"
+    },
+    {
+     "name": "WHITEREFLECTORSMIN100",
+     "label": "WHITE REFLECTORS MIN 100"
+    },
+    {
+     "name": "REDREFLECTORMIN100",
+     "label": "RED REFLECTOR MIN 100"
+    },
+    {
+     "name": "DROPSIDEHINGESHONGPINMIN50",
+     "label": "DROPSIDE HINGES HONG PIN MIN 50"
+    },
+    {
+     "name": "_45MMUBOLTMIN100",
+     "label": "45 MM U BOLT MIN 100"
+    },
+    {
+     "name": "_5HOLE45MMPLATEMIN50",
+     "label": "5 HOLE 45 MM PLATE MIN 50"
+    },
+    {
+     "name": "_40MMUBOLTMIN100",
+     "label": "40 MM U BOLT MIN 100"
+    },
+    {
+     "name": "_40MM5HOLEPLATEMIN50",
+     "label": "40 MM 5 HOLE PLATE MIN 50"
+    },
+    {
+     "name": "_7PINTRAILERPLUGMIN50",
+     "label": "7 PIN TRAILER PLUG MIN 50"
+    },
+    {
+     "name": "SINGLEDISCHOLDER1BOLTMIN50",
+     "label": "SINGLE DISC HOLDER 1 BOLT MIN 50"
+    },
+    {
+     "name": "NUTS12MM",
+     "label": "NUTS 12MM"
+    },
+    {
+     "name": "BOLT50X12",
+     "label": "BOLT 50X12"
+    },
+    {
+     "name": "NUTS6MM",
+     "label": "NUTS 6MM"
+    },
+    {
+     "name": "NUTS8MM",
+     "label": "NUTS 8 MM"
+    },
+    {
+     "name": "WASHER6X10X2",
+     "label": "WASHER 6X10X2"
+    }
+   ],
+   "defaults": [
+    "_14INCX5HoleTIRESMIN50",
+    "_13INCH4HOLETIRESMIN10",
+    "_16INCHX6HOLETIRES5",
+    "OTHER"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "14INC x 5 hole TIRES MIN 50",
+     "13INCH4 HOLE TIRES MIN 10",
+     "16INCH X 6 HOLE TIRES 5",
+     "OTHER",
+     "1450 45 5 HOLE BRAKED MOQ 12",
+     "2100 45 5 HOLE BRAKED MOQ 6",
+     "1850 45 5 HOLE BRAKED ONLY IF CHASSIS",
+     "1150 40 4 HOLE NO BRAKE ONLY IF LIGHT TOWER",
+     "1350 40 4 HOLE NO BRAKE ONLY CHASSIS",
+     "OTHER",
+     "8 BLADE LEAF SPRINGS MOQ 30",
+     "2 TON COUPLER MIN ON SHELF 10",
+     "3 TON COUPLER MIN ON SHELF 6",
+     "48 MM SINGEL WHEEL JOCKEY MIN 10",
+     "60 MM DOUBBEL WHEEL JOCKEY MIN 7",
+     "RECTANGULAR LAMPS 6 IN ONE MIN 100",
+     "4.5 KGS FIRE EXTINGUISHERS MIN 20",
+     "5 CORE WIRE MIN 5",
+     "YELLOW TAPE MIN 5",
+     "READY BAR MIN 30",
+     "BRAKE CABLE LONG MIN 20",
+     "BRAKE CABLE SHORT MIN 20",
+     "WELD ON U SCHACELS MIN 100",
+     "3 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+     "5 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+     "SINGLE COMPENSATOR MIN 30",
+     "TWIN COMPENSATOR MIN 30",
+     "CHEVRON SHORT STICK ON MIN 20",
+     "WHITE REFLECTORS MIN 100",
+     "RED REFLECTOR MIN 100",
+     "DROPSIDE HINGES HONG PIN MIN 50",
+     "45 MM U BOLT MIN 100",
+     "5 HOLE 45 MM PLATE MIN 50",
+     "40 MM U BOLT MIN 100",
+     "40 MM 5 HOLE PLATE MIN 50",
+     "7 PIN TRAILER PLUG MIN 50",
+     "SINGLE DISC HOLDER 1 BOLT MIN 50",
+     "NUTS 12MM",
+     "BOLT 50X12",
+     "NUTS 6MM",
+     "NUTS 8 MM",
+     "WASHER 6X10X2"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-_14INCX5HoleTIRESMIN50",
+     "T-_13INCH4HOLETIRESMIN10",
+     "T-_16INCHX6HOLETIRES5",
+     "T-OTHER",
+     "T-_1450455HOLEBRAKEDMOQ12",
+     "T-_2100455HOLEBRAKEDMOQ6",
+     "T-_1850455HOLEBRAKEDONLYIFCHASSIS",
+     "T-_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+     "T-_1350404HOLENOBRAKEONLYCHASSIS",
+     "T-OTHER2",
+     "T-_8BLADELEAFSPRINGSMOQ30",
+     "T-_2TONCOUPLERMINONSHELF10",
+     "T-_3TONCOUPLERMINONSHELF6",
+     "T-_48MMSINGELWHEELJOCKEYMIN10",
+     "T-_60MMDOUBBELWHEELJOCKEYMIN7",
+     "T-RECTANGULARLAMPS6INONEMIN100",
+     "T-_45KGSFIREEXTINGUISHERSMIN20",
+     "T-_5COREWIREMIN5",
+     "T-YELLOWTAPEMIN5",
+     "T-READYBARMIN30",
+     "T-BRAKECABLELONGMIN20",
+     "T-BRAKECABLESHORTMIN20",
+     "T-WELDONUSCHACELSMIN100",
+     "T-_3HOLEWELDONPLATEFORBRAKESMIN50",
+     "T-_5HOLEWELDONPLATEFORBRAKESMIN50",
+     "T-SINGLECOMPENSATORMIN30",
+     "T-TWINCOMPENSATORMIN30",
+     "T-CHEVRONSHORTSTICKONMIN20",
+     "T-WHITEREFLECTORSMIN100",
+     "T-REDREFLECTORMIN100",
+     "T-DROPSIDEHINGESHONGPINMIN50",
+     "T-_45MMUBOLTMIN100",
+     "T-_5HOLE45MMPLATEMIN50",
+     "T-_40MMUBOLTMIN100",
+     "T-_40MM5HOLEPLATEMIN50",
+     "T-_7PINTRAILERPLUGMIN50",
+     "T-SINGLEDISCHOLDER1BOLTMIN50",
+     "T-NUTS12MM",
+     "T-BOLT50X12",
+     "T-NUTS6MM",
+     "T-NUTS8MM",
+     "T-WASHER6X10X2"
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "14INC x 5 hole TIRES MIN 50",
+     "13INCH4 HOLE TIRES MIN 10",
+     "16INCH X 6 HOLE TIRES 5",
+     "OTHER",
+     "1450 45 5 HOLE BRAKED MOQ 12",
+     "2100 45 5 HOLE BRAKED MOQ 6",
+     "1850 45 5 HOLE BRAKED ONLY IF CHASSIS",
+     "1150 40 4 HOLE NO BRAKE ONLY IF LIGHT TOWER",
+     "1350 40 4 HOLE NO BRAKE ONLY CHASSIS",
+     "OTHER",
+     "8 BLADE LEAF SPRINGS MOQ 30",
+     "2 TON COUPLER MIN ON SHELF 10",
+     "3 TON COUPLER MIN ON SHELF 6",
+     "48 MM SINGEL WHEEL JOCKEY MIN 10",
+     "60 MM DOUBBEL WHEEL JOCKEY MIN 7",
+     "RECTANGULAR LAMPS 6 IN ONE MIN 100",
+     "4.5 KGS FIRE EXTINGUISHERS MIN 20",
+     "5 CORE WIRE MIN 5",
+     "YELLOW TAPE MIN 5",
+     "READY BAR MIN 30",
+     "BRAKE CABLE LONG MIN 20",
+     "BRAKE CABLE SHORT MIN 20",
+     "WELD ON U SCHACELS MIN 100",
+     "3 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+     "5 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+     "SINGLE COMPENSATOR MIN 30",
+     "TWIN COMPENSATOR MIN 30",
+     "CHEVRON SHORT STICK ON MIN 20",
+     "WHITE REFLECTORS MIN 100",
+     "RED REFLECTOR MIN 100",
+     "DROPSIDE HINGES HONG PIN MIN 50",
+     "45 MM U BOLT MIN 100",
+     "5 HOLE 45 MM PLATE MIN 50",
+     "40 MM U BOLT MIN 100",
+     "40 MM 5 HOLE PLATE MIN 50",
+     "7 PIN TRAILER PLUG MIN 50",
+     "SINGLE DISC HOLDER 1 BOLT MIN 50",
+     "NUTS 12MM",
+     "BOLT 50X12",
+     "NUTS 6MM",
+     "NUTS 8 MM",
+     "WASHER 6X10X2"
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-_14INCX5HoleTIRESMIN50",
+     "T-_13INCH4HOLETIRESMIN10",
+     "T-_16INCHX6HOLETIRES5",
+     "T-OTHER",
+     "T-_1450455HOLEBRAKEDMOQ12",
+     "T-_2100455HOLEBRAKEDMOQ6",
+     "T-_1850455HOLEBRAKEDONLYIFCHASSIS",
+     "T-_1150404HOLENOBRAKEONLYIFLIGHTTOWER",
+     "T-_1350404HOLENOBRAKEONLYCHASSIS",
+     "T-OTHER2",
+     "T-_8BLADELEAFSPRINGSMOQ30",
+     "T-_2TONCOUPLERMINONSHELF10",
+     "T-_3TONCOUPLERMINONSHELF6",
+     "T-_48MMSINGELWHEELJOCKEYMIN10",
+     "T-_60MMDOUBBELWHEELJOCKEYMIN7",
+     "T-RECTANGULARLAMPS6INONEMIN100",
+     "T-_45KGSFIREEXTINGUISHERSMIN20",
+     "T-_5COREWIREMIN5",
+     "T-YELLOWTAPEMIN5",
+     "T-READYBARMIN30",
+     "T-BRAKECABLELONGMIN20",
+     "T-BRAKECABLESHORTMIN20",
+     "T-WELDONUSCHACELSMIN100",
+     "T-_3HOLEWELDONPLATEFORBRAKESMIN50",
+     "T-_5HOLEWELDONPLATEFORBRAKESMIN50",
+     "T-SINGLECOMPENSATORMIN30",
+     "T-TWINCOMPENSATORMIN30",
+     "T-CHEVRONSHORTSTICKONMIN20",
+     "T-WHITEREFLECTORSMIN100",
+     "T-REDREFLECTORMIN100",
+     "T-DROPSIDEHINGESHONGPINMIN50",
+     "T-_45MMUBOLTMIN100",
+     "T-_5HOLE45MMPLATEMIN50",
+     "T-_40MMUBOLTMIN100",
+     "T-_40MM5HOLEPLATEMIN50",
+     "T-_7PINTRAILERPLUGMIN50",
+     "T-SINGLEDISCHOLDER1BOLTMIN50",
+     "T-NUTS12MM",
+     "T-BOLT50X12",
+     "T-NUTS6MM",
+     "T-NUTS8MM",
+     "T-WASHER6X10X2"
+    ]
+   ]
+  },
+  "email": [
+   [
+    "14INC x 5 hole TIRES MIN 50",
+    "T-_14INCX5HoleTIRESMIN50"
+   ],
+   [
+    "13INCH4 HOLE TIRES MIN 10",
+    "T-_13INCH4HOLETIRESMIN10"
+   ],
+   [
+    "16INCH X 6 HOLE TIRES 5",
+    "T-_16INCHX6HOLETIRES5"
+   ],
+   [
+    "OTHER",
+    "T-OTHER"
+   ],
+   [
+    "1450 45 5 HOLE BRAKED MOQ 12",
+    "T-_1450455HOLEBRAKEDMOQ12"
+   ],
+   [
+    "2100 45 5 HOLE BRAKED MOQ 6",
+    "T-_2100455HOLEBRAKEDMOQ6"
+   ],
+   [
+    "1850 45 5 HOLE BRAKED ONLY IF CHASSIS",
+    "T-_1850455HOLEBRAKEDONLYIFCHASSIS"
+   ],
+   [
+    "1150 40 4 HOLE NO BRAKE ONLY IF LIGHT TOWER",
+    "T-_1150404HOLENOBRAKEONLYIFLIGHTTOWER"
+   ],
+   [
+    "1350 40 4 HOLE NO BRAKE ONLY CHASSIS",
+    "T-_1350404HOLENOBRAKEONLYCHASSIS"
+   ],
+   [
+    "OTHER",
+    "T-OTHER2"
+   ],
+   [
+    "8 BLADE LEAF SPRINGS MOQ 30",
+    "T-_8BLADELEAFSPRINGSMOQ30"
+   ],
+   [
+    "2 TON COUPLER MIN ON SHELF 10",
+    "T-_2TONCOUPLERMINONSHELF10"
+   ],
+   [
+    "3 TON COUPLER MIN ON SHELF 6",
+    "T-_3TONCOUPLERMINONSHELF6"
+   ],
+   [
+    "48 MM SINGEL WHEEL JOCKEY MIN 10",
+    "T-_48MMSINGELWHEELJOCKEYMIN10"
+   ],
+   [
+    "60 MM DOUBBEL WHEEL JOCKEY MIN 7",
+    "T-_60MMDOUBBELWHEELJOCKEYMIN7"
+   ],
+   [
+    "RECTANGULAR LAMPS 6 IN ONE MIN 100",
+    "T-RECTANGULARLAMPS6INONEMIN100"
+   ],
+   [
+    "4.5 KGS FIRE EXTINGUISHERS MIN 20",
+    "T-_45KGSFIREEXTINGUISHERSMIN20"
+   ],
+   [
+    "5 CORE WIRE MIN 5",
+    "T-_5COREWIREMIN5"
+   ],
+   [
+    "YELLOW TAPE MIN 5",
+    "T-YELLOWTAPEMIN5"
+   ],
+   [
+    "READY BAR MIN 30",
+    "T-READYBARMIN30"
+   ],
+   [
+    "BRAKE CABLE LONG MIN 20",
+    "T-BRAKECABLELONGMIN20"
+   ],
+   [
+    "BRAKE CABLE SHORT MIN 20",
+    "T-BRAKECABLESHORTMIN20"
+   ],
+   [
+    "WELD ON U SCHACELS MIN 100",
+    "T-WELDONUSCHACELSMIN100"
+   ],
+   [
+    "3 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+    "T-_3HOLEWELDONPLATEFORBRAKESMIN50"
+   ],
+   [
+    "5 HOLE WELD ON PLATE FOR BRAKES MIN 50",
+    "T-_5HOLEWELDONPLATEFORBRAKESMIN50"
+   ],
+   [
+    "SINGLE COMPENSATOR MIN 30",
+    "T-SINGLECOMPENSATORMIN30"
+   ],
+   [
+    "TWIN COMPENSATOR MIN 30",
+    "T-TWINCOMPENSATORMIN30"
+   ],
+   [
+    "CHEVRON SHORT STICK ON MIN 20",
+    "T-CHEVRONSHORTSTICKONMIN20"
+   ],
+   [
+    "WHITE REFLECTORS MIN 100",
+    "T-WHITEREFLECTORSMIN100"
+   ],
+   [
+    "RED REFLECTOR MIN 100",
+    "T-REDREFLECTORMIN100"
+   ],
+   [
+    "DROPSIDE HINGES HONG PIN MIN 50",
+    "T-DROPSIDEHINGESHONGPINMIN50"
+   ],
+   [
+    "45 MM U BOLT MIN 100",
+    "T-_45MMUBOLTMIN100"
+   ],
+   [
+    "5 HOLE 45 MM PLATE MIN 50",
+    "T-_5HOLE45MMPLATEMIN50"
+   ],
+   [
+    "40 MM U BOLT MIN 100",
+    "T-_40MMUBOLTMIN100"
+   ],
+   [
+    "40 MM 5 HOLE PLATE MIN 50",
+    "T-_40MM5HOLEPLATEMIN50"
+   ],
+   [
+    "7 PIN TRAILER PLUG MIN 50",
+    "T-_7PINTRAILERPLUGMIN50"
+   ],
+   [
+    "SINGLE DISC HOLDER 1 BOLT MIN 50",
+    "T-SINGLEDISCHOLDER1BOLTMIN50"
+   ],
+   [
+    "NUTS 12MM",
+    "T-NUTS12MM"
+   ],
+   [
+    "BOLT 50X12",
+    "T-BOLT50X12"
+   ],
+   [
+    "NUTS 6MM",
+    "T-NUTS6MM"
+   ],
+   [
+    "NUTS 8 MM",
+    "T-NUTS8MM"
+   ],
+   [
+    "WASHER 6X10X2",
+    "T-WASHER6X10X2"
+   ]
+  ],
+  "html": {
+   "publicNew": "f9e8441dfe8927e7f6020d0e392fc993766d6fbf8eefe4b632d1a758e161c6ab",
+   "staffExisting": "7029da4a2bf582e8e512240b2d35abd2873128fc4c9f79392202c28c16044e41",
+   "readOnly": "9420821801b8df2e51f762a1dc8b86622d0e9a1cd89aa4978056fde4cdd438d7"
+  },
+  "pdf": {
+   "sample": "8776072b7660b3a084e980271abefd8411778f212073e36b374b9913b4916909",
+   "blank": "72bf6c3850cf52f764b4727de0ba46e47a0d62100a998e2326231128546037dd"
+  }
+ },
+ "trailer-inspection-checklist": {
+  "pages": [
+   {
+    "title": null,
+    "next": "Submit",
+    "back": null,
+    "rows": [
+     [
+      "TRAILERVINNUMBER@1+12",
+      "_1STDATEINSPECTION@13+12"
+     ],
+     [
+      "InspectedByName@1+24"
+     ],
+     [
+      "InspectorEmail@1+24"
+     ],
+     [
+      "TrailerInspectionResults@1+24"
+     ],
+     [
+      "InspectorSignature@1+24"
+     ],
+     [
+      "InspectionDate@1+24"
+     ]
+    ]
+   }
+  ],
+  "read": {
+   "sample": {
+    "data": {
+     "TRAILERVINNUMBER": "T-TRAILERVINNUMBER",
+     "_1STDATEINSPECTION": "2026-10-29",
+     "InspectedByName": {
+      "First": "First-x",
+      "Last": "Last-x"
+     },
+     "InspectorEmail": "inspectoremail@example.invalid",
+     "checklist": [
+      {
+       "itemNo": 1,
+       "label": "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+       "fail": false,
+       "pass": true,
+       "comments": ""
+      },
+      {
+       "itemNo": 2,
+       "label": "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+       "fail": true,
+       "pass": false,
+       "comments": "loose bolt"
+      },
+      {
+       "itemNo": 3,
+       "label": "3. Wheel bearings checked and correctly adjusted/lubricated.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 4,
+       "label": "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 5,
+       "label": "5. Tyres inspected for correct size, pressure, condition and tread.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 6,
+       "label": "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 7,
+       "label": "7. Safety chains correctly fitted, securely attached and undamaged.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 8,
+       "label": "8. Jockey wheel fitted correctly and operates smoothly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 9,
+       "label": "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 10,
+       "label": "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 11,
+       "label": "11. Electrical wiring secured and protected against chafing or damage.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 12,
+       "label": "12. Trailer plug tested and all electrical functions operate correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 13,
+       "label": "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 14,
+       "label": "14. Mudguards, fenders and mounting brackets securely fitted.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 15,
+       "label": "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 16,
+       "label": "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 17,
+       "label": "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 18,
+       "label": "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 19,
+       "label": "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 20,
+       "label": "20. Road test completed (where applicable) and final quality inspection passed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      }
+     ],
+     "InspectionDate": "2026-10-29"
+    },
+    "files": {},
+    "signatures": {
+     "InspectorSignature": {
+      "kind": "keep",
+      "id": "22222222-2222-4222-8222-222222222222"
+     }
+    },
+    "errors": {}
+   },
+   "empty": {
+    "data": {
+     "checklist": [
+      {
+       "itemNo": 1,
+       "label": "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 2,
+       "label": "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 3,
+       "label": "3. Wheel bearings checked and correctly adjusted/lubricated.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 4,
+       "label": "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 5,
+       "label": "5. Tyres inspected for correct size, pressure, condition and tread.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 6,
+       "label": "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 7,
+       "label": "7. Safety chains correctly fitted, securely attached and undamaged.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 8,
+       "label": "8. Jockey wheel fitted correctly and operates smoothly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 9,
+       "label": "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 10,
+       "label": "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 11,
+       "label": "11. Electrical wiring secured and protected against chafing or damage.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 12,
+       "label": "12. Trailer plug tested and all electrical functions operate correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 13,
+       "label": "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 14,
+       "label": "14. Mudguards, fenders and mounting brackets securely fitted.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 15,
+       "label": "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 16,
+       "label": "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 17,
+       "label": "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 18,
+       "label": "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 19,
+       "label": "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 20,
+       "label": "20. Road test completed (where applicable) and final quality inspection passed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      }
+     ]
+    },
+    "files": {},
+    "signatures": {
+     "InspectorSignature": null
+    },
+    "errors": {}
+   },
+   "bad": {
+    "data": {
+     "InspectorEmail": "not-an-email",
+     "checklist": [
+      {
+       "itemNo": 1,
+       "label": "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 2,
+       "label": "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 3,
+       "label": "3. Wheel bearings checked and correctly adjusted/lubricated.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 4,
+       "label": "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 5,
+       "label": "5. Tyres inspected for correct size, pressure, condition and tread.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 6,
+       "label": "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 7,
+       "label": "7. Safety chains correctly fitted, securely attached and undamaged.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 8,
+       "label": "8. Jockey wheel fitted correctly and operates smoothly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 9,
+       "label": "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 10,
+       "label": "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 11,
+       "label": "11. Electrical wiring secured and protected against chafing or damage.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 12,
+       "label": "12. Trailer plug tested and all electrical functions operate correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 13,
+       "label": "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 14,
+       "label": "14. Mudguards, fenders and mounting brackets securely fitted.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 15,
+       "label": "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 16,
+       "label": "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 17,
+       "label": "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 18,
+       "label": "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 19,
+       "label": "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      },
+      {
+       "itemNo": 20,
+       "label": "20. Road test completed (where applicable) and final quality inspection passed.",
+       "fail": false,
+       "pass": false,
+       "comments": ""
+      }
+     ]
+    },
+    "files": {},
+    "signatures": {},
+    "errors": {
+     "_1STDATEINSPECTION": "Enter a valid date.",
+     "InspectorEmail": "Enter a valid email address.",
+     "InspectorSignature": "Signature could not be read. Sign again.",
+     "InspectionDate": "Enter a valid date."
+    }
+   }
+  },
+  "validate": {
+   "empty": {
+    "InspectedByName": "This field is required.",
+    "InspectorEmail": "This field is required."
+   },
+   "sample": {}
+  },
+  "defaults": {
+   "plain": {
+    "InspectorEmail": "admin@trailersandtankers.co.za"
+   },
+   "today": {
+    "InspectorEmail": "admin@trailersandtankers.co.za"
+   }
+  },
+  "summary": "First-x Last-x",
+  "display": {
+   "TRAILERVINNUMBER": "T-TRAILERVINNUMBER",
+   "_1STDATEINSPECTION": "2026-10-29",
+   "InspectedByName": "First-x Last-x",
+   "InspectorEmail": "inspectoremail@example.invalid",
+   "TrailerInspectionResults": "",
+   "InspectorSignature": "",
+   "InspectionDate": "2026-10-29"
+  },
+  "columns": {
+   "choices": [
+    {
+     "name": "TRAILERVINNUMBER",
+     "label": "TRAILER VIN NUMBER"
+    },
+    {
+     "name": "_1STDATEINSPECTION",
+     "label": "1ST DATE INSPECTION"
+    },
+    {
+     "name": "InspectedByName",
+     "label": "Inspected By (Name)"
+    },
+    {
+     "name": "InspectorEmail",
+     "label": "Inspector Email"
+    },
+    {
+     "name": "InspectionDate",
+     "label": "Inspection Date"
+    }
+   ],
+   "defaults": [
+    "TRAILERVINNUMBER",
+    "_1STDATEINSPECTION",
+    "InspectedByName",
+    "InspectorEmail"
+   ]
+  },
+  "export": {
+   "masked": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "TRAILER VIN NUMBER",
+     "1ST DATE INSPECTION",
+     "Inspected By (Name)",
+     "Inspector Email",
+     "Inspection Date",
+     "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+     "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+     "3. Wheel bearings checked and correctly adjusted/lubricated.",
+     "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+     "5. Tyres inspected for correct size, pressure, condition and tread.",
+     "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+     "7. Safety chains correctly fitted, securely attached and undamaged.",
+     "8. Jockey wheel fitted correctly and operates smoothly.",
+     "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+     "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+     "11. Electrical wiring secured and protected against chafing or damage.",
+     "12. Trailer plug tested and all electrical functions operate correctly.",
+     "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+     "14. Mudguards, fenders and mounting brackets securely fitted.",
+     "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+     "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+     "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+     "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+     "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+     "20. Road test completed (where applicable) and final quality inspection passed."
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-TRAILERVINNUMBER",
+     "2026-10-29",
+     "First-x Last-x",
+     "inspectoremail@example.invalid",
+     "2026-10-29",
+     "Pass",
+     "Fail / loose bolt",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     ""
+    ]
+   ],
+   "revealed": [
+    [
+     "Entry Number",
+     "Status",
+     "Created",
+     "Updated",
+     "TRAILER VIN NUMBER",
+     "1ST DATE INSPECTION",
+     "Inspected By (Name)",
+     "Inspector Email",
+     "Inspection Date",
+     "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+     "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+     "3. Wheel bearings checked and correctly adjusted/lubricated.",
+     "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+     "5. Tyres inspected for correct size, pressure, condition and tread.",
+     "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+     "7. Safety chains correctly fitted, securely attached and undamaged.",
+     "8. Jockey wheel fitted correctly and operates smoothly.",
+     "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+     "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+     "11. Electrical wiring secured and protected against chafing or damage.",
+     "12. Trailer plug tested and all electrical functions operate correctly.",
+     "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+     "14. Mudguards, fenders and mounting brackets securely fitted.",
+     "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+     "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+     "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+     "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+     "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+     "20. Road test completed (where applicable) and final quality inspection passed."
+    ],
+    [
+     "7",
+     "Submitted",
+     "2026/10/29, 10:00",
+     "2026/10/29, 11:30",
+     "T-TRAILERVINNUMBER",
+     "2026-10-29",
+     "First-x Last-x",
+     "inspectoremail@example.invalid",
+     "2026-10-29",
+     "Pass",
+     "Fail / loose bolt",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     ""
+    ]
+   ]
+  },
+  "email": [
+   [
+    "TRAILER VIN NUMBER",
+    "T-TRAILERVINNUMBER"
+   ],
+   [
+    "1ST DATE INSPECTION",
+    "2026-10-29"
+   ],
+   [
+    "Inspected By (Name)",
+    "First-x Last-x"
+   ],
+   [
+    "Inspector Email",
+    "inspectoremail@example.invalid"
+   ],
+   [
+    "1. Chassis inspected for weld quality, damage, cracks and overall finish.",
+    "Pass"
+   ],
+   [
+    "2. Suspension, axle(s), U-bolts and mounting hardware securely fastened and correctly aligned.",
+    "Fail: loose bolt"
+   ],
+   [
+    "3. Wheel bearings checked and correctly adjusted/lubricated.",
+    "-"
+   ],
+   [
+    "4. Wheel nuts/bolts torqued to manufacturer's specification.",
+    "-"
+   ],
+   [
+    "5. Tyres inspected for correct size, pressure, condition and tread.",
+    "-"
+   ],
+   [
+    "6. Coupler operates correctly, locks securely and matches the specified tow ball size.",
+    "-"
+   ],
+   [
+    "7. Safety chains correctly fitted, securely attached and undamaged.",
+    "-"
+   ],
+   [
+    "8. Jockey wheel fitted correctly and operates smoothly.",
+    "-"
+   ],
+   [
+    "9. Braking system (if fitted) tested and adjusted correctly, including handbrake operation.",
+    "-"
+   ],
+   [
+    "10. Breakaway cable/system (where applicable) installed and functioning correctly.",
+    "-"
+   ],
+   [
+    "11. Electrical wiring secured and protected against chafing or damage.",
+    "-"
+   ],
+   [
+    "12. Trailer plug tested and all electrical functions operate correctly.",
+    "-"
+   ],
+   [
+    "13. Brake lights, tail lights, indicators, number plate light and reflectors checked.",
+    "-"
+   ],
+   [
+    "14. Mudguards, fenders and mounting brackets securely fitted.",
+    "-"
+   ],
+   [
+    "15. Load body, floor, tailgate, hinges, latches and catches inspected and operating correctly.",
+    "-"
+   ],
+   [
+    "16. Fuel tank, water tank or bowser (where applicable) inspected for leaks, fittings secure and pressure tested where required.",
+    "-"
+   ],
+   [
+    "17. Pump, hose reel, valves and accessories (where fitted) tested for correct operation.",
+    "-"
+   ],
+   [
+    "18. Reflective tape, chevron board, warning decals and VIN plate correctly installed.",
+    "-"
+   ],
+   [
+    "19. General cosmetic inspection completed (paint, galvanizing, decals, cleanliness and presentation).",
+    "-"
+   ],
+   [
+    "20. Road test completed (where applicable) and final quality inspection passed.",
+    "-"
+   ],
+   [
+    "Inspector Signature",
+    "Signed"
+   ],
+   [
+    "Inspection Date",
+    "2026-10-29"
+   ]
+  ],
+  "html": {
+   "publicNew": "39bbfd5ed7bbba82819bd7cfe2b764ea481280d471e64f6d4c42d3e1eda9612c",
+   "staffExisting": "8bbb369074117b2b084cd2ae65531d21c837d88390ef77e01c71f0d2ffc6be96",
+   "readOnly": "5657c1be22d16e7a2f93f068122713601a37c2cd17b336b31b4fa5f19355edfe"
+  },
+  "pdf": {
+   "sample": "993dd6e4232a27b237f64d039b266954c90e168cbef9307ab582ec5deec318f3",
+   "blank": "c1942d92e70eee1a8872e8a41c4b71426315391c22ed0bff36069e7290744c30"
+  }
+ }
+}

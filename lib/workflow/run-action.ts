@@ -6,14 +6,14 @@ import { fileCountsOf, loadEntryById, loadFiles, sealData, type EntryFile, type 
 import type { FormRecord } from '@/lib/forms/forms';
 import { loadOrg } from '@/lib/forms/org';
 import { checkStaged, downloadObject, ENTRY_BUCKET, finalPath, moveObject, removeObjects, saveSignature } from '@/lib/forms/storage';
-import { ensureDocument, SIGNED_DOCUMENT_FORMS } from '@/lib/pdf/documents';
+import { ensureDocument, hasInternalOnly, publicDocument, SIGNED_DOCUMENT_FORMS } from '@/lib/pdf/documents';
 import { can, type Member } from '@/lib/security/can';
 import { displayFileName } from '@/lib/security/files';
 import { inputFields, type ActionSpec } from '@/lib/spec/types';
-import { readFormData, renderSummary, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
+import { defaultData, prepareSave, readFormData, renderSummary, todayIn, validateEntry, type EntryData, type FileRef } from '@/lib/spec/values';
 import { SIGNING, signatureMeta, termsBlocksFor } from '@/lib/terms/signing';
 import { ensureTermsVersion } from '@/lib/terms/versions';
-import { buildEmail, eventKey } from './email-template';
+import { buildEmail, eventKey, isExternalEmail } from './email-template';
 import { createRoleLink } from './links';
 import { MAX_ATTACHMENT_BYTES, sendEmail, type Attachment } from './mailer';
 import { enqueue } from '@/lib/jobs/outbox';
@@ -98,11 +98,16 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   }
 
   // --- read and validate -----------------------------------------------------------------------
-  const read = readFormData(spec, fd);
+  const org = await loadOrg(db, form.orgId);
+  const read = readFormData(spec, fd, { timeZone: org.timezone, currency: org.currency });
+  // M8: the public role cannot change readOnly/internalOnly fields (they keep the saved or default value), and
+  // fields hidden by showWhen are neither validated nor saved; their files are left as they are.
+  const previous = entry?.data ?? defaultData(spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency });
+  const prep = prepareSave(spec, read, { audience: actor.kind === 'public' || actor.kind === 'link' ? 'public' : 'staff', previous, stored: entry?.data ?? null });
   const existing: EntryFile[] = entry ? await loadFiles(db, entry.id) : [];
-  const plan = planFiles(form, read.files, read.signatures, existing);
-  if (plan.errors) Object.assign(read.errors, plan.errors);
-  const errors = { ...validateEntry(spec, read.data, plan.counts), ...read.errors };
+  const plan = planFiles(form, read.files, read.signatures, existing, prep.skip);
+  if (plan.errors) Object.assign(prep.errors, plan.errors);
+  const errors = { ...validateEntry(spec, prep.data, plan.counts, { skip: prep.skip }), ...prep.errors };
   if (Object.keys(errors).length) return fail(400, 'Please correct the highlighted fields.', errors);
 
   const accepts = Object.fromEntries(inputFields(spec).map((f) => [f.name, f.type === 'file' ? f.accept : undefined]));
@@ -115,8 +120,8 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   // --- save the entry --------------------------------------------------------------------------
   const id = entry?.id ?? randomUUID();
   const toStatus = action.newStatus ?? fromStatus;
-  const summary = renderSummary(form.summaryTemplate, read.data) || null;
-  const sealed = sealData(form, id, read.data);
+  const summary = renderSummary(form.summaryTemplate, prep.data, { spec, timeZone: org.timezone }) || null;
+  const sealed = sealData(form, id, prep.data);
   const now = new Date().toISOString();
   const actorUser = actor.kind === 'staff' ? actor.member.userId : null;
   let number: number;
@@ -169,7 +174,7 @@ export async function runAction(input: RunInput): Promise<RunResult> {
   }
 
   // --- timeline --------------------------------------------------------------------------------
-  const changed = diffKeys(entry?.data ?? {}, read.data, plan);
+  const changed = diffKeys(entry?.data ?? {}, prep.data, plan);
   await db.from('entry_events').insert({
     entry_id: id, action: action.name, from_status: entry ? fromStatus : null, to_status: toStatus,
     actor_user: actorUser, actor_role: actor.kind === 'system' ? SYSTEM_ROLE : role, diff: { changed },
@@ -194,11 +199,17 @@ interface FilePlan {
 /** Works out which files stay, which are new and which go, per field. Existing ids must belong to this entry and field. */
 export function planFiles(
   form: FormRecord, files: Record<string, FileRef[]>, signatures: ReturnType<typeof readFormData>['signatures'], existing: EntryFile[],
+  /** M8: fields left exactly as they are (hidden by showWhen or locked for the actor): no new, none removed. */
+  keep: ReadonlySet<string> = new Set(),
 ): FilePlan {
   const plan: FilePlan = { counts: {}, staged: [], newSignatures: [], removed: [] };
   const errors: Record<string, string> = {};
   for (const f of inputFields(form.spec)) {
     const mine = existing.filter((e) => e.fieldKey === f.name);
+    if (keep.has(f.name) && (f.type === 'file' || f.type === 'signature')) {
+      plan.counts[f.name] = mine.length;
+      continue;
+    }
     if (f.type === 'file') {
       const refs = files[f.name] ?? [];
       const keep = new Set<string>();
@@ -267,6 +278,7 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
     }
     const built = buildEmail(email, action.name, {
       spec: form.spec, data: entry.data, entryNumber: entry.number, status: entry.status, adminLink, roleLink, configuredRecipients: configured, fileCounts: counts,
+      timeZone: org.timezone,
     });
     const attachments: Attachment[] = [];
     let total = 0;
@@ -277,12 +289,17 @@ async function afterSave(db: SupabaseClient, form: FormRecord, entry: EntryRecor
     };
     const docNumbers = new Set<number>(email.attachDocuments ?? []);
     if (email.includeDocumentAttachments) docNumbers.add(1);
+    // M8: an email to an address from the entry gets a PDF and files without internalOnly fields.
+    const external = isExternalEmail(email) && hasInternalOnly(form);
+    const internalNames = new Set(external ? inputFields(form.spec).filter((f) => 'internalOnly' in f && f.internalOnly).map((f) => f.name) : []);
     for (const n of docNumbers) {
-      const doc = await ensureDocument(db, form, entry, n, org.timezone, actorUser).catch(() => null);
+      const doc = external && n === 1
+        ? await publicDocument(db, form, entry, org.timezone).catch(() => null)
+        : await ensureDocument(db, form, entry, n, org.timezone, actorUser).catch(() => null);
       if (doc) add({ filename: doc.name, content: doc.bytes, contentType: 'application/pdf' });
     }
     if (email.includeAttachments) {
-      for (const f of files.filter((x) => x.kind === 'file')) {
+      for (const f of files.filter((x) => x.kind === 'file' && !internalNames.has(x.fieldKey))) {
         const b = await downloadObject(db, ENTRY_BUCKET, f.storagePath);
         if (b) add({ filename: f.fileName, content: b, contentType: f.contentType ?? undefined });
       }

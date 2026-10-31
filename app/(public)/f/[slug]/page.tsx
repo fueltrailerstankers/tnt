@@ -5,7 +5,8 @@ import { appEnv, publicEnv, turnstileSiteKey } from '@/lib/env';
 import { loadForm } from '@/lib/forms/forms';
 import { quoteFieldOf } from '@/lib/forms/quote-fields';
 import { loadOrg } from '@/lib/forms/org';
-import { defaultData, todayIn } from '@/lib/spec/values';
+import { publicLookupOf } from '@/lib/forms/public-policy';
+import { defaultData, publicSpec, todayIn } from '@/lib/spec/values';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { allowedActions, NEW_ENTRY_STATUS, publicRole } from '@/lib/workflow/rules';
 import { checkQuotePublic, findLookupPublic, requestUploadPublic, submitPublic } from './actions';
@@ -22,11 +23,12 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const form = await loadForm(createAdminClient(), appEnv().PUBLIC_ORG_ID, slug);
   if (!form || !form.isActive) notFound();
-  const spec = form.spec;
+  // M8: the browser gets the public spec only (no internalOnly fields, labels or defaults).
+  const spec = publicSpec(form.spec);
   const org = await loadOrg(createAdminClient(), form.orgId);
   const actions = allowedActions(spec, NEW_ENTRY_STATUS, publicRole(spec).name).map((a) => ({ name: a.name, label: a.button }));
   const env = publicEnv();
-  const hasLookup = spec.fields.some((f) => f.type === 'lookup');
+  const hasLookup = !!publicLookupOf(form.spec);
 
   return (
     <>
@@ -44,7 +46,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
       </div>
       <FormRenderer
         spec={spec}
-        initial={defaultData(spec, { today: todayIn(org.timezone) })}
+        initial={defaultData(spec, { today: todayIn(org.timezone), now: new Date(), timeZone: org.timezone, currency: org.currency })}
         files={{}}
         signatures={{}}
         actions={actions}
@@ -55,6 +57,9 @@ export default async function PublicFormPage({ params }: { params: Promise<{ slu
         quotes={quoteFieldOf(spec) ? { mode: 'check', check: checkQuotePublic.bind(null, slug) } : undefined}
         honeypot
         turnstileSiteKey={turnstileSiteKey()}
+        audience="public"
+        timeZone={org.timezone}
+        currency={org.currency}
       />
     </>
   );
