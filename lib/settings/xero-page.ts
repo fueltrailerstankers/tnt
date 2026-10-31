@@ -5,7 +5,7 @@ import { entityLabel, jobErrorLabel } from '@/lib/tasks/jobs';
 import { plural, stampLabel } from '@/lib/tasks/format';
 import type { Tone } from '@/lib/ui/status';
 import { dayTime, type TimeInput } from '@/lib/ui/time';
-import type { ActionMode } from '@/lib/integrations/xero/write/modes';
+import { hasWriteScopes, PLAN_ONLY, WRITE_SCOPES, WRITES_TO_XERO, type ActionMode } from '@/lib/integrations/xero/write/modes';
 import type { ActionName } from '@/lib/integrations/xero/write/types';
 
 const DASH = '—';
@@ -208,3 +208,13 @@ export function pickDryRun<T extends DryRunRow>(runs: readonly T[], action: stri
 
 /** Run header: "28 Oct 13:20 SAST". */
 export const runStamp = (at: TimeInput, now: TimeInput) => `${dayTime(at, now)} SAST`;
+
+/** Why Live cannot be chosen now, with the same rules as checkSwitch (the server re-checks on every switch). */
+export function liveBlockedReason(action: ActionName, conn: { status: string; scopes: readonly string[] } | null): string | null {
+  if (PLAN_ONLY[action]) return 'not built yet (this action only plans).';
+  if (!WRITES_TO_XERO[action]) return null;
+  if (!conn || conn.status !== 'connected') return 'connect Xero first.';
+  if (!hasWriteScopes(conn.scopes)) return `reconnect Xero with the write scopes (${WRITE_SCOPES.join(', ')}).`;
+  return null;
+}
+

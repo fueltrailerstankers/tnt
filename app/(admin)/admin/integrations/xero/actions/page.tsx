@@ -1,112 +1,100 @@
 import Link from 'next/link';
-import { formatDateTime } from '@/lib/admin/grid';
-import { loadOrg } from '@/lib/forms/org';
+import { ActionModeControl } from '@/components/integrations/ActionModeControl';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { StatusChip } from '@/components/ui/StatusChip';
+import { buttonClass, tableClass, theadClass } from '@/components/ui/styles';
 import { loadConnection } from '@/lib/integrations/xero/connection';
-import {
-  dryRunDoesNothing, hasWriteScopes, NO_XERO_WRITES_NOTE, parseMode, PLAN_ONLY, resolveMode, settingKey, WRITE_SCOPES, WRITES_TO_XERO,
-} from '@/lib/integrations/xero/write/modes';
-import { ACTIONS } from '@/lib/integrations/xero/write/types';
+import { dryRunDoesNothing, hasWriteScopes, NO_XERO_WRITES_NOTE, PLAN_ONLY, WRITE_SCOPES, WRITES_TO_XERO } from '@/lib/integrations/xero/write/modes';
 import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
+import { loadActions } from '@/lib/settings/xero-load';
+import { ACTION_ABOUT, ACTION_TRIGGER, MODE_LABEL, runStamp } from '@/lib/settings/xero-page';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { MergePlanForm, ModeSwitch } from './forms';
+import { MergePlanForm } from './forms';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Xero actions · Trailers & Tankers' };
 
-const ABOUT: Record<string, string> = {
-  'deal.import_quote': 'DEAL Submit: copy quote lines 1-8 (description, item code) and the total from Xero into the DEAL.',
-  'rfi.create_invoice': 'RFI Submit/Update: contact, quote SENT > ACCEPTED > INVOICED, invoice from the quote (once), attach RFI PDF and deposits.',
-  'delivery.update_invoice': 'Delivery Note Submit/Update: VIN to the invoice Reference, attach delivery PDF, ID, payments, NATIS, photos, RFI PDF.',
-  'release.on_paid': 'Invoice fully paid: create or update the RELEASE FORM entry and email the branches with the invoice and release PDFs.',
-  'invoice.merge_attachments': 'On demand: plan merging an invoice\'s attachments into one PDF (plan only; needs pdf-lib).',
-};
-
-type RunRow = {
-  id: string; action: string; mode: string; status: string; idempotency_key: string; reason: string | null; error: string | null;
-  planned_requests: unknown; effects: unknown; expected: unknown; response_summary: unknown; created_at: string;
-};
+const STATUS_COLOR: Record<string, string> = { planned: 'yellow', sent: 'teal', succeeded: 'green', failed: 'red', skipped: 'gray' };
 
 export default async function XeroActions() {
   const member = await requirePerm('integrations.manage');
   // xero_action_runs is admin-readable; the service client is used after the permission check, scoped by org.
   const db = createAdminClient();
-  const [org, conn, { data: settings }, { data: runs }] = await Promise.all([
-    loadOrg(db, member.orgId),
-    loadConnection(db, member.orgId),
-    db.from('app_settings').select('key, value, updated_at').eq('org_id', member.orgId).like('key', 'xero.action.%'),
-    db.from('xero_action_runs')
-      .select('id, action, mode, status, idempotency_key, reason, error, planned_requests, effects, expected, response_summary, created_at')
-      .eq('org_id', member.orgId).order('created_at', { ascending: false }).limit(200),
-  ]);
-  const tz = org.timezone;
+  const now = Date.now();
+  const conn = await loadConnection(db, member.orgId);
+  const { actions, runs } = await loadActions(db, member.orgId, conn, now);
+  const { data: errs } = await db.from('xero_action_runs').select('id, reason, error').eq('org_id', member.orgId)
+    .gte('created_at', new Date(now - 30 * 86_400_000).toISOString()).order('created_at', { ascending: false }).limit(500);
+  const note = new Map((errs ?? []).map((r) => [r.id as string, (r.error ?? r.reason ?? '') as string]));
   const configure = can(member, 'xero.actions.configure');
   const writeScopes = hasWriteScopes(conn?.scopes);
-  const setting = (a: string) => settings?.find((s) => s.key === settingKey(a as (typeof ACTIONS)[number]))?.value;
-  const all = (runs ?? []) as RunRow[];
 
   return (
-    <section className="space-y-4">
-      <h1 className="text-xl font-semibold">Xero actions</h1>
-      <div className="rounded-md border bg-surface shadow-card p-4 text-sm">
-        <p>
-          Every action starts <b>off</b>. <b>Dry run</b> records the Xero requests it would send and changes nothing in Xero.
-          <b> Live</b> sends them, each claimed once. Live needs a connection with the write scopes ({WRITE_SCOPES.join(', ')}) and a typed confirmation; every change is audited.
-        </p>
-        <p className="mt-1 text-xs text-fg-muted">
-          Connection: {conn?.status ?? 'not connected'} · write scopes: {writeScopes ? 'granted' : 'not granted (read-only)'} · <Link href="/admin/integrations/xero" className="underline">Xero health</Link>
-        </p>
+    <section className="flex w-full max-w-[1360px] flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <nav aria-label="Breadcrumb" className="text-small text-fg-muted">
+          <ol className="m-0 flex list-none gap-1.5 p-0">
+            <li>Integrations</li><li aria-hidden="true">/</li><li><Link href="/admin/integrations/xero" className="text-fg-muted underline">Xero</Link></li><li aria-hidden="true">/</li><li aria-current="page" className="text-fg">Actions</li>
+          </ol>
+        </nav>
+        <h1 className="text-h1">Xero actions</h1>
       </div>
+      <Card padding="sm">
+        <p className="m-0 text-body">
+          Every action starts <b>Off</b>. <b>Dry-run</b> records the Xero requests it would send and changes nothing in Xero.
+          <b> Live</b> sends them, each claimed once. Live needs an admin, a connection with the write scopes ({WRITE_SCOPES.join(', ')}) and the typed phrase <code className="rounded-xs bg-surface-2 px-1 font-mono">LIVE &lt;action&gt;</code>; every change is audited.
+        </p>
+        <p className="m-0 text-small text-fg-muted">
+          Connection: {conn?.status ?? 'not connected'} · write scopes: {writeScopes ? 'granted' : 'not granted (read-only)'} · <Link href="/admin/integrations/xero" className="text-accent-text underline">Xero integration</Link>
+        </p>
+      </Card>
 
-      {ACTIONS.map((a) => {
-        const r = resolveMode(a, setting(a), conn);
-        const mine = all.filter((x) => x.action === a);
+      {actions.map((a) => {
+        const mine = runs.filter((x) => x.action === a.action);
         const lastDry = mine.find((x) => x.mode === 'dry_run' && x.status !== 'skipped');
-        const canLive = configure && !PLAN_ONLY[a] && (!WRITES_TO_XERO[a] || writeScopes);
         return (
-          <div key={a} className="rounded-md border bg-surface shadow-card p-4 text-sm" data-testid={`action-${a}`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-semibold"><code>{a}</code></h2>
-              <span className="text-xs">
-                setting <b>{parseMode(setting(a))}</b> · runs as <b>{r.mode}</b>{r.downgraded ? ` (${r.downgraded})` : ''}
-                {WRITES_TO_XERO[a] ? '' : ` · ${NO_XERO_WRITES_NOTE}`}
-              </span>
-            </div>
-            <p className="mt-1 text-fg-muted">{ABOUT[a]}</p>
-            {dryRunDoesNothing(a, r.mode) ? (
-              <p className="mt-1 rounded bg-status-yellow-bg px-2 py-1 text-xs text-status-yellow-fg" data-testid={`dry-run-note-${a}`}>
+          <Card key={a.action} padding="md" className="gap-3" data-testid={`action-${a.action}`} aria-labelledby={`h-${a.action}`}>
+            <CardHeader
+              id={`h-${a.action}`}
+              title={<span className="font-mono">{a.action}</span>}
+              action={<span className="text-[12px] text-fg-muted">setting <b>{MODE_LABEL[a.setting]}</b> · runs as <b>{MODE_LABEL[a.resolved.mode]}</b>{a.resolved.downgraded ? ` (${a.resolved.downgraded})` : ''}</span>}
+            />
+            <p className="m-0 text-small text-fg-muted">{ACTION_ABOUT[a.action]} Trigger: {ACTION_TRIGGER[a.action]}.</p>
+            {WRITES_TO_XERO[a.action] ? null : <p className="m-0 text-[12px] text-fg-muted">Note: {NO_XERO_WRITES_NOTE}.</p>}
+            {dryRunDoesNothing(a.action, a.resolved.mode) ? (
+              <p className="m-0 rounded-xs bg-status-yellow-bg px-2 py-1 text-[12px] text-status-yellow-fg" data-testid={`dry-run-note-${a.action}`}>
                 Dry run currently does nothing for this action: it saves no entries and sends no emails, it only records what it would do. Live applies them.
               </p>
             ) : null}
-            {PLAN_ONLY[a] ? <p className="mt-1 text-xs text-status-yellow-fg">{PLAN_ONLY[a]}</p> : null}
-            {configure ? <div className="mt-2"><ModeSwitch action={a} current={parseMode(setting(a))} canLive={canLive} /></div> : null}
-            {a === 'invoice.merge_attachments' && configure ? <div className="mt-2"><MergePlanForm /></div> : null}
+            {PLAN_ONLY[a.action] ? <p className="m-0 text-[12px] text-status-yellow-fg">{PLAN_ONLY[a.action]}</p> : null}
+            <ActionModeControl action={a.action} mode={a.setting} canConfigure={configure} liveBlocked={a.liveBlocked} />
+            {a.action === 'invoice.merge_attachments' && configure ? <MergePlanForm /> : null}
 
-            <h3 className="mt-3 text-xs font-semibold uppercase text-fg-muted">Last runs</h3>
-            <table className="w-full text-xs">
-              <thead className="text-left text-fg-muted"><tr><th>When</th><th>Mode</th><th>Status</th><th>Key</th><th>Note</th></tr></thead>
-              <tbody>
-                {mine.slice(0, 8).map((x) => (
-                  <tr key={x.id} className="border-t">
-                    <td>{formatDateTime(x.created_at, tz)}</td><td>{x.mode}</td>
-                    <td className={x.status === 'failed' ? 'text-status-red-fg' : ''}>{x.status}</td>
-                    <td className="font-mono">{x.idempotency_key}</td>
-                    <td>{x.error ?? x.reason ?? ''}</td>
-                  </tr>
-                ))}
-                {!mine.length ? <tr><td colSpan={5} className="py-1 text-fg-muted">No runs yet.</td></tr> : null}
-              </tbody>
-            </table>
-
+            <h3 className="m-0 text-label font-semibold uppercase text-fg-muted">Last runs</h3>
+            <div className="overflow-x-auto rounded-sm border border-border">
+              <table className={`${tableClass} min-w-[640px] text-small`}>
+                <thead className={theadClass}><tr><th className="p-2">When</th><th className="p-2">Mode</th><th className="p-2">Status</th><th className="p-2">Key</th><th className="p-2">Note</th></tr></thead>
+                <tbody>
+                  {mine.slice(0, 8).map((x) => (
+                    <tr key={x.id} className="border-t border-border">
+                      <td className="whitespace-nowrap p-2">{runStamp(x.created_at, now)}</td>
+                      <td className="p-2">{MODE_LABEL[x.mode as keyof typeof MODE_LABEL] ?? x.mode}</td>
+                      <td className="p-2"><StatusChip status={x.status} color={STATUS_COLOR[x.status] ?? 'gray'} size="sm" /></td>
+                      <td className="p-2 font-mono">{x.idempotency_key}</td>
+                      <td className="p-2">{note.get(x.id) ?? ''}</td>
+                    </tr>
+                  ))}
+                  {!mine.length ? <tr><td colSpan={5} className="p-2 text-fg-muted">No runs in the last 30 days.</td></tr> : null}
+                </tbody>
+              </table>
+            </div>
             {lastDry ? (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs">Latest dry run ({formatDateTime(lastDry.created_at, tz)}): planned requests (redacted)</summary>
-                <pre className="mt-1 max-h-96 overflow-auto rounded bg-surface-2 p-2 text-[11px]" data-testid={`dry-run-${a}`}>
-                  {JSON.stringify({ requests: lastDry.planned_requests, effects: lastDry.effects, expected: lastDry.expected }, null, 2)}
-                </pre>
-              </details>
+              <p className="m-0 text-small">
+                <Link href={`/admin/integrations/xero?diff=${encodeURIComponent(a.action)}&run=${lastDry.id}#diff`} className={buttonClass('secondary', 32)}>View dry-run diff</Link>
+              </p>
             ) : null}
-          </div>
+          </Card>
         );
       })}
     </section>
