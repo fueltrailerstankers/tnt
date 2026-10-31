@@ -32,7 +32,7 @@ export function RecentEntriesCard({ rows }: { rows: RecentEntryRow[] | null }) {
             ) : rows.length ? (
               rows.map((r) => (
                 <tr key={r.id} className="border-t border-border" data-testid="recent-entry">
-                  <td className="h-[42px] px-4">
+                  <td className="h-[42px] whitespace-nowrap px-4">
                     <span className={`flex items-center gap-2 ${r.unread ? 'font-semibold' : ''}`}>
                       <span aria-hidden="true" className={`size-2 flex-none rounded-full ${r.unread ? 'bg-accent' : 'bg-transparent'}`} />
                       {r.unread ? <span className="sr-only">Unread:</span> : null}
