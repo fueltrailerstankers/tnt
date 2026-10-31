@@ -96,7 +96,9 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   await page.getByTestId('terms-scroll').evaluate((el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); });
   await expect(page.getByText('Read to the end')).toBeVisible();
   await sign(page, 'Signature4');
-  await sign(page, 'Signature');
+  // Every pad can also be typed: the declaration is signed by typing a name.
+  await page.getByRole('radiogroup', { name: 'Customer signature 2 of 4: how to sign' }).getByRole('radio', { name: 'Type' }).click();
+  await page.getByLabel('Type your full name to sign').fill('Sample Customer');
   await next.click();
   await expect(page.getByText('POLYURETHANE TANKS WAIVER')).toBeVisible();
   await sign(page, 'Signature2');
@@ -136,7 +138,7 @@ test('Delivery Note: VIN/email/invoice rules, signatures, photos, masked lookup,
   expect(sigs.map((s) => s.field_key)).toEqual(['SalesRepSignature', 'Signature', 'Signature2', 'Signature3', 'Signature4']);
   // Rule 12: each signature records its signer, the server time and the exact terms version shown.
   expect(sigs.map((s) => s.signer_role)).toEqual(['sales_rep', 'customer', 'customer', 'customer', 'customer']);
-  expect(new Set(sigs.map((s) => s.sign_method))).toEqual(new Set(['draw']));
+  expect(sigs.map((s) => s.sign_method)).toEqual(['draw', 'type', 'draw', 'draw', 'draw']);
   expect(sigs.every((s) => s.signed_at)).toBe(true);
   expect(new Set(sigs.map((s) => s.terms_version_id)).size).toBe(1);
   const [tv] = await sql<{ key: string; blocks: number }>(`select key, jsonb_array_length(body) as blocks from terms_versions where id = $1`, [sigs[0].terms_version_id]);

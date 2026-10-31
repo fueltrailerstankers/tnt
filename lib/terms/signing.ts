@@ -40,8 +40,15 @@ export function termsBlocksFor(spec: FormSpec): TermsBlock[] {
 }
 
 /** Signature metadata the server stores on a new signature row (time is the server's receive time). */
-export function signatureMeta(slug: string, field: string, termsVersionId: string | null, signedAt: string) {
+export function signatureMeta(slug: string, field: string, termsVersionId: string | null, signedAt: string, method: SignMethod = 'draw') {
   const role = SIGNING[slug]?.signers[field];
   if (!role) return null;
-  return { signed_at: signedAt, signer_role: role, sign_method: 'draw' as const, terms_version_id: termsVersionId };
+  return { signed_at: signedAt, signer_role: role, sign_method: method, terms_version_id: termsVersionId };
+}
+
+export type SignMethod = 'draw' | 'type';
+
+/** How a pad was signed, posted as sigm.<Field> by the signature pad: 'type' or (default) 'draw'. */
+export function signMethodOf(fd: { get(name: string): unknown }, field: string): SignMethod {
+  return fd.get(`sigm.${field}`) === 'type' ? 'type' : 'draw';
 }

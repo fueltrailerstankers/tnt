@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { contentSource } from '@/lib/spec/content';
-import { signatureMeta, SIGNING, termsBlocksFor } from '@/lib/terms/signing';
+import { signatureMeta, signMethodOf, SIGNING, termsBlocksFor } from '@/lib/terms/signing';
 import { spec } from './specs';
 
 vi.mock('server-only', () => ({}));
@@ -32,5 +32,16 @@ describe('Delivery Note signing (rule 12)', () => {
 
   it('other forms have no terms', () => {
     expect(termsBlocksFor(spec('deal'))).toEqual([]);
+  });
+});
+
+describe('signature method', () => {
+  it('records typed signatures as type and everything else as draw', () => {
+    const fd = (v: Record<string, string>) => ({ get: (k: string) => v[k] ?? null });
+    expect(signMethodOf(fd({ 'sigm.Signature4': 'type' }), 'Signature4')).toBe('type');
+    expect(signMethodOf(fd({ 'sigm.Signature4': 'draw' }), 'Signature4')).toBe('draw');
+    expect(signMethodOf(fd({ 'sigm.Signature4': 'evil' }), 'Signature4')).toBe('draw');
+    expect(signMethodOf(fd({}), 'Signature4')).toBe('draw');
+    expect(signatureMeta('delivery-note', 'Signature4', 'v1', 't', 'type')?.sign_method).toBe('type');
   });
 });

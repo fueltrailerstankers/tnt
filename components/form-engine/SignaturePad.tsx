@@ -32,6 +32,9 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
   const [value, setValue] = useState(existing ? `keep:${existing.id}` : '');
   const [mode, setMode] = useState<'existing' | 'draw'>(existing ? 'existing' : 'draw');
   const [signedAt, setSignedAt] = useState<Date | null>(null);
+  // Owner decision: every pad can be drawn or typed. A typed name is rendered in script to the same black-ink PNG.
+  const [method, setMethod] = useState<'draw' | 'type'>('draw');
+  const [typed, setTyped] = useState('');
   const labelId = `sig-${name}-label`;
   const errId = `sig-${name}-err`;
 
@@ -107,6 +110,35 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
     onChange?.(false);
   };
 
+  const typedPng = (text: string) => {
+    const name = text.trim();
+    if (!name) return '';
+    const out = document.createElement('canvas');
+    out.width = 1200;
+    out.height = 320;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let size = 120;
+    do {
+      ctx.font = `italic ${size}px "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive`;
+      size -= 6;
+    } while (ctx.measureText(name).width > 1100 && size > 30);
+    ctx.fillText(name.slice(0, 80), 600, 170);
+    return out.toDataURL('image/png');
+  };
+
+  const choose = (m: 'draw' | 'type') => {
+    if (m === method) return;
+    setMethod(m);
+    strokes.current = [];
+    setTyped('');
+    setValue('');
+    setSignedAt(null);
+    onChange?.(false);
+  };
+
   const isLocked = !!locked && !disabled && mode === 'draw';
   const empty = mode === 'draw' && !value;
   const status = mode === 'existing' ? 'Signed' : value ? (signedAt ? `Signed ${sastStamp(signedAt)}` : 'Signed') : 'Not signed yet';
@@ -122,8 +154,46 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
           {status}
         </span>
       </div>
+      {mode === 'draw' && !disabled && !isLocked ? (
+        <div role="radiogroup" aria-label={`${label}: how to sign`} className="mb-1.5 inline-flex rounded-pill border border-border bg-surface-2 p-0.5">
+          {(['draw', 'type'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={method === m}
+              onClick={() => choose(m)}
+              className={`h-8 rounded-pill px-3 text-small font-semibold ${method === m ? 'bg-surface text-fg shadow-card' : 'text-fg-muted hover:text-fg'}`}
+            >
+              {m === 'draw' ? 'Draw' : 'Type'}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className={`relative overflow-hidden rounded-sm border-2 border-dashed bg-surface ${error ? 'border-danger' : value ? 'border-border' : 'border-border-strong'}`}>
-        {mode === 'existing' ? (
+        {mode === 'draw' && method === 'type' && !isLocked ? (
+          <div className="flex h-40 flex-col justify-center gap-2 px-4">
+            <label htmlFor={`sig-${name}-typed`} className="text-label font-medium tracking-normal text-fg-muted">Type your full name to sign</label>
+            <input
+              id={`sig-${name}-typed`}
+              value={typed}
+              disabled={disabled}
+              maxLength={80}
+              autoComplete="name"
+              onChange={(e) => {
+                setTyped(e.target.value);
+                const png = typedPng(e.target.value);
+                setValue(png);
+                setSignedAt(png ? new Date() : null);
+                onChange?.(!!png);
+              }}
+              className="h-12 w-full rounded-sm border border-border-strong bg-surface px-3 text-base text-fg outline-none focus:border-focus sm:h-10"
+            />
+            <p aria-hidden="true" className="truncate text-center text-[28px] leading-9 text-fg" style={{ fontFamily: '"Brush Script MT", "Segoe Script", "Snell Roundhand", cursive', fontStyle: 'italic' }}>
+              {typed.trim() || ' '}
+            </p>
+          </div>
+        ) : mode === 'existing' ? (
           <div className="flex h-40 items-center justify-center p-2">
             {existing?.url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -135,6 +205,7 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
         ) : (
           <>
             <canvas
+              hidden={method === 'type' && !isLocked}
               ref={canvas}
               role="img"
               aria-label={`${label}: ${value ? 'signature captured' : 'draw your signature'}`}
@@ -178,7 +249,7 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
       </div>
       <div className="mt-1.5 flex min-h-6 items-start justify-between gap-3">
         {error ? <p id={errId} className={`${errorCls} mt-0`}>{error}</p> : <span />}
-        {!disabled && mode === 'draw' && value ? (
+        {!disabled && mode === 'draw' && method === 'draw' && value ? (
           <button type="button" onClick={clear} className="flex-none rounded-pill px-2 text-small font-semibold text-fg-muted underline-offset-2 hover:text-fg hover:underline">
             Clear
           </button>
@@ -194,6 +265,7 @@ export function SignaturePad({ name, label, existing, error, disabled, required,
         ) : null}
       </div>
       <input type="hidden" name={`sig.${name}`} value={value} />
+      <input type="hidden" name={`sigm.${name}`} value={value.startsWith('data:') ? method : ''} />
     </div>
   );
 }
