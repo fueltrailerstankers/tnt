@@ -1,18 +1,37 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { DeleteEntryCard } from '@/components/entry/DeleteEntryCard';
+import { FilesCard } from '@/components/entry/FilesCard';
+import { ProtectedFieldsCard } from '@/components/entry/ProtectedFieldsCard';
+import { RailActions } from '@/components/entry/RailActions';
+import { BelowMinimumCard, EmailsCard, PdfsCard, TimelineCard, type EmailRow } from '@/components/entry/RailCards';
+import { StatusFlow } from '@/components/entry/StatusFlow';
+import { StatusStepper } from '@/components/entry/StatusStepper';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardHeader } from '@/components/ui/Card';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { buttonClass } from '@/components/ui/styles';
 import { adminForm } from '@/lib/admin/context';
-import { formatDateTime } from '@/lib/admin/grid';
-import { loadEntryByNumber } from '@/lib/forms/entries';
+import { canReveal, decryptAuditRow, formSpecForPage, maskRecipients, protectedNames, protectedView, withoutProtected } from '@/lib/entry-view/protected';
+import { belowMinimum, entryTimeline, fieldLabels, fileRows, pdfVersions } from '@/lib/entry-view/rail';
+import { availableActions, MANUAL_FINAL, railActions, roleNote, statusFlow, statusPath } from '@/lib/entry-view/status';
+import { loadEntryByNumber, loadFiles } from '@/lib/forms/entries';
 import { customerPanel, lookupOptions } from '@/lib/forms/lookup';
 import { rendererFiles } from '@/lib/forms/view';
 import { templatesFor } from '@/lib/pdf/documents';
 import { can } from '@/lib/security/can';
-import { actionPermission, allowedActions, internalRole, manualStatuses, statusColor } from '@/lib/workflow/rules';
+import type { EntryEventRow } from '@/lib/ui/timeline';
+import { shortDateTime } from '@/lib/ui/time';
+import { manualStatuses, statusColor } from '@/lib/workflow/rules';
 import { deleteEntry, setStatus } from '../../actions';
 import { StaffForm } from '../../staff-form';
+import { previewEntryFile, revealProtectedField } from './actions';
+import { ProtectedEntryForm } from './protected-form';
 
 export const dynamic = 'force-dynamic';
+
+const FORM_HOST = 'entry-form';
 
 export default async function EntryPage({
   params, searchParams,
@@ -26,12 +45,18 @@ export default async function EntryPage({
   if (!entry) notFound();
   const spec = form.spec;
 
+  // Encrypted forms (DEAL, Delivery Note): opening the entry decrypts it, and that is audited (ids only). If the
+  // row cannot be written the page is not shown.
+  if (form.encrypt) {
+    const { error } = await db.from('audit_log').insert(decryptAuditRow(member, entry.id, form.slug, entry.number));
+    if (error) throw new Error('Could not record opening this encrypted entry.');
+  }
+
   await userDb.from('entry_reads').upsert({ entry_id: entry.id, user_id: member.userId }, { onConflict: 'entry_id,user_id', ignoreDuplicates: true });
 
-  const actions = allowedActions(spec, entry.status, internalRole(spec).name)
-    .filter((a) => can(member, actionPermission(a)))
-    .map((a) => ({ name: a.name, label: a.button }));
-  const { files, signatures } = await rendererFiles(db, entry, true);
+  const actions = availableActions(spec, entry.status, member).map((a) => ({ name: a.name, label: a.button }));
+  const rail = railActions(spec, entry.status, member);
+  const [{ files, signatures }, stored] = await Promise.all([rendererFiles(db, entry, true), loadFiles(db, entry.id)]);
   const lookup = spec.fields.find((f) => f.type === 'lookup');
   let options = null;
   let panel: Array<[string, string]> = [];
@@ -47,106 +72,124 @@ export default async function EntryPage({
     userDb.from('entry_documents').select('id, template_number, name, sha256, created_at').eq('entry_id', entry.id).order('created_at', { ascending: false }),
     userDb.from('profiles').select('id, full_name'),
   ]);
-  const who = (id: string | null) => (id ? (people ?? []).find((p) => p.id === id)?.full_name ?? 'Staff' : null);
+  const names = Object.fromEntries((people ?? []).filter((p) => p.full_name).map((p) => [p.id as string, p.full_name as string]));
+  const now = new Date().toISOString();
+  const timeline = entryTimeline((events ?? []) as EntryEventRow[], { names, labels: fieldLabels(spec) });
+  const emailRows: EmailRow[] = (emails ?? []).map((m) => ({
+    id: String(m.id),
+    subject: String(m.subject ?? ''),
+    to: maskRecipients(spec, entry.data, (m.to_addresses as string[] | null) ?? []),
+    status: String(m.status ?? ''),
+    error: m.error ? String(m.error) : null,
+    failed: m.status === 'failed',
+    at: m.created_at as string,
+  }));
+  const templates = templatesFor(form);
+  const versions = pdfVersions((docs ?? []) as Parameters<typeof pdfVersions>[0], templates);
+
   const statuses = manualStatuses(spec);
+  const canWrite = can(member, 'entries.write');
+  const manual = MANUAL_FINAL[form.slug];
+  const isStoreRoom = !!manual;
+  const low = isStoreRoom ? belowMinimum(spec, entry.data) : [];
   const base = `/admin/forms/${slug}/entries/${entry.number}`;
 
-  return (
-    <section className="space-y-4">
-      <p className="text-xs text-fg-muted">
-        <Link href="/admin" className="underline">Home</Link> / <Link href={`/admin/forms/${slug}`} className="underline">{spec.name}</Link> / Entry #{entry.number}
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-h1">{entry.summary || `Entry #${entry.number}`}</h1>
-        <span data-testid="entry-status"><StatusChip status={entry.status} color={statusColor(spec, entry.status)} /></span>
-      </div>
-      <p className="text-sm text-fg-muted">
-        #{entry.number} · created {formatDateTime(entry.createdAt, org.timezone)} · updated {formatDateTime(entry.updatedAt, org.timezone)}
-      </p>
-      {sp.saved ? <p role="status" className="rounded bg-status-green-bg p-3 text-sm text-status-green-fg">Saved. Status: {sp.saved}</p> : null}
+  // Protected fields: masked on the server; the form never holds their values.
+  const hasProtected = protectedNames(spec).length > 0;
+  const prot = hasProtected ? protectedView(spec, entry.data) : [];
+  const revealer = hasProtected && canReveal(member) ? revealProtectedField.bind(null, slug, entry.number) : undefined;
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-        <div className="min-w-0 space-y-4">
-          {actions.length === 0 ? <p className="rounded-md bg-surface-2 px-4 py-3 text-body text-fg-muted">No action is available for this entry at its current status.</p> : null}
-          <StaffForm
-            form={form} number={entry.number} initial={entry.data} files={files} signatures={signatures}
-            actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt}
-            timeZone={org.timezone} currency={org.currency}
-          />
+  const statusCard = (
+    <Card padding="sm" aria-labelledby="entry-status-h">
+      <CardHeader
+        id="entry-status-h"
+        title="Status"
+        action={<span data-testid="entry-status"><StatusChip status={entry.status} color={statusColor(spec, entry.status)} /></span>}
+      />
+      {isStoreRoom ? <StatusFlow steps={statusFlow(spec, entry.status)} /> : <StatusStepper steps={statusPath(spec, entry.status)} />}
+      {isStoreRoom && canWrite && entry.status === manual.from ? (
+        <form action={setStatus.bind(null, slug, entry.number)} className="flex flex-col gap-1.5">
+          <input type="hidden" name="status" value={manual.status} />
+          <button className={buttonClass('primary', 38, 'w-full')}>{manual.button}</button>
+          <span className="text-[12px] leading-4 text-fg-muted">{manual.note}</span>
+        </form>
+      ) : null}
+      <RailActions actions={rail} formHost={FORM_HOST} />
+      {isStoreRoom && canWrite && entry.status === manual.from && rail.length === 0 ? null : (
+        <p className="m-0 text-[12px] leading-4 text-fg-muted">{roleNote({ anyAction: actions.length > 0, railCount: rail.length })}</p>
+      )}
+      {canWrite && statuses.length > 1 ? (
+        <form action={setStatus.bind(null, slug, entry.number)} className="flex flex-col gap-1.5 border-t border-border pt-3">
+          <label htmlFor="status" className="text-small font-semibold text-fg">Set status</label>
+          <div className="flex gap-2">
+            <select id="status" name="status" defaultValue={entry.status} className="h-9 min-w-0 flex-1 rounded-sm border border-border-strong bg-surface px-3 text-base text-fg outline-none focus:border-focus focus:ring-2 focus:ring-focus/25 sm:text-body">
+              {[...new Set([entry.status, ...statuses])].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button className={buttonClass('secondary', 36, 'flex-none')}>Set status</button>
+          </div>
+        </form>
+      ) : null}
+    </Card>
+  );
+
+  return (
+    <section className="flex flex-col gap-4">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap gap-1.5 text-small text-fg-muted">
+        <Link href="/admin/forms" className="text-fg-muted underline-offset-2 hover:underline">Forms</Link>
+        <span aria-hidden="true">/</span>
+        <Link href={`/admin/forms/${slug}`} className="text-fg-muted underline-offset-2 hover:underline">{spec.name}</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page" className="text-fg">Entry #{entry.number}</span>
+      </nav>
+
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <h1 className="m-0 text-h1">{spec.name} #{entry.number}</h1>
+          {entry.summary ? <span className="break-all font-mono text-body text-fg-muted">{entry.summary}</span> : null}
+          {form.encrypt ? <Badge variant="encrypted" /> : null}
+        </div>
+        <p className="m-0 text-small text-fg-muted">
+          Created <time dateTime={entry.createdAt}>{shortDateTime(entry.createdAt)} SAST</time> · updated <time dateTime={entry.updatedAt}>{shortDateTime(entry.updatedAt)} SAST</time>
+        </p>
+      </header>
+
+      {form.encrypt ? (
+        <p className="m-0 flex items-center gap-1.5 text-small text-fg-muted">This entry is encrypted at rest. It was decrypted for you, and opening it is recorded in the activity log.</p>
+      ) : null}
+      {sp.saved ? <Alert tone="success">Saved. Status: {sp.saved}</Alert> : null}
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_1fr]">
+        {/* Phone: status and actions come first, above the long form. Desktop: right rail, top. */}
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1">{statusCard}</div>
+
+        <div id={FORM_HOST} className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <ProtectedFieldsCard fields={prot} reveal={revealer} />
+          {hasProtected ? (
+            <ProtectedEntryForm
+              form={form} spec={formSpecForPage(spec)} number={entry.number} initial={withoutProtected(spec, entry.data)} files={files} signatures={signatures}
+              actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt} timeZone={org.timezone} currency={org.currency}
+            />
+          ) : (
+            <StaffForm
+              form={form} number={entry.number} initial={entry.data} files={files} signatures={signatures}
+              actions={actions} lookupOptions={options} lookupPanel={panel} version={entry.updatedAt}
+              timeZone={org.timezone} currency={org.currency}
+            />
+          )}
         </div>
 
-        <aside className="space-y-4 text-sm">
-          {can(member, 'entries.write') && statuses.length > 1 ? (
-            <form action={setStatus.bind(null, slug, entry.number)} className="space-y-2 rounded-md border bg-surface shadow-card p-3">
-              <h2 className="font-semibold">Status</h2>
-              <label htmlFor="status" className="sr-only">Set status</label>
-              <select id="status" name="status" defaultValue={entry.status} className="w-full rounded-sm border px-2 py-1">
-                {[...new Set([entry.status, ...statuses])].map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <button className="rounded-pill border border-border-strong bg-surface font-semibold text-fg no-underline px-3 py-1">Set status</button>
-            </form>
-          ) : null}
-
-          <div className="rounded-md border bg-surface shadow-card p-3">
-            <h2 className="mb-2 font-semibold">Documents</h2>
-            <ul className="space-y-1">
-              {templatesFor(form).map((t) => (
-                <li key={t.number}><a href={`${base}/documents/${t.number}`} className="underline">{t.label} (PDF)</a></li>
-              ))}
-            </ul>
-            {docs?.length ? (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-fg-muted">Stored versions ({docs.length})</summary>
-                <ul className="mt-1 space-y-1 text-xs">
-                  {docs.map((d) => (
-                    <li key={d.id}>
-                      <a href={`${base}/documents/${d.template_number}?version=${d.id}`} className="underline">{d.name}</a>
-                      <span className="text-fg-muted"> · {formatDateTime(d.created_at, org.timezone)} · sha256 {String(d.sha256).slice(0, 12)}…</span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </div>
-
-          <div className="rounded-md border bg-surface shadow-card p-3">
-            <h2 className="mb-2 font-semibold">Emails sent</h2>
-            {emails?.length ? (
-              <ul className="space-y-2" data-testid="emails">
-                {emails.map((m) => (
-                  <li key={m.id}>
-                    <p>{m.subject}</p>
-                    <p className="text-xs text-fg-muted">{(m.to_addresses as string[]).join(', ')} · {m.status}{m.error ? ` (${m.error})` : ''} · {formatDateTime(m.created_at, org.timezone)}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-fg-muted">None.</p>}
-          </div>
-
-          <div className="rounded-md border bg-surface shadow-card p-3">
-            <h2 className="mb-2 font-semibold">Timeline</h2>
-            <ol className="space-y-2" data-testid="timeline">
-              {(events ?? []).map((e) => (
-                <li key={e.id}>
-                  <p><span className="font-medium">{e.action}</span>{e.to_status ? ` → ${e.to_status}` : ''}</p>
-                  <p className="text-xs text-fg-muted">
-                    {who(e.actor_user) ?? e.actor_role} · {formatDateTime(e.created_at, org.timezone)}
-                    {(e.diff as { changed?: string[] })?.changed?.length ? ` · ${(e.diff as { changed: string[] }).changed.length} field(s) changed` : ''}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </div>
-
+        <aside aria-label="Entry details" className="flex min-w-0 flex-col gap-4 self-start lg:col-start-2 lg:row-start-2">
+          {isStoreRoom ? <BelowMinimumCard items={low} /> : null}
+          <TimelineCard items={timeline} now={now} />
+          <FilesCard files={fileRows(spec, stored)} preview={previewEntryFile.bind(null, slug, entry.number)} />
+          <EmailsCard emails={emailRows} now={now} />
+          <PdfsCard base={base} templates={templates} versions={versions} now={now} />
           {can(member, 'entries.delete') ? (
-            <form action={deleteEntry.bind(null, slug, entry.number)} className="space-y-2 rounded-lg border border-danger bg-surface p-3">
-              <h2 className="font-semibold text-status-red-fg">Delete entry</h2>
-              <p className="text-xs text-fg-muted">Removes the entry, its files and documents. Type the entry number to confirm.</p>
-              {sp.delete === 'confirm' ? <p className="text-xs text-status-red-fg">The number did not match.</p> : null}
-              <label htmlFor="confirm" className="sr-only">Entry number</label>
-              <input id="confirm" name="confirm" inputMode="numeric" className="w-full rounded-sm border px-2 py-1" autoComplete="off" />
-              <button className="rounded-pill border border-danger bg-surface font-semibold no-underline px-3 py-1 text-status-red-fg">Delete</button>
-            </form>
+            <DeleteEntryCard
+              number={entry.number}
+              remove={deleteEntry.bind(null, slug, entry.number)}
+              error={sp.delete === 'confirm' ? 'The number did not match.' : sp.delete === 'failed' ? 'The entry could not be deleted. Try again.' : null}
+            />
           ) : null}
         </aside>
       </div>
