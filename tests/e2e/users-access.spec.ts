@@ -403,6 +403,57 @@ test.describe.serial('users, access levels and activity log', () => {
     expect(m.status).toBe('active');
   });
 
+  test('an invite whose link was opened, then cancelled, can be invited again (deleted profile row too)', async ({ page, browser }) => {
+    const O = { name: `Op Ened ${run}`, email: `opened-${run}@example.invalid` };
+    await signIn(page, '/admin/settings/users/invite');
+    const main = page.getByRole('main');
+    await main.getByLabel('Name').fill(O.name);
+    await main.getByLabel('Email').fill(O.email);
+    await main.getByRole('button', { name: 'Create invite link' }).click();
+    const first = await main.getByRole('textbox', { name: 'Invite link' }).inputValue();
+    const [row] = await sql<{ user_id: string }>(`select m.user_id from public.memberships m join auth.users u on u.id = m.user_id where u.email = $1`, [O.email]);
+    // The person opens the link (confirms the account) but never finishes.
+    const ctx = await browser.newContext();
+    await (await ctx.newPage()).goto(first);
+    await ctx.close();
+    // Cancel, and delete the profile row by hand as an admin might.
+    await page.goto(`/admin/settings/users/${row.user_id}`);
+    await main.getByText('Cancel invite', { exact: true }).first().click();
+    await main.getByLabel(/cancel the invite for/i).check();
+    await main.getByRole('button', { name: 'Cancel invite' }).click();
+    await expect(page).toHaveURL(/removed=invite/);
+    await sql(`delete from public.profiles where id = $1`, [row.user_id]);
+
+    // Invite again: a link (recovery type) for the same account, which opens the set-password page.
+    await page.goto('/admin/settings/users/invite');
+    await main.getByLabel('Name').fill(O.name);
+    await main.getByLabel('Email').fill(O.email);
+    await main.getByRole('button', { name: 'Send invite email' }).click();
+    const box = main.getByRole('textbox', { name: 'Invite link' });
+    await expect(box).toBeVisible();
+    const again = await box.inputValue();
+    expect(again).toContain('type=recovery');
+    const [m] = await sql<{ status: string; invite_new_account: boolean }>(`select status, invite_new_account from public.memberships where user_id = $1`, [row.user_id]);
+    expect(m).toEqual({ status: 'invited', invite_new_account: true });
+    const ctx2 = await browser.newContext();
+    const xp = await ctx2.newPage();
+    await xp.goto(again);
+    await setPassword(xp, 'opened-own-password-e2e');
+    await ctx2.close();
+    const [after] = await sql<{ status: string }>(`select status from public.memberships where user_id = $1`, [row.user_id]);
+    expect(after.status).toBe('active');
+  });
+
+  test('a recovery link is refused for an account that is not a pending new-account invite', async ({ page, request }) => {
+    const r = await request.post(`${STUB}/auth/v1/admin/generate_link`, {
+      data: { type: 'recovery', email: READER.email },
+      headers: { apikey: 'stub-service-key', Authorization: 'Bearer stub-service-key' },
+    });
+    const { hashed_token } = (await r.json()) as { hashed_token: string };
+    await page.goto(`/auth/confirm?token_hash=${hashed_token}&type=recovery`);
+    await expect(page).toHaveURL(/\/login\?error=link$/);
+  });
+
   test('every user and access change, sign-in and export is in the activity log with the actor', async ({ page }) => {
     // A failed sign-in for the reader's account: recorded without the email.
     await page.goto('/login');

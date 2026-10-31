@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requirePerm } from '@/lib/security/require';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { adoptLeftover, authUserIdByEmail, createAccount, createLink, neverSignedIn, sendInvite, setBanned } from '@/lib/users/auth-admin';
+import { adoptLeftover, authUserIdByEmail, createAccount, createLink, inviteLeftover, sendInvite, setBanned } from '@/lib/users/auth-admin';
 import {
   accessChanges, accessFromForm, AddInput, changeError, EditInput, enabledStatus, generatePassword, banDecision, grantsAdminOnlyWrite, InviteInput, resolveAccess,
   type AddState, type InviteState, type LinkResult,
@@ -51,16 +51,18 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
     invited_at: new Date().toISOString(), display_name: name, branch, invite_new_account: newAccount,
   })).error;
 
-  // An account the app already knows (a member here or elsewhere, a pending invite, a removed member): never make a
-  // link or email for it. They sign in with their own password and accept the invitation (acceptMode 'existing').
-  const { data: known } = await admin.from('profiles').select('id').eq('email', email).maybeSingle();
-  if (known) {
-    const knownId = known.id as string;
+  // An account the app already knows (a member here or elsewhere, a removed member): never make a link or email for
+  // it. They sign in with their own password and accept the invitation (acceptMode 'existing'). Looked up in Auth by
+  // email, so a profile row deleted by hand does not hide it. The one exception is a leftover invite account (made by
+  // an invite, no membership anywhere): it is invited again as a new account.
+  const knownId = (await authUserIdByEmail(admin, email))
+    ?? (((await admin.from('profiles').select('id').eq('email', email).maybeSingle()).data?.id as string | undefined) ?? null);
+  let leftover: { confirmed: boolean } | null = null;
+  if (knownId) {
     const theirs = await memberships(knownId);
     if (theirs.some((m) => m.org_id === member.orgId)) return fail('exists');
-    // Left over from an invite that was cancelled before they ever signed in (no membership anywhere, never confirmed):
-    // not a real account yet, so invite it as a new one (a fresh email or link) instead of the existing-account path.
-    if (theirs.length || !(await neverSignedIn(admin, knownId))) {
+    leftover = theirs.length ? null : await inviteLeftover(admin, knownId);
+    if (!leftover) {
       if (await addMembership(knownId, false)) return fail('auth');
       await audit(member.orgId, member.userId, 'user.invite', knownId, { preset, access, method: 'existing' });
       revalidatePath('/admin/settings/users');
@@ -69,10 +71,12 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
   }
 
   // A new account: invite email, or a link for the inviter to pass on. Neither is ever made for an existing account.
+  // A leftover whose earlier link was opened cannot get an invite email: it gets a link (recovery type) instead.
+  const kind = leftover?.confirmed ? 'recovery' : 'invite';
   let userId: string;
   let link: string | undefined;
   let sent: InviteState['sent'];
-  if (method === 'email') {
+  if (method === 'email' && kind === 'invite') {
     const r = await sendInvite(admin, email, name);
     if ('userId' in r) {
       userId = r.userId;
@@ -86,11 +90,12 @@ export async function inviteUser(_prev: InviteState, fd: FormData): Promise<Invi
       sent = 'email_failed';
     }
   } else {
-    const l = await createLink(admin, email, name);
+    const l = await createLink(admin, email, name, kind);
     if ('error' in l) return fail(l.error === 'exists' ? 'account_unlinked' : 'auth');
     ({ userId, link } = l);
-    sent = 'link';
+    sent = method === 'email' ? 'email_failed' : 'link';
   }
+  if (knownId && userId !== knownId) return fail('auth');
   // Defence in depth: an account that turns out to have a membership anywhere is not new; drop the link.
   if ((await memberships(userId)).length) return fail('account_unlinked');
 
@@ -123,11 +128,11 @@ export async function addUser(_prev: AddState, fd: FormData): Promise<AddState> 
   const admin = createAdminClient();
   let made = await createAccount(admin, email, password, name);
   if ('error' in made && made.error === 'exists') {
-    // A leftover from a cancelled invite (no membership anywhere, never signed in) is reused; a real account is refused.
+    // A leftover invite account (made by an invite, no membership anywhere) is reused; a real account is refused.
     const knownId = (await authUserIdByEmail(admin, email)) ?? undefined; // works even if the profile row was deleted
     const leftover = knownId
       && !((await admin.from('memberships').select('org_id').eq('user_id', knownId)).data ?? []).length
-      && await neverSignedIn(admin, knownId)
+      && await inviteLeftover(admin, knownId)
       && await adoptLeftover(admin, knownId, password, name);
     if (!knownId || !leftover) return { status: 'error', error: 'account_exists', values: echo(fd) };
     made = { userId: knownId };
@@ -179,7 +184,7 @@ export async function resendInvite(userId: string, fd?: FormData): Promise<void>
   if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) redirect(back('?error=existing_account'));
   const r = await sendInvite(createAdminClient(), target.email, target.name);
   // A failed email goes to the member's page, where Copy invite link is, whichever page asked.
-  if (!('userId' in r)) redirect(r.error === 'exists' ? back('?error=state') : userUrl(target.userId, '?error=email'));
+  if (!('userId' in r)) redirect(userUrl(target.userId, `?error=${r.error === 'exists' ? 'use_link' : 'email'}`));
   await audit(member.orgId, member.userId, 'user.invite_resend', target.userId);
   redirect(back('?sent=1'));
 }
@@ -193,7 +198,10 @@ export async function inviteLinkFor(userId: string): Promise<LinkResult> {
   if (target.role === 'admin' && member.role !== 'admin') return { error: 'admin_only' };
   // Never a link for an account that exists elsewhere: it would let the inviter sign in as that person.
   if (!target.inviteNewAccount || (await otherMemberships(member.orgId, target.userId)).length) return { error: 'existing_account' };
-  const l = await createLink(createAdminClient(), target.email, target.name);
+  const admin = createAdminClient();
+  let l = await createLink(admin, target.email, target.name);
+  // An earlier link was already opened (the account is confirmed): a recovery link does the same job.
+  if ('error' in l && l.error === 'exists' && (await inviteLeftover(admin, target.userId))?.confirmed) l = await createLink(admin, target.email, target.name, 'recovery');
   if ('error' in l || l.userId !== target.userId) return { error: 'auth' };
   await audit(member.orgId, member.userId, 'user.invite_link', target.userId);
   return { link: l.link };
