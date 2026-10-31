@@ -138,7 +138,7 @@ async function authAdmin(req, url, raw) {
     if (b.type === 'invite') {
       if (u?.confirmed) throw EXISTS();
       if (!u) u = await createAuthUser(String(b.email).toLowerCase(), b.data);
-    } else if (b.type === 'magiclink') {
+    } else if (b.type === 'magiclink' || b.type === 'recovery') {
       if (!u) throw new HttpError(404, { code: 'user_not_found', msg: 'User not found' });
     } else throw new HttpError(400, { msg: `unsupported link type ${b.type}` });
     const token_hash = newOtp(u, b.type);

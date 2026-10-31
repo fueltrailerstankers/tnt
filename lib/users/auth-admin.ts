@@ -32,12 +32,15 @@ export async function sendInvite(admin: SupabaseClient, email: string, name: str
  * A copyable invite link, without sending email, for a NEW account only. An account that already exists answers
  * 'exists' and never gets a link: a sign-in link for someone else's account would hand it to the inviter.
  */
-export async function createLink(admin: SupabaseClient, email: string, name: string): Promise<{ userId: string; link: string } | AuthFail> {
-  const res = await admin.auth.admin.generateLink({ type: 'invite', email, options: { data: { full_name: name }, redirectTo: inviteRedirect() } });
+export async function createLink(admin: SupabaseClient, email: string, name: string, kind: 'invite' | 'recovery' = 'invite'): Promise<{ userId: string; link: string } | AuthFail> {
+  // 'recovery' only for a leftover invite account (see inviteLeftover): the invite type refuses a confirmed account.
+  const res = kind === 'recovery'
+    ? await admin.auth.admin.generateLink({ type: 'recovery', email, options: { redirectTo: inviteRedirect() } })
+    : await admin.auth.admin.generateLink({ type: 'invite', email, options: { data: { full_name: name }, redirectTo: inviteRedirect() } });
   if (res.error) return { error: isExists(res.error) ? 'exists' : 'auth' };
   const token = res.data?.properties?.hashed_token;
   if (!res.data?.user || !token) return { error: 'auth' };
-  return { userId: res.data.user.id, link: confirmLink(appEnv().APP_URL, token) };
+  return { userId: res.data.user.id, link: confirmLink(appEnv().APP_URL, token, kind) };
 }
 
 /** Creates a confirmed account with a temporary password (Add user). No email is sent. */
@@ -53,16 +56,20 @@ export async function setBanned(admin: SupabaseClient, userId: string, banned: b
   return !error;
 }
 
-/** True when the Auth account never signed in or confirmed an invite (a leftover from a cancelled invite). Fails closed. */
-export async function neverSignedIn(admin: SupabaseClient, userId: string): Promise<boolean> {
+/**
+ * An Auth account made by an invite (invited_at set), for the caller to treat as a leftover once it has checked the
+ * account has no membership anywhere (a cancelled or removed invite). `confirmed`: an invite link was already opened,
+ * so Supabase refuses a new invite for it and a recovery link is used instead. Accounts made any other way (Add user,
+ * sign-up) are never leftovers. Fails closed (null).
+ */
+export async function inviteLeftover(admin: SupabaseClient, userId: string): Promise<{ confirmed: boolean } | null> {
   const { data, error } = await admin.auth.admin.getUserById(userId);
-  if (error || !data.user) return false;
-  return !data.user.email_confirmed_at && !data.user.last_sign_in_at;
+  if (error || !data.user || !data.user.invited_at) return null;
+  return { confirmed: Boolean(data.user.email_confirmed_at) };
 }
 
 /**
- * Add user for an email whose Auth account is only a leftover (never signed in, no membership anywhere: e.g. from a
- * cancelled invite). Gives it the typed password and confirms it, so no second account is needed. Fails closed.
+ * Add user for an email whose Auth account is only a leftover invite account (inviteLeftover, no membership anywhere). Gives it the typed password and confirms it, so no second account is needed. Fails closed.
  */
 export async function adoptLeftover(admin: SupabaseClient, userId: string, password: string, name: string): Promise<boolean> {
   const { error } = await admin.auth.admin.updateUserById(userId, { password, email_confirm: true, user_metadata: { full_name: name } });

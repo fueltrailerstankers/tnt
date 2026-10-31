@@ -57,8 +57,8 @@ describe('inputs', () => {
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123_-', type: 'invite' }).success).toBe(true);
     expect(ConfirmQuery.safeParse({ token_hash: 'a b<script>', type: 'invite' }).success).toBe(false);
     expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type: 'phone_change' }).success).toBe(false);
-    // L4: invite links only; magic, recovery and signup links are refused.
-    for (const type of ['magiclink', 'recovery', 'email', 'signup']) expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type }).success, type).toBe(false);
+    // L4: invite links (and recovery, checked in the route); magic, email and signup links are refused.
+    for (const type of ['magiclink', 'email', 'signup']) expect(ConfirmQuery.safeParse({ token_hash: 'abc123', type }).success, type).toBe(false);
   });
 });
 

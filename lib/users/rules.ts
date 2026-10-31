@@ -157,16 +157,20 @@ export const ACCEPT_PATH = '/admin/account/password';
  * A link straight to /auth/confirm from a generateLink() hashed token, so a copied link does not depend on the Auth
  * server's redirect allow-list or email template. Never logged or stored.
  */
-export function confirmLink(appUrl: string, hashedToken: string): string {
+export function confirmLink(appUrl: string, hashedToken: string, type: OtpType = 'invite'): string {
   const u = new URL('/auth/confirm', appUrl);
   u.searchParams.set('token_hash', hashedToken);
-  u.searchParams.set('type', 'invite');
+  u.searchParams.set('type', type);
   u.searchParams.set('next', ACCEPT_PATH);
   return u.toString();
 }
 
-/** Only invite links are accepted (no magic links: an inviter must never be able to sign in as someone else). */
-export const OTP_TYPES = ['invite'] as const;
+/**
+ * Invite links, and recovery links made only for a leftover invite account (an earlier invite link was already
+ * opened, then the invite was cancelled): /auth/confirm accepts a recovery link only while that account has a
+ * pending new-account invite and no other membership. No magic links: an inviter must never sign in as someone else.
+ */
+export const OTP_TYPES = ['invite', 'recovery'] as const;
 export type OtpType = (typeof OTP_TYPES)[number];
 export const ConfirmQuery = z.object({
   token_hash: z.string().min(6).max(200).regex(/^[A-Za-z0-9_-]+$/),
@@ -186,6 +190,7 @@ export const USER_ERRORS: Record<string, string> = {
   account_unlinked: 'That email already has an account that is not linked to this app. Ask an admin to check it in Supabase Auth.',
   auth: 'The sign-in service refused the request. Try again, or use Copy invite link.',
   email: 'The invite email could not be sent. Use Copy invite link instead.',
+  use_link: 'This person already opened an earlier invite link, so a new invite email cannot be sent. Use Copy invite link and send it to them yourself.',
   not_found: 'That member was not found.',
   state: 'That action does not apply to this member now.',
 };
