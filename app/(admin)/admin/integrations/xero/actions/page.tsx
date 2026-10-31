@@ -72,7 +72,7 @@ export default async function XeroActions() {
             {a.action === 'invoice.merge_attachments' && configure ? <MergePlanForm /> : null}
 
             <h3 className="m-0 text-label font-semibold uppercase text-fg-muted">Last runs</h3>
-            <div className="overflow-x-auto rounded-sm border border-border">
+            <div className="relative overflow-x-auto rounded-sm border border-border" role="region" aria-label={`Last runs of ${a.action}`} tabIndex={0}>
               <table className={`${tableClass} min-w-[640px] text-small`}>
                 <thead className={theadClass}><tr><th className="p-2">When</th><th className="p-2">Mode</th><th className="p-2">Status</th><th className="p-2">Key</th><th className="p-2">Note</th></tr></thead>
                 <tbody>

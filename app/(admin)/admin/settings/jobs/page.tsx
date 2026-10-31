@@ -46,7 +46,7 @@ export default async function JobRuns({ searchParams }: { searchParams: Promise<
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="jobs" />
       <FilterChips label="Filter by state" value={state} size="md" chips={JOB_STATES.map((s) => ({ value: s.value, label: s.label, href: href(s.value) }))} />
-      <div className={tableWrapClass}>
+      <div className={`relative ${tableWrapClass}`} role="region" aria-label="Job runs" tabIndex={0}>
         {rows.length ? (
           <table className={`${tableClass} min-w-[760px]`} data-testid="job-runs">
             <thead className={theadClass}>

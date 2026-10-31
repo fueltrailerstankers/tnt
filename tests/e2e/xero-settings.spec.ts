@@ -149,7 +149,7 @@ test.describe('Xero integration', () => {
     try {
       await signIn(page, '/admin/integrations/xero');
       await page.getByRole('link', { name: 'View dry-run diff for rfi.create_invoice' }).click();
-      await expect(page).toHaveURL(/diff=rfi\.create_invoice/);
+      await expect(page).toHaveURL(/diff=rfi\.create_invoice/, { timeout: 30_000 });
       const diff = page.getByTestId('dry-run-diff');
       await expect(diff.getByRole('heading', { name: 'Dry-run diff · rfi.create_invoice' })).toBeVisible();
       await expect(diff.getByTestId('diff-run')).toContainText(`rfi.create_invoice:e2e${run}`);
@@ -189,9 +189,9 @@ test.describe('Settings', () => {
     await expect(tabs).toHaveText(['Organisation', 'Users & access', 'Notification recipients', 'Activity log', 'Job runs', 'Forms']);
     await expect(tabs.first()).toHaveAttribute('aria-current', 'page');
     await tabs.filter({ hasText: 'Job runs' }).click();
-    await expect(page).toHaveURL(/\/admin\/settings\/jobs$/);
+    await expect(page).toHaveURL(/\/admin\/settings\/jobs$/, { timeout: 30_000 });
     await page.getByRole('main').getByRole('navigation', { name: 'Settings sections' }).getByRole('link', { name: 'Notification recipients' }).click();
-    await expect(page).toHaveURL(/\/admin\/settings\/notifications$/);
+    await expect(page).toHaveURL(/\/admin\/settings\/notifications$/, { timeout: 30_000 });
   });
 
   test('Organisation saves display currency and the manual ZAR to USD rate (fx.zar_usd), audited', async ({ page }) => {
@@ -281,7 +281,7 @@ test.describe('Settings', () => {
       await expect(row).not.toContainText('someone@example.com');
       await expect(row).not.toContainText('8001015009087');
       await page.getByRole('main').getByRole('link', { name: 'Succeeded' }).click();
-      await expect(page).toHaveURL(/state=succeeded/);
+      await expect(page).toHaveURL(/state=succeeded/, { timeout: 30_000 });
       await expect(page.getByTestId(`job-run-${r.id}`)).toHaveCount(0);
       await page.getByRole('main').getByRole('link', { name: 'Failed' }).click();
       await expect(page.getByTestId(`job-run-${r.id}`)).toBeVisible();

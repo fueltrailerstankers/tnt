@@ -24,7 +24,7 @@ export default async function NotificationRecipients() {
     <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-4">
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="notifications" />
-      <div className={tableWrapClass}>
+      <div className={`relative ${tableWrapClass}`} role="region" aria-label="Notification recipients" tabIndex={0}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3.5">
           <p className="m-0 text-small text-fg-muted">Who gets emailed for each event. Branch blank = all branches. Every active recipient of an event is emailed.</p>
           {manage ? <RecipientDialog eventKeys={keys} /> : null}

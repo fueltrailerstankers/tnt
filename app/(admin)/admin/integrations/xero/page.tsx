@@ -138,7 +138,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
             <h2 id="sync-h" className="m-0 text-[15px] font-semibold">Last sync per entity</h2>
             {manage && connected ? <form action={syncNow}><Button type="submit" variant="secondary" size={32}>Sync all now</Button></form> : null}
           </div>
-          <div className="relative overflow-x-auto">
+          <div className="relative overflow-x-auto" role="region" aria-label="Sync state" tabIndex={0}>
             <table className={`${tableClass} text-small`} data-testid="sync-state">
               <thead className={theadClass}><tr><th className="px-4 py-2">Entity</th><th className="p-2">Last success</th><th className="p-2 text-right">Records</th><th className="py-2 pl-2 pr-4">State</th></tr></thead>
               <tbody>
@@ -201,7 +201,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
           </div>
           {manage ? <Link href="/admin/integrations/xero/actions" className="text-small font-semibold text-accent-text">Runs and details</Link> : null}
         </div>
-        <div className="relative overflow-x-auto">
+        <div className="relative overflow-x-auto" role="region" aria-label="Write actions table" tabIndex={0}>
           <table className={`${tableClass} min-w-[860px] text-small`}>
             <thead className={theadClass}><tr><th className="px-4 py-2">Action</th><th className="p-2">Trigger</th><th className="p-2">Last 7 days</th><th className="p-2">Mode</th><th className="py-2 pl-2 pr-4"><span className="sr-only">Diff</span></th></tr></thead>
             <tbody>

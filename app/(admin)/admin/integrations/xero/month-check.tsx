@@ -22,7 +22,7 @@ export function MonthCheck({ defaultMonth }: { defaultMonth: string }) {
       </form>
       {state.error ? <p role="alert" className="m-0 text-small text-status-red-fg">{state.error}</p> : null}
       {state.lines ? (
-        <div className={tableWrapClass}>
+        <div className={`relative ${tableWrapClass}`} role="region" aria-label="Xero and mirror comparison" tabIndex={0}>
           <table className={`${tableClass} min-w-[640px] text-small`} data-testid="month-check">
             <thead className={theadClass}>
               <tr><th className="p-2">What</th><th className="p-2">Currency</th><th className="p-2 text-right">Xero</th><th className="p-2 text-right">Mirror</th><th className="p-2 text-right">Xero total</th><th className="p-2 text-right">Mirror total</th><th className="p-2">Result</th></tr>
