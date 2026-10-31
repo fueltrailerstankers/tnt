@@ -21,6 +21,8 @@ export interface EmailRow {
   /** Already masked where a recipient is a protected value. */
   to: string[];
   status: string;
+  /** Provider or log-only note, shown muted under the status. */
+  error: string | null;
   failed: boolean;
   at: string;
 }
@@ -34,18 +36,17 @@ export function EmailsCard({ emails, now }: { emails: EmailRow[]; now: string })
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-small" data-testid="emails">
           {emails.map((m) => (
             <li key={m.id} className="flex flex-col gap-0.5">
-              <div className="flex items-start justify-between gap-2">
-                <span className="min-w-0 break-words text-fg">
-                  {m.subject} <span aria-hidden="true">→</span><span className="sr-only">to</span> {m.to.join(', ')}
-                </span>
-                <span className={`flex flex-none items-center gap-1 font-semibold ${m.failed ? 'text-status-red-fg' : 'text-status-green-fg'}`}>
-                  <Icon name={m.failed ? 'warning' : 'check'} size={13} strokeWidth={2.5} />
+              <span className="min-w-0 break-words text-fg">
+                {m.subject} <span aria-hidden="true">→</span><span className="sr-only">to</span> {m.to.join(', ')}
+              </span>
+              <span className="flex flex-wrap items-center gap-x-2 text-[12px] leading-4 text-fg-muted">
+                <span className={`inline-flex items-center gap-1 font-semibold ${m.failed ? 'text-status-red-fg' : 'text-status-green-fg'}`}>
+                  <Icon name={m.failed ? 'warning' : 'check'} size={12} strokeWidth={2.5} />
                   {m.status}
                 </span>
-              </div>
-              <span className="text-[12px] leading-4 text-fg-muted">
                 <time dateTime={m.at}>{dayTime(m.at, now)} SAST</time>
               </span>
+              {m.error ? <span className="break-words text-[12px] leading-4 text-fg-muted">{m.error}</span> : null}
             </li>
           ))}
         </ul>

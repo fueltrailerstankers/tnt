@@ -11,7 +11,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { buttonClass, inputClass } from '@/components/ui/styles';
+import { buttonClass } from '@/components/ui/styles';
 import { adminForm } from '@/lib/admin/context';
 import { canReveal, decryptAuditRow, formSpecForPage, maskRecipients, protectedNames, protectedView, withoutProtected } from '@/lib/entry-view/protected';
 import { belowMinimum, entryTimeline, fieldLabels, fileRows, pdfVersions } from '@/lib/entry-view/rail';
@@ -79,8 +79,9 @@ export default async function EntryPage({
     id: String(m.id),
     subject: String(m.subject ?? ''),
     to: maskRecipients(spec, entry.data, (m.to_addresses as string[] | null) ?? []),
-    status: m.error ? `${m.status} (${m.error})` : String(m.status ?? ''),
-    failed: m.status === 'failed' || !!m.error,
+    status: String(m.status ?? ''),
+    error: m.error ? String(m.error) : null,
+    failed: m.status === 'failed',
     at: m.created_at as string,
   }));
   const templates = templatesFor(form);
@@ -114,12 +115,14 @@ export default async function EntryPage({
         </form>
       ) : null}
       <RailActions actions={rail} formHost={FORM_HOST} />
-      <p className="m-0 text-[12px] leading-4 text-fg-muted">{roleNote({ anyAction: actions.length > 0, railCount: rail.length })}</p>
+      {isStoreRoom && canWrite && entry.status === manual.from && rail.length === 0 ? null : (
+        <p className="m-0 text-[12px] leading-4 text-fg-muted">{roleNote({ anyAction: actions.length > 0, railCount: rail.length })}</p>
+      )}
       {canWrite && statuses.length > 1 ? (
         <form action={setStatus.bind(null, slug, entry.number)} className="flex flex-col gap-1.5 border-t border-border pt-3">
           <label htmlFor="status" className="text-small font-semibold text-fg">Set status</label>
           <div className="flex gap-2">
-            <select id="status" name="status" defaultValue={entry.status} className={`${inputClass} h-9 min-w-0 flex-1 py-0`}>
+            <select id="status" name="status" defaultValue={entry.status} className="h-9 min-w-0 flex-1 rounded-sm border border-border-strong bg-surface px-3 text-base text-fg outline-none focus:border-focus focus:ring-2 focus:ring-focus/25 sm:text-body">
               {[...new Set([entry.status, ...statuses])].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             <button className={buttonClass('secondary', 36, 'flex-none')}>Set status</button>
