@@ -247,12 +247,13 @@ describe('per-area read policies', () => {
     }
   });
 
-  it('settings write is what lets a client change the org, form definitions and recipients', async () => {
+  it('settings write is what lets a client change the org and recipients; form definitions are server-only (0022)', async () => {
     await setProbe({ settings: 'read' });
     await as(db, 'authenticated', PROBE, async () => {
       expect((await db.query(`update public.orgs set name = 'x' where id = $1`, [ORG])).rowCount).toBe(0);
-      expect((await db.query(`update public.forms set is_active = false where org_id = $1`, [ORG])).rowCount).toBe(0);
       expect(Number((await db.query(`select count(*) as n from public.notification_recipients where org_id = $1`, [ORG])).rows[0].n)).toBe(1);
+      // Form definitions are server-only since 0022 (form builder): no client may write them, whatever the level.
+      await expect(db.query(`update public.forms set is_active = false where org_id = $1`, [ORG])).rejects.toThrow(/permission denied/);
     });
     await setProbe({ settings: 'write' });
     await as(db, 'authenticated', PROBE, async () => {
@@ -260,6 +261,9 @@ describe('per-area read policies', () => {
       expect((await db.query(`update public.notification_recipients set active = true where org_id = $1`, [ORG])).rowCount).toBe(1);
       // Locked settings stay locked (0009, 0011 restrictive policies).
       await expect(db.query(`insert into public.app_settings(org_id, key, value) values ($1, 'stock.invoice_rules', '"live"')`, [ORG])).rejects.toThrow(/row-level security/);
+    });
+    await as(db, 'authenticated', PROBE, async () => {
+      await expect(db.query(`update public.forms set is_active = true where org_id = $1`, [ORG])).rejects.toThrow(/permission denied/);
     });
   });
 
