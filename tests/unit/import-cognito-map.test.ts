@@ -52,6 +52,10 @@ describe('cognito value converters', () => {
     expect(r.value).toEqual({ First: 'A', Last: 'B' });
     expect(r.dropped).toEqual(['Middle']);
     expect(toParts({ Line1: null, City: null }, ['Line1', 'City'], 'address').value).toBeUndefined();
+    // Cognito's address summaries (live RFI export) are derived from the parts: not reported as unknown.
+    const a = toParts({ Line1: '1 Main Rd', City: 'Town', Country: 'South Africa', StreetAddress: '1 Main Rd', CityStatePostalCode: 'Town 0001', CountryCode: 'ZA', Unit: '4' }, ['Line1', 'City', 'Country'], 'address');
+    expect(a.value).toEqual({ Line1: '1 Main Rd', City: 'Town', Country: 'South Africa' });
+    expect(a.dropped).toEqual(['Unit']);
   });
 });
 
