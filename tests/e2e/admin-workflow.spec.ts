@@ -203,11 +203,13 @@ test('Admin can delete an entry after typing its number; it is audited', async (
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByText('Saved. Status: Submitted')).toBeVisible();
   const [e] = await sql<{ id: string; number: number }>(`select id, number from entries where summary = 'QTEST-DELETE'`);
-  await page.getByLabel('Entry number').fill('999999');
-  await page.getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByText('The number did not match.')).toBeVisible();
-  await page.getByLabel('Entry number').fill(String(e.number));
-  await page.getByRole('button', { name: 'Delete' }).click();
+  // Delete goes through TypedConfirmModal: Delete stays disabled until the entry number is typed exactly.
+  await page.getByRole('button', { name: 'Delete entry…' }).click();
+  const dialog = page.getByRole('alertdialog', { name: `Delete entry #${e.number}?` });
+  await dialog.getByLabel(`Type ${e.number} to confirm`).fill('999999');
+  await expect(dialog.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
+  await dialog.getByLabel(`Type ${e.number} to confirm`).fill(String(e.number));
+  await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/forms\/job-card$/);
   expect(await sql(`select 1 from entries where id = $1`, [e.id])).toHaveLength(0);
   expect(await sql(`select 1 from audit_log where action = 'entry.delete' and entity_id = $1`, [e.id])).toHaveLength(1);
