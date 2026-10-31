@@ -131,6 +131,31 @@ export function duplicateReason(lead: MatchKeys, original: MatchKeys | null | un
   return null;
 }
 
+/** What the duplicate banner offers (0023): Merge needs the original on the page; neither lead may be merged. */
+export interface DuplicateActions { merge: boolean; notDuplicate: boolean }
+
+export function duplicateActions(
+  lead: { duplicate_of: string | null; merged_into?: string | null },
+  original: { id: string; merged_into?: string | null } | null | undefined,
+  manage: boolean,
+): DuplicateActions {
+  if (!manage || !lead.duplicate_of || lead.merged_into) return { merge: false, notDuplicate: false };
+  return {
+    merge: Boolean(original && original.id === lead.duplicate_of && !original.merged_into),
+    notDuplicate: true,
+  };
+}
+
+/** Distinct, trimmed branch names (case-insensitive), sorted: suggestions for the Branch field. */
+export function branchSuggestions(values: Iterable<string | null | undefined>): string[] {
+  const seen = new Map<string, string>();
+  for (const v of values) {
+    const b = (v ?? '').trim();
+    if (b && !seen.has(b.toLowerCase())) seen.set(b.toLowerCase(), b);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
 /** Xero status as users know it ("SENT" -> "Sent"). */
 export function xeroStatusLabel(s: string | null | undefined): string {
   const v = (s ?? '').trim();

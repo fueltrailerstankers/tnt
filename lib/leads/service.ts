@@ -60,7 +60,7 @@ async function duplicateOf(db: Db, orgId: string, lead: { id?: string; email_nor
     orValue(lead.phone_norm) ? `phone_norm.eq.${orValue(lead.phone_norm)}` : null,
   ].filter(Boolean);
   if (!parts.length) return null;
-  const { data, error } = await db.from('leads').select('id, email_norm, phone_norm, created_at, duplicate_of')
+  const { data, error } = await db.from('leads').select('id, email_norm, phone_norm, created_at, duplicate_of, merged_into')
     .eq('org_id', orgId).or(parts.join(',')).order('created_at', { ascending: true }).limit(50);
   if (error) throw new Error('could not read leads for duplicates');
   return findDuplicateOf(lead, (data ?? []) as DupCandidate[]);
@@ -251,7 +251,7 @@ export async function createLead(db: Db, orgId: string, input: NewLead, opts: { 
 }
 
 /**
- * Re-runs Xero matching for the org's open leads in batches, starting at offset `from`. Idempotent;
+ * Re-runs Xero matching for the org's open leads (merged leads excluded) in batches, starting at offset `from`. Idempotent;
  * returns counts only, plus the offset to continue from when the time budget ran out.
  */
 export async function rematchOpenLeads(db: Db, orgId: string, opts: { actor?: string | null; budgetMs?: number; batch?: number; from?: number } = {}) {
@@ -263,7 +263,7 @@ export async function rematchOpenLeads(db: Db, orgId: string, opts: { actor?: st
   let pos = opts.from ?? 0;
   while (Date.now() < deadline) {
     const { data, error } = await db.from('leads').select(`id, email_norm, phone_norm, ${MATCH_COLUMNS}`)
-      .eq('org_id', orgId).in('status', [...OPEN_STATUSES]).order('created_at', { ascending: true }).order('id', { ascending: true })
+      .eq('org_id', orgId).in('status', [...OPEN_STATUSES]).is('merged_into', null).order('created_at', { ascending: true }).order('id', { ascending: true })
       .range(pos, pos + batch - 1);
     if (error) throw new Error('could not read leads');
     const rows = (data ?? []) as unknown as Array<{ id: string; email_norm: string | null; phone_norm: string | null } & Record<string, unknown>>;

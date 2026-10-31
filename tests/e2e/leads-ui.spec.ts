@@ -80,12 +80,12 @@ test.describe('desktop 1440', () => {
     await expect(list.getByTestId('lead-row').filter({ hasText: 'Webhook test lead' })).toContainText('Test');
     await shot(page, 'inbox-1440-light');
 
-    // Duplicate: warning naming the shared key and linking the original. lib/leads has no merge or dismiss, so neither is offered.
+    // Duplicate: warning naming the shared key and linking the original, with Merge and Not a duplicate (0023).
     const dup = main.getByTestId('lead-duplicate');
     await expect(dup).toContainText('Possible duplicate of');
     await expect(dup).toContainText('same phone number');
-    await expect(main.getByRole('button', { name: /Merge/ })).toHaveCount(0);
-    await expect(main.getByRole('button', { name: /Not a duplicate/ })).toHaveCount(0);
+    await expect(dup.getByRole('button', { name: `Merge into Karoo Demo Transport ${tag}` })).toBeVisible();
+    await expect(dup.getByRole('button', { name: 'Not a duplicate' })).toBeVisible();
     await dup.getByRole('link', { name: `Karoo Demo Transport ${tag}` }).click();
     await expect(page).toHaveURL(new RegExp(`/admin/leads/${L.karoo}$`), { timeout: 30_000 }); // first visit compiles in next dev
     await expect(main.getByText(/later lead is flagged as a possible duplicate/)).toBeVisible();
@@ -155,6 +155,59 @@ test.describe('desktop 1440', () => {
     await drawer.getByRole('button', { name: 'Done' }).click();
     await expect(drawer).toBeHidden();
     await expect(page).not.toHaveURL(/id=/);
+  });
+
+  test('lead detail: change the branch, merge a duplicate into its original, mark another as not a duplicate', async ({ page }) => {
+    // Own leads and tag (not containing the shared tag), so the other tests' counts never see them.
+    const mtag = `mg${run.slice(-7)}`;
+    const mphone = `+27 21 555 ${digits}`;
+    const orig = await insert({
+      source: 'manual', name: `Merge Original ${mtag}`, phone: mphone, phone_norm: phoneNorm(mphone), status: 'contacted', created_at: ago(30),
+    });
+    const dup1 = await insert({
+      source: 'manual', name: `Merge Copy ${mtag}`, phone: mphone, phone_norm: phoneNorm(mphone), status: 'new', duplicate_of: orig, created_at: ago(20),
+    });
+    const dup2 = await insert({
+      source: 'manual', name: `Merge Other ${mtag}`, phone: mphone, phone_norm: phoneNorm(mphone), status: 'new', duplicate_of: orig, created_at: ago(10),
+    });
+    await open(page, `/admin/leads/${dup1}?view=all&q=${mtag}`);
+    const main = page.getByRole('main');
+    const detail = main.getByRole('region', { name: `Merge Copy ${mtag}` });
+
+    // Branch: free text with suggestions; saved through lead_set_branch (event + audit row).
+    await detail.getByLabel('Branch').fill('Durban');
+    await detail.getByRole('button', { name: 'Save' }).click();
+    await expect(detail.getByRole('status').filter({ hasText: 'Branch set to Durban.' })).toBeVisible();
+    expect(await sql(`select branch from public.leads where id = $1`, [dup1])).toEqual([{ branch: 'Durban' }]);
+    expect(await sql(`select meta from public.audit_log where action = 'lead.branch' and entity_id = $1`, [dup1])).toEqual([{ meta: { from: null, to: 'Durban' } }]);
+
+    // Merge asks first, then opens the original, which lists the merged lead. Nothing is deleted.
+    const banner = detail.getByTestId('lead-duplicate');
+    await banner.getByRole('button', { name: `Merge into Merge Original ${mtag}` }).click();
+    await expect(banner).toContainText('its details, notes and history are kept');
+    await banner.getByRole('button', { name: 'Confirm merge' }).click();
+    await expect(page).toHaveURL(new RegExp(`/admin/leads/${orig}$`), { timeout: 30_000 });
+    await expect(main.getByTestId('lead-merged-from')).toContainText(`Merge Copy ${mtag}`);
+    expect(await sql(`select merged_into, duplicate_of from public.leads where id = $1`, [dup1])).toEqual([{ merged_into: orig, duplicate_of: orig }]);
+    expect(await sql(`select meta from public.audit_log where action = 'lead.merge' and entity_id = $1`, [dup1])).toEqual([{ meta: { into: orig, repointed: 0 } }]);
+
+    // The merged lead leaves the inbox and is read-only on its own page.
+    await page.goto(`/admin/leads?view=all&q=${mtag}`);
+    await expect(main.getByRole('region', { name: 'Lead list' }).getByTestId('lead-row')).toHaveCount(2);
+    await page.goto(`/admin/leads/${dup1}`);
+    await expect(main.getByTestId('lead-merged')).toContainText(`Merged into Merge Original ${mtag}`);
+    await expect(main.getByRole('button', { name: 'Set status' })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: 'Save note' })).toHaveCount(0);
+
+    // Not a duplicate clears the flag and remembers the original.
+    await page.goto(`/admin/leads/${dup2}?view=all&q=${mtag}`);
+    const other = main.getByRole('region', { name: `Merge Other ${mtag}` });
+    await other.getByTestId('lead-duplicate').getByRole('button', { name: 'Not a duplicate' }).click();
+    await expect(other.getByTestId('lead-duplicate')).toHaveCount(0);
+    expect(await sql(`select duplicate_of, not_duplicate_of from public.leads where id = $1`, [dup2])).toEqual([{ duplicate_of: null, not_duplicate_of: orig }]);
+    expect(await sql(`select count(*)::int as n from public.audit_log where action = 'lead.not_duplicate' and entity_id = $1`, [dup2])).toEqual([{ n: 1 }]);
+    const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(violations).toEqual([]);
   });
 
   test('Add lead modal: dedupe note, contact required, a matching phone is flagged as a possible duplicate', async ({ page }) => {
