@@ -31,7 +31,7 @@ export default async function XeroActions() {
   const writeScopes = hasWriteScopes(conn?.scopes);
 
   return (
-    <section className="flex w-full max-w-[1360px] flex-col gap-5">
+    <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-5">
       <div className="flex flex-col gap-1">
         <nav aria-label="Breadcrumb" className="text-small text-fg-muted">
           <ol className="m-0 flex list-none gap-1.5 p-0">

@@ -28,6 +28,9 @@ export function RecipientDialog({ recipient, eventKeys, label }: { recipient?: R
 
 function RecipientForm({ recipient, eventKeys, onDone }: { recipient: RecipientDraft; eventKeys: string[]; onDone: () => void }) {
   const [state, action, pending] = useActionState(saveRecipient, {} as RecipientState);
+  // Controlled: React resets uncontrolled fields after a form action, which would drop what was typed on an error.
+  const [f, setF] = useState({ eventKey: recipient.eventKey, address: recipient.address, branch: recipient.branch ?? '', active: recipient.active });
+  const bind = (k: 'eventKey' | 'address' | 'branch') => ({ value: f[k], onChange: (ev: { target: { value: string } }) => setF((p) => ({ ...p, [k]: ev.target.value })) });
   const listId = useId();
   const done = useRef(onDone);
   useEffect(() => { done.current = onDone; }, [onDone]);
@@ -41,22 +44,22 @@ function RecipientForm({ recipient, eventKeys, onDone }: { recipient: RecipientD
       {e.form ? <p role="alert" className="m-0 rounded-sm bg-status-red-bg px-3 py-2 text-small text-status-red-fg">{e.form}</p> : null}
       <div className="flex flex-col">
         <label htmlFor="rcpt-event" className={labelClass}>Event key</label>
-        <input id="rcpt-event" name="eventKey" defaultValue={recipient.eventKey} list={listId} required autoComplete="off" spellCheck={false} placeholder="release.paid" className={`${inputClass} font-mono`} {...inv('eventKey')} />
+        <input id="rcpt-event" name="eventKey" {...bind('eventKey')} list={listId} required autoComplete="off" spellCheck={false} placeholder="release.paid" className={`${inputClass} font-mono`} {...inv('eventKey')} />
         <datalist id={listId}>{eventKeys.map((k) => <option key={k} value={k} />)}</datalist>
         {e.eventKey ? <p id="rcpt-eventKey-err" className="m-0 mt-1 text-small text-status-red-fg">{e.eventKey}</p> : null}
       </div>
       <div className="flex flex-col">
         <label htmlFor="rcpt-address" className={labelClass}>Address</label>
-        <input id="rcpt-address" name="address" type="email" defaultValue={recipient.address} required autoComplete="off" placeholder="accounts@example.com" className={inputClass} {...inv('address')} />
+        <input id="rcpt-address" name="address" type="email" {...bind('address')} required autoComplete="off" placeholder="accounts@example.com" className={inputClass} {...inv('address')} />
         {e.address ? <p id="rcpt-address-err" className="m-0 mt-1 text-small text-status-red-fg">{e.address}</p> : null}
       </div>
       <div className="flex flex-col">
         <label htmlFor="rcpt-branch" className={labelClass}>Branch (optional)</label>
-        <input id="rcpt-branch" name="branch" defaultValue={recipient.branch ?? ''} maxLength={60} placeholder="All branches" className={inputClass} {...inv('branch')} />
+        <input id="rcpt-branch" name="branch" {...bind('branch')} maxLength={60} placeholder="All branches" className={inputClass} {...inv('branch')} />
         {e.branch ? <p id="rcpt-branch-err" className="m-0 mt-1 text-small text-status-red-fg">{e.branch}</p> : null}
       </div>
       <label className="flex min-h-11 items-center gap-2 text-body">
-        <input type="checkbox" name="active" defaultChecked={recipient.active} className="size-4 accent-accent" />
+        <input type="checkbox" name="active" checked={f.active} onChange={(ev) => setF((p) => ({ ...p, active: ev.target.checked }))} className="size-4 accent-accent" />
         Active (gets emails)
       </label>
       <div className="flex flex-wrap justify-end gap-2">

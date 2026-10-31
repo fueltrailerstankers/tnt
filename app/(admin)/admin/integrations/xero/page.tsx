@@ -78,7 +78,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
       : sp.synced ? <Alert tone="success">Sync step finished.</Alert> : null;
 
   return (
-    <section className="flex w-full max-w-[1360px] flex-col gap-5">
+    <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-5">
       <div className="flex flex-col gap-1">
         <nav aria-label="Breadcrumb" className="text-small text-fg-muted">
           <ol className="m-0 flex list-none gap-1.5 p-0"><li>Integrations</li><li aria-hidden="true">/</li><li aria-current="page" className="text-fg">Xero</li></ol>
@@ -138,7 +138,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
             <h2 id="sync-h" className="m-0 text-[15px] font-semibold">Last sync per entity</h2>
             {manage && connected ? <form action={syncNow}><Button type="submit" variant="secondary" size={32}>Sync all now</Button></form> : null}
           </div>
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className={`${tableClass} text-small`} data-testid="sync-state">
               <thead className={theadClass}><tr><th className="px-4 py-2">Entity</th><th className="p-2">Last success</th><th className="p-2 text-right">Records</th><th className="py-2 pl-2 pr-4">State</th></tr></thead>
               <tbody>
@@ -201,7 +201,7 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
           </div>
           {manage ? <Link href="/admin/integrations/xero/actions" className="text-small font-semibold text-accent-text">Runs and details</Link> : null}
         </div>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className={`${tableClass} min-w-[860px] text-small`}>
             <thead className={theadClass}><tr><th className="px-4 py-2">Action</th><th className="p-2">Trigger</th><th className="p-2">Last 7 days</th><th className="p-2">Mode</th><th className="py-2 pl-2 pr-4"><span className="sr-only">Diff</span></th></tr></thead>
             <tbody>
@@ -259,9 +259,9 @@ export default async function XeroIntegration({ searchParams }: { searchParams: 
       ) : null}
 
       {manage ? (
-        <Card padding="md" aria-labelledby="month-h">
+        <Card padding="md" as="div">
           <div className="flex flex-col gap-1">
-            <h2 id="month-h" className="m-0 text-[15px] font-semibold">Check a month against Xero</h2>
+            <h2 className="m-0 text-[15px] font-semibold">Check a month against Xero</h2>
             <p className="m-0 text-small text-fg-muted">Counts and totals per currency for quotes, invoices and payments: live from Xero (read only) and from the mirror.</p>
           </div>
           <MonthCheck defaultMonth={lastMonth} />

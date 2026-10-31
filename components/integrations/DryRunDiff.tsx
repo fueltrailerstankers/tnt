@@ -20,7 +20,7 @@ function Column({ title, lines, empty }: { title: string; lines: SideLine[] | nu
     <div className="min-w-0">
       <h3 id={id} className="m-0 bg-surface-2 px-4 py-2 text-label font-semibold text-fg-muted">{title}</h3>
       {lines ? (
-        <div role="region" aria-labelledby={id} tabIndex={0} className="max-h-[480px] overflow-auto py-2.5 outline-none focus-visible:outline-2 focus-visible:outline-focus">
+        <div role="region" aria-labelledby={id} tabIndex={0} className="relative max-h-[480px] overflow-auto py-2.5 outline-none focus-visible:outline-2 focus-visible:outline-focus">
           <pre className="m-0 font-mono text-[12px] leading-5">
             {lines.map((l, i) => (
               <span key={i} className={`block whitespace-pre px-4 ${LINE[l.kind]}`}>

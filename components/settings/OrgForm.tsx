@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { saveOrg, type OrgState } from '@/app/(admin)/admin/settings/actions';
 import { Button } from '@/components/ui/Button';
 import { inputClass, labelClass } from '@/components/ui/styles';
@@ -15,6 +15,9 @@ function FieldError({ id, text }: { id: string; text?: string }) {
 /** Settings > Organisation (Settings.dc.html). Read-only when the member cannot manage settings. */
 export function OrgForm({ values, zones, manage }: { values: OrgFormValues; zones: string[]; manage: boolean }) {
   const [state, action, pending] = useActionState(saveOrg, {} as OrgState);
+  // Controlled: React resets uncontrolled fields after a form action, which would drop what was typed on an error.
+  const [f, setF] = useState({ ...values, currency: values.currency === 'ZAR' ? 'ZAR' : 'USD', fxSource: 'manual' });
+  const bind = (k: keyof typeof f) => ({ value: f[k], onChange: (ev: { target: { value: string } }) => setF((p) => ({ ...p, [k]: ev.target.value })) });
   const e = state.errors ?? {};
   const err = (k: keyof typeof e) => (e[k] ? { 'aria-invalid': true as const, 'aria-describedby': `org-${k}-err` } : {});
   const select = `${inputClass} h-[38px] py-0`;
@@ -26,12 +29,12 @@ export function OrgForm({ values, zones, manage }: { values: OrgFormValues; zone
         <legend className="sr-only">Organisation</legend>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-name" className={labelClass}>Organisation name</label>
-          <input id="org-name" name="name" defaultValue={values.name} required maxLength={120} className={inputClass} {...err('name')} />
+          <input id="org-name" name="name" {...bind('name')} required maxLength={120} className={inputClass} {...err('name')} />
           <FieldError id="org-name-err" text={e.name} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-currency" className={labelClass}>Display currency</label>
-          <select id="org-currency" name="currency" defaultValue={values.currency === 'ZAR' ? 'ZAR' : 'USD'} aria-describedby="org-currency-help" className={select} {...err('currency')}>
+          <select id="org-currency" name="currency" {...bind('currency')} aria-describedby="org-currency-help" className={select} {...err('currency')}>
             {DISPLAY_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
           <p id="org-currency-help" className="m-0 text-[12px] text-fg-muted">Xero amounts always show in ZAR with a badge.</p>
@@ -39,14 +42,14 @@ export function OrgForm({ values, zones, manage }: { values: OrgFormValues; zone
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-tz" className={labelClass}>Timezone</label>
-          <select id="org-tz" name="timezone" defaultValue={values.timezone} className={select} {...err('timezone')}>
+          <select id="org-tz" name="timezone" {...bind('timezone')} className={select} {...err('timezone')}>
             {zones.map((z) => <option key={z} value={z}>{timezoneLabel(z)}</option>)}
           </select>
           <FieldError id="org-timezone-err" text={e.timezone} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-fx-source" className={labelClass}>ZAR → USD rate source</label>
-          <select id="org-fx-source" name="fxSource" defaultValue="manual" aria-describedby="org-fx-source-help" className={select} {...err('fxSource')}>
+          <select id="org-fx-source" name="fxSource" {...bind('fxSource')} aria-describedby="org-fx-source-help" className={select} {...err('fxSource')}>
             {FX_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <p id="org-fx-source-help" className="m-0 text-[12px] text-fg-muted">A daily feed is not connected yet.</p>
@@ -54,7 +57,7 @@ export function OrgForm({ values, zones, manage }: { values: OrgFormValues; zone
         <div className="flex flex-col gap-1.5">
           <label htmlFor="org-fx-rate" className={labelClass}>USD per 1 ZAR</label>
           <input
-            id="org-fx-rate" name="fxRate" defaultValue={values.fxRate} inputMode="decimal" autoComplete="off" placeholder="e.g. 0.0547"
+            id="org-fx-rate" name="fxRate" {...bind('fxRate')} inputMode="decimal" autoComplete="off" placeholder="e.g. 0.0547"
             className={`${inputClass} font-mono`} aria-describedby={e.fxRate ? 'org-fxRate-err org-fx-help' : 'org-fx-help'} aria-invalid={e.fxRate ? true : undefined}
           />
           <p id="org-fx-help" className="m-0 text-[12px] text-fg-muted">Shown as “≈ USD” under ZAR amounts. Leave blank to show ZAR only.</p>

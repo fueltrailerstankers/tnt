@@ -21,7 +21,7 @@ export default async function NotificationRecipients() {
   const keys = knownEventKeys(rows);
 
   return (
-    <section className="flex w-full max-w-[1360px] flex-col gap-4">
+    <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-4">
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="notifications" />
       <div className={tableWrapClass}>

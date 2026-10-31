@@ -31,7 +31,7 @@ export default async function Settings() {
   if (!zones.includes(org.timezone)) zones.push(org.timezone);
 
   return (
-    <section className="flex w-full max-w-[1360px] flex-col gap-4">
+    <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-4">
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="organisation" />
       <OrgForm manage={manage} zones={zones} values={{ name: org.name, currency: org.currency, timezone: org.timezone, fxRate: fxInputValue(fx?.value) }} />

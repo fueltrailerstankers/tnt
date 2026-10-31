@@ -42,7 +42,7 @@ export default async function JobRuns({ searchParams }: { searchParams: Promise<
   const pages = pageCount(total, JOB_PAGE_SIZE);
 
   return (
-    <section className="flex w-full max-w-[1360px] flex-col gap-4">
+    <section className="flex w-full min-w-0 max-w-[1360px] flex-col gap-4">
       <h1 className="text-h1">Settings</h1>
       <SettingsTabs member={member} current="jobs" />
       <FilterChips label="Filter by state" value={state} size="md" chips={JOB_STATES.map((s) => ({ value: s.value, label: s.label, href: href(s.value) }))} />
