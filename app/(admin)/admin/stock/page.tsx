@@ -2,13 +2,13 @@ import Link from 'next/link';
 import { StockHeader } from '@/components/stock/StockHeader';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { buttonClass, cardClass, tableClass, theadClass } from '@/components/ui/styles';
-import { buildMatrix, cellLabel, matrixFooter, stockKpis, type MatrixCellRow } from '@/lib/stock/kpi';
+import { buildMatrix, cellLabel, matrixFooter, matrixScopeLabel, normalizeModelSearch, stockKpis, type MatrixCellRow } from '@/lib/stock/kpi';
 import { ALL_BRANCHES, unitsHref } from '@/lib/stock/register';
 import { loadLocations } from '@/lib/stock/register-query';
 import { can } from '@/lib/security/can';
 import { requirePerm } from '@/lib/security/require';
 import { createClient } from '@/lib/supabase/server';
-import { InStockToggle } from './in-stock-toggle';
+import { MatrixFilters } from './matrix-filters';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Stock overview · Trailers & Tankers' };
@@ -20,6 +20,7 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
   const member = await requirePerm('stock.read');
   const sp = await searchParams;
   const inStockOnly = one(sp.instock) === '1';
+  const q = one(sp.q).trim().slice(0, 100);
   const db = await createClient();
   const [locs, { data: cellData, error: cellError }] = await Promise.all([
     loadLocations(db, member.orgId),
@@ -30,15 +31,16 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
   const error = locs.error || !!cellError;
   const cells = error ? [] : ((cellData ?? []) as MatrixCellRow[]);
   const kpis = stockKpis(cells, locations);
-  const matrix = buildMatrix(cells, locations, { inStockOnly });
-  const factory = locations.find((l) => l.is_factory)?.id ?? null;
+  const matrix = buildMatrix(cells, locations, { inStockOnly, q });
+  const factory = matrix.factory?.id ?? null;
+  const searching = normalizeModelSearch(q) !== '';
 
   const cards: { key: string; label: string; value: number; sub: string; icon: IconName; href: string }[] = [
     {
       key: 'branches', label: 'Stock across branches', value: kpis.stockAcrossBranches, sub: `Includes ${kpis.branchReserved} reserved`, icon: 'stock',
       href: unitsHref({ location: ALL_BRANCHES, status: 'in_stock' }),
     },
-    { key: 'ready', label: 'Ready to sell', value: kpis.readyToSell, sub: 'Available in branches', icon: 'tasks', href: unitsHref({ location: ALL_BRANCHES, status: 'available' }) },
+    { key: 'ready', label: 'Ready to sell', value: kpis.readyToSell, sub: 'Available, unreserved units', icon: 'tasks', href: unitsHref({ location: ALL_BRANCHES, status: 'available' }) },
     { key: 'reserved', label: 'Reserved', value: kpis.reserved, sub: 'Awaiting full payment', icon: 'invoices', href: unitsHref({ status: 'reserved' }) },
     { key: 'factory', label: 'At factory', value: kpis.atFactory, sub: 'Not in branch quantities', icon: 'factory', href: unitsHref({ location: factory, status: 'in_stock' }) },
   ];
@@ -77,14 +79,14 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
             <h2 className="text-h2">Stock by model</h2>
             <p className="text-small text-fg-muted">Branch counts include reserved units. Fully paid units are excluded.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-small font-semibold text-fg-muted" data-testid="branch-count">
-              {matrix.branches.length} {matrix.branches.length === 1 ? 'branch' : 'branches'}
-            </span>
-            <InStockToggle checked={inStockOnly} />
-          </div>
+          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-small font-semibold text-fg-muted" data-testid="branch-count">
+            {matrixScopeLabel(matrix)}
+          </span>
         </div>
-        <div className="overflow-x-auto">
+        <MatrixFilters q={q} inStockOnly={inStockOnly} />
+        {/* relative: the cells' sr-only text is absolutely positioned and must scroll (and clip) with the table.
+            Focusable region: on a phone the table scrolls sideways even when no count is a link. */}
+        <div className="relative overflow-x-auto" role="region" aria-label="Stock by model table" tabIndex={0}>
           <table className={tableClass} data-testid="stock-matrix">
             <thead className={theadClass}>
               <tr>
@@ -95,7 +97,13 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
                     <span className="hidden sm:inline">{b.name}</span>
                   </th>
                 ))}
-                <th scope="col" className="px-2 py-2 text-center uppercase sm:px-4">Total</th>
+                {matrix.factory ? (
+                  <th scope="col" className="px-2 py-2 text-center uppercase">
+                    <abbr title={matrix.factory.name} className="no-underline sm:hidden">{matrix.factory.id}</abbr>
+                    <span className="hidden sm:inline">{matrix.factory.name}</span>
+                  </th>
+                ) : null}
+                <th scope="col" className="px-2 py-2 text-center uppercase sm:px-4">Total at branches</th>
               </tr>
             </thead>
             <tbody>
@@ -111,6 +119,12 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
                         href={unitsHref({ model: r.partNumber, location: b.id, status: 'in_stock' })} testId={`cell-${r.partNumber}-${b.id}`} />
                     </td>
                   ))}
+                  {matrix.factory ? (
+                    <td className="px-2 py-2 text-center">
+                      <Count n={r.factory.qty} reserved={r.factory.reserved} what={`${r.partNumber} at ${matrix.factory.name}`}
+                        href={unitsHref({ model: r.partNumber, location: matrix.factory.id, status: 'in_stock' })} testId={`cell-${r.partNumber}-factory`} />
+                    </td>
+                  ) : null}
                   <td className="px-2 py-2 text-center sm:px-4">
                     <Count n={r.total} reserved={r.reserved} what={`${r.partNumber} across branches`} strong
                       href={unitsHref({ model: r.partNumber, location: ALL_BRANCHES, status: 'in_stock' })} testId={`cell-${r.partNumber}-total`} />
@@ -118,7 +132,11 @@ export default async function StockOverview({ searchParams }: { searchParams: Pr
                 </tr>
               ))}
               {!matrix.rows.length ? (
-                <tr><td colSpan={matrix.branches.length + 2} className="p-6 text-center text-fg-muted">No units in branch stock.</td></tr>
+                <tr>
+                  <td colSpan={matrix.branches.length + (matrix.factory ? 3 : 2)} className="p-6 text-center text-fg-muted">
+                    {searching ? 'No models match your search.' : 'No units in stock.'}
+                  </td>
+                </tr>
               ) : null}
             </tbody>
           </table>

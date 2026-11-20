@@ -95,7 +95,11 @@ test('overview: KPIs, matrix with amber reserved cells, "In stock only", cells o
   expect(k.factory).toBeGreaterThanOrEqual(1);
   expect(k.reserved).toBeGreaterThanOrEqual(1);
 
-  await expect(page.getByTestId('branch-count')).toHaveText('3 branches');
+  await expect(page.getByTestId('branch-count')).toHaveText('3 branches + factory');
+  await expect(page.getByTestId('kpi-ready')).toContainText('Available, unreserved units');
+  const matrixHead = page.getByTestId('stock-matrix').getByRole('columnheader');
+  await expect(matrixHead.filter({ hasText: 'Factory' })).toHaveCount(1);
+  await expect(matrixHead.last()).toHaveText(/Total at branches/i);
   const jhb = await cellCount('CTLL1', 'JHB');
   const cpt = await cellCount('CTLL1', 'CPT');
   await expect(page.getByTestId('cell-CTLL1-JHB')).toContainText(String(jhb.n));
@@ -106,11 +110,21 @@ test('overview: KPIs, matrix with amber reserved cells, "In stock only", cells o
   const dbn = await cellCount('CTLL2', 'DBN');
   await expect(page.getByTestId('cell-CTLL2-DBN')).toContainText(dbn.n ? String(dbn.n) : '—');
 
-  // "In stock only" hides models without branch stock, in the URL.
+  // The Factory has its own column and is never added to Total at branches.
+  const [fac] = await sql<{ part_number: string; n: number }>(
+    `select u.model_part as part_number, count(*)::int as n from public.stock_units u
+       join public.stock_locations l on l.org_id = u.org_id and l.id = u.location_id
+     where u.org_id = $1 and l.is_factory and u.status <> 'sold' group by u.model_part order by 1 limit 1`, [ORG]);
+  expect(fac).toBeTruthy();
+  await expect(page.getByTestId(`cell-${fac.part_number}-factory`)).toContainText(String(fac.n));
+  const facBranch = (await cellCount(fac.part_number, 'JHB')).n + (await cellCount(fac.part_number, 'CPT')).n + (await cellCount(fac.part_number, 'DBN')).n;
+  await expect(page.getByTestId(`cell-${fac.part_number}-total`)).toContainText(facBranch ? String(facBranch) : '—');
+
+  // "In stock only" hides models without stock at a branch or the Factory, in the URL.
   const [empty] = await sql<{ part_number: string }>(
     `select m.part_number from public.stock_models m where m.org_id = $1 and m.active and not exists (
-       select 1 from public.stock_units u join public.stock_locations l on l.org_id = u.org_id and l.id = u.location_id
-       where u.org_id = m.org_id and u.model_part = m.part_number and not l.is_factory and u.status <> 'sold')
+       select 1 from public.stock_units u
+       where u.org_id = m.org_id and u.model_part = m.part_number and u.status <> 'sold')
      order by m.sort_order limit 1`, [ORG]);
   const footer = page.getByTestId('matrix-footer');
   await expect(footer).toContainText(/(\d+) of \1 models · Amber indicator = reserved units included/);
@@ -122,6 +136,22 @@ test('overview: KPIs, matrix with amber reserved cells, "In stock only", cells o
   const text = (await footer.textContent()) ?? '';
   const [, shown, total] = text.match(/(\d+) of (\d+) models/) ?? [];
   expect(Number(shown)).toBeLessThan(Number(total));
+  await main.getByLabel('In stock only').uncheck();
+  await expect(page).toHaveURL(/\/admin\/stock$/);
+
+  // Model search (part number or name, any case) in the URL, combined with "In stock only".
+  const search = main.getByRole('searchbox', { name: 'Search models' });
+  await search.fill('ctll1');
+  await expect(page).toHaveURL(/\/admin\/stock\?q=ctll1$/);
+  await expect(page.getByTestId('matrix-row-CTLL1')).toBeVisible();
+  if (!empty.part_number.toLowerCase().includes('ctll1')) await expect(page.getByTestId(`matrix-row-${empty.part_number}`)).toHaveCount(0);
+  await main.getByLabel('In stock only').check();
+  await expect(page).toHaveURL(/\/admin\/stock\?q=ctll1&instock=1$/);
+  await expect(page.getByTestId('matrix-row-CTLL1')).toBeVisible();
+  await search.fill('no such model zz');
+  await expect(page.getByTestId('stock-matrix')).toContainText('No models match your search.');
+  await expect(footer).toContainText(/^0 of \d+ models/);
+  await search.fill('');
   await main.getByLabel('In stock only').uncheck();
   await expect(page).toHaveURL(/\/admin\/stock$/);
 

@@ -98,29 +98,57 @@ export interface MatrixRow {
   description: string;
   /** Keyed by branch location id; every branch is present. */
   cells: Record<string, MatrixCell>;
+  /** Units at the Factory (not sold). Shown in its own column, never part of `total`. */
+  factory: MatrixCell;
+  /** Total at branches: the branch cells only. */
   total: number;
   reserved: number;
   amber: boolean;
 }
 
 export interface Matrix {
-  /** Branch columns in display order (the Factory is not a column). */
+  /** Branch columns in display order. */
   branches: LocationRow[];
+  /** The Factory column (after the branches), or null when the org has no factory location. */
+  factory: LocationRow | null;
   rows: MatrixRow[];
-  /** Rows shown after the "In stock only" filter. */
+  /** Rows shown after the search and "In stock only" filters. */
   shown: number;
-  /** Models listed before the filter: "N of {total} models". */
+  /** Models listed before the filters: "N of {total} models". */
   total: number;
+}
+
+export interface MatrixOptions {
+  /** Keep only models with stock at a branch or the Factory. */
+  inStockOnly?: boolean;
+  /** Model search: part number or description contains the text (case-insensitive, trimmed). */
+  q?: string;
 }
 
 const bySort = <T extends { sort_order: number }>(a: T, b: T, ka: string, kb: string) => a.sort_order - b.sort_order || ka.localeCompare(kb);
 
+/** The overview's model search, normalised: trimmed, lower case, inner whitespace collapsed. Empty = no search. */
+export function normalizeModelSearch(q: string | null | undefined): string {
+  return (q ?? '').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 100);
+}
+
+/** Does a model match the overview search (part number or description contains it)? */
+export function modelMatches(m: { partNumber: string; description: string }, q: string): boolean {
+  const n = normalizeModelSearch(q);
+  if (!n) return true;
+  return m.partNumber.toLowerCase().includes(n) || m.description.replace(/\s+/g, ' ').toLowerCase().includes(n);
+}
+
+const emptyCell = (): MatrixCell => ({ qty: 0, reserved: 0, amber: false });
+
 /**
- * Stock by model: one row per model, one column per branch plus Total. Active models are always listed; an
- * inactive model only while it still has branch stock. inStockOnly hides rows whose branch total is zero.
+ * Stock by model: one row per model, one column per branch, then Factory, then Total at branches (the Factory is
+ * never added to the total). Active models are always listed; an inactive model only while it still has stock at a
+ * branch or the Factory. inStockOnly hides rows with no stock at any branch or the Factory; q filters by model.
  */
-export function buildMatrix(cells: readonly MatrixCellRow[], locations: readonly LocationRow[], opts: { inStockOnly?: boolean } = {}): Matrix {
+export function buildMatrix(cells: readonly MatrixCellRow[], locations: readonly LocationRow[], opts: MatrixOptions = {}): Matrix {
   const branches = locations.filter((l) => !l.is_factory).sort((a, b) => bySort(a, b, a.id, b.id));
+  const factory = [...locations].filter((l) => l.is_factory).sort((a, b) => bySort(a, b, a.id, b.id))[0] ?? null;
   const branchIds = new Set(branches.map((b) => b.id));
   const rows = new Map<string, MatrixRow & { sort_order: number; active: boolean }>();
   for (const c of cells) {
@@ -128,12 +156,19 @@ export function buildMatrix(cells: readonly MatrixCellRow[], locations: readonly
     if (!row) {
       row = {
         partNumber: c.part_number, description: c.description, sort_order: c.sort_order, active: c.active,
-        cells: Object.fromEntries(branches.map((b) => [b.id, { qty: 0, reserved: 0, amber: false }])),
-        total: 0, reserved: 0, amber: false,
+        cells: Object.fromEntries(branches.map((b) => [b.id, emptyCell()])),
+        factory: emptyCell(), total: 0, reserved: 0, amber: false,
       };
       rows.set(c.part_number, row);
     }
-    if (!c.location_id || !branchIds.has(c.location_id)) continue;
+    if (!c.location_id) continue;
+    if (factory && c.location_id === factory.id) {
+      row.factory.qty += c.qty;
+      row.factory.reserved += c.reserved;
+      row.factory.amber = row.factory.reserved > 0;
+      continue;
+    }
+    if (!branchIds.has(c.location_id)) continue;
     const cell = row.cells[c.location_id];
     cell.qty += c.qty;
     cell.reserved += c.reserved;
@@ -142,16 +177,35 @@ export function buildMatrix(cells: readonly MatrixCellRow[], locations: readonly
     row.reserved += c.reserved;
     row.amber = row.reserved > 0;
   }
+  const inStock = (r: MatrixRow) => r.total > 0 || r.factory.qty > 0;
   const listed = [...rows.values()]
-    .filter((r) => r.active || r.total > 0)
+    .filter((r) => r.active || inStock(r))
     .sort((a, b) => bySort(a, b, a.partNumber, b.partNumber));
-  const shownRows = opts.inStockOnly ? listed.filter((r) => r.total > 0) : listed;
+  const q = normalizeModelSearch(opts.q);
+  const shownRows = listed.filter((r) => (!opts.inStockOnly || inStock(r)) && modelMatches(r, q));
   return {
     branches,
-    rows: shownRows.map((r) => ({ partNumber: r.partNumber, description: r.description, cells: r.cells, total: r.total, reserved: r.reserved, amber: r.amber })),
+    factory,
+    rows: shownRows.map((r) => ({ partNumber: r.partNumber, description: r.description, cells: r.cells, factory: r.factory, total: r.total, reserved: r.reserved, amber: r.amber })),
     shown: shownRows.length,
     total: listed.length,
   };
+}
+
+/** The chip over the matrix: "3 branches + factory". */
+export function matrixScopeLabel(m: Pick<Matrix, 'branches' | 'factory'>): string {
+  const n = m.branches.length;
+  return `${n} ${n === 1 ? 'branch' : 'branches'}${m.factory ? ' + factory' : ''}`;
+}
+
+/** Overview URL with its view state (?q=, ?instock=1), so a filtered view can be shared. */
+export function overviewHref(view: { q?: string | null; inStockOnly?: boolean }): string {
+  const p = new URLSearchParams();
+  const q = (view.q ?? '').trim();
+  if (q) p.set('q', q.slice(0, 100));
+  if (view.inStockOnly) p.set('instock', '1');
+  const s = p.toString();
+  return s ? `/admin/stock?${s}` : '/admin/stock';
 }
 
 /** Matrix cell text: the count, or an em dash for zero. */
