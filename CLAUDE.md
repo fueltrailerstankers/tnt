@@ -122,3 +122,4 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Delete is a TypedConfirmModal (phrase = entry number) calling the shared `deleteEntry`; e2e: `tests/e2e/entry-detail.spec.ts`.
 ## Repo notes (login outage message)
 - `/login` failures map through `lib/users/sign-in-error.ts`: account-specific errors stay the one generic "Check your email and password"; auth-service failures (402 project restricted, 5xx, network) redirect with `error=unavailable` and log status/code only (never the email).
+- Photos are shrunk in the browser before upload: `components/form-engine/compress-image.ts` (canvas, long edge 2000 px, JPEG 0.8, falls back to the original on any failure) over pure rules in `lib/files/photo-compress.ts` (only JPEG/WebP/HEIC >= 400 KB and PNG >= 1.5 MB; kept only if >= 10% smaller; renamed `.jpg`). Server checks (size, magic bytes) are unchanged. e2e: last test in `tests/e2e/public-forms.spec.ts`.
