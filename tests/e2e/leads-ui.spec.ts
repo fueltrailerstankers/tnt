@@ -176,7 +176,7 @@ test.describe('desktop 1440', () => {
 
     // Branch: free text with suggestions; saved through lead_set_branch (event + audit row).
     await detail.getByLabel('Branch').fill('Durban');
-    await detail.getByRole('button', { name: 'Save' }).click();
+    await detail.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(detail.getByRole('status').filter({ hasText: 'Branch set to Durban.' })).toBeVisible();
     expect(await sql(`select branch from public.leads where id = $1`, [dup1])).toEqual([{ branch: 'Durban' }]);
     expect(await sql(`select meta from public.audit_log where action = 'lead.branch' and entity_id = $1`, [dup1])).toEqual([{ meta: { from: null, to: 'Durban' } }]);

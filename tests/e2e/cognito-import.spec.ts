@@ -63,6 +63,9 @@ test.afterAll(async () => {
   else await sql(`update form_counters set last_number = $2 where form_id = (select id from forms where slug = 'request-for-invoice' and org_id = $1)`, [ORG, counterBefore]);
 });
 
+// The production build refuses the http mock Cognito API by design, and every test here needs the saved key.
+test.skip(process.env.E2E_PROD === '1', 'production build refuses the http mock Cognito API by design');
+
 test('the import page needs a signed-in admin; the job endpoint needs the job secret', async ({ page, request }) => {
   await page.goto(PAGE);
   await expect(page).toHaveURL(/\/login/);
@@ -71,7 +74,6 @@ test('the import page needs a signed-in admin; the job endpoint needs the job se
 
 test('Forms page links to the import; a wrong key fails Test connection; the right key is saved encrypted and never shown', async ({ page, request }) => {
   // Production refuses the plain-http mock Cognito URL by design (lib/import/cognito/api.ts); run this on the dev server.
-  test.skip(process.env.E2E_PROD === '1', 'production build refuses the http mock Cognito API by design');
   await signIn(page, '/admin/forms');
   await expect(page.getByTestId('form-card-request-for-invoice').getByRole('link', { name: 'Import entries' })).toHaveAttribute('href', '/admin/forms/import#form-request-for-invoice');
   await page.getByRole('link', { name: 'Import from Cognito' }).click();
