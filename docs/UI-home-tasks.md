@@ -40,12 +40,13 @@ breaks the page: entries need `entries.read`, tasks `tasks.read`, the Xero tile,
   entry page. Success removes the row (optimistic, restored on error) and announces it in a `role=status` line.
 - **Mark APPROVED EMAILED** posts to the existing `setStatus` action of the entry page (manual status, `entries.write`),
   which then opens the entry.
-- **Retry** appears only on Xero sync failures and posts to the existing `syncNow` action (`integrations.manage`).
-  Failed outbox jobs have no Retry: no server action re-queues one yet. **Details** opens `/admin/integrations/xero`.
+- **Retry** on Xero sync failures posts to the existing `syncNow` action (`integrations.manage`). On a failed outbox
+  job it calls `retryJobAction` (same row back to `pending`, attempts reset, audit `job.retry`; result as a toast).
+  **Details** opens `/admin/integrations/xero`.
 - **Open lead** is a link. Home never mutates: its row actions are links.
 
 ## Known gaps
 
 - The nav Tasks badge (`lib/ui/shell-data.ts`) still counts inspection and Store Room entries for anyone with
   `tasks.read`; the Home tile and the Tasks `All` chip count the member's actionable tasks including failed jobs and leads.
-- No notifications bell (no data model), no lead numbers (`L-0931`), no Store Room branch or reference, no outbox retry.
+- No notifications bell (no data model), no lead numbers (`L-0931`), no Store Room branch or reference.

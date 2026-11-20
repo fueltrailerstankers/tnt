@@ -8,6 +8,8 @@ import { rematchOpenLeads } from '@/lib/leads/service';
 import { XERO_ACTION_HANDLERS } from '@/lib/integrations/xero/write/handlers';
 import { runImportJob } from '@/lib/import/cognito/job';
 import { STOCK_DEAL_HANDLERS } from '@/lib/stock/deal-jobs';
+import { FX_REFRESH_QUEUE, fxFeedUrl } from '@/lib/settings/fx-feed';
+import { runFxRefresh } from '@/lib/settings/fx-job';
 import { drain, enqueue, recordRun, releaseStuck, type Handler } from './outbox';
 
 export const HANDLERS: Record<string, Handler> = {
@@ -51,7 +53,18 @@ export const HANDLERS: Record<string, Handler> = {
   'cognito.import': runImportJob,
   // M6: Xero mirror invoices -> unit reserved / sold per stock.invoice_rules (ids after upserts, nightly sweep).
   'stock.invoices': runStockInvoicesJob,
+  // Daily ZAR -> USD rate from FX_RATE_URL for orgs with fx.auto = 'on' (also run by /api/jobs/fx-refresh). Throws on a
+  // failed fetch so the outbox backs off and retries.
+  [FX_REFRESH_QUEUE]: async (db) => {
+    const r = await refreshFx(db);
+    if (r.status === 'error') throw new Error(`fx.refresh ${r.error}`);
+  },
 };
+
+/** One fx.refresh run with the configured feed (nothing when FX_RATE_URL is unset). */
+export function refreshFx(db: SupabaseClient) {
+  return runFxRefresh(db, { url: fxFeedUrl(process.env.FX_RATE_URL, process.env.NODE_ENV === 'production') });
+}
 
 export async function drainOutbox(db: SupabaseClient, budgetMs: number) {
   await releaseStuck(db);

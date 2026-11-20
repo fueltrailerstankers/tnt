@@ -45,3 +45,6 @@ next-env.d.ts
 /playwright-report/
 /.claude/worktrees/
 /.next-*/
+
+# Local e2e run logs
+.e2e-logs/

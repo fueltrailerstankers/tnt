@@ -5,27 +5,30 @@ import { Icon } from '@/components/ui/Icon';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ZarAmount } from '@/components/ui/ZarAmount';
 import type { DetailData } from '@/lib/leads-view/load';
-import { duplicateReason, mailHref, telHref, xeroStatusLabel } from '@/lib/leads-view/model';
+import { duplicateActions, duplicateReason, mailHref, telHref, xeroStatusLabel } from '@/lib/leads-view/model';
 import { eventLabel, eventText } from '@/lib/leads-view/timeline';
 import { longDateTime, shortDateTime } from '@/lib/ui/time';
 import { DuplicateTag, LeadStatusChip, SourceTag } from './LeadBits';
-import { AssignForm, NoteForm, StagePills, StatusForm } from './LeadControls';
+import { AssignForm, BranchForm, DuplicateActions, NoteForm, StagePills, StatusForm } from './LeadControls';
 
 const h3 = 'm-0 text-[15px] font-semibold leading-[22px]';
 
 /**
- * Lead detail (inbox right column; the whole page on phones). Status, assignment, the duplicate warning (lib/leads
- * flags duplicates but has no merge or "not a duplicate" action, so the warning links to the other lead only), the
- * Xero match, notes and the activity log.
+ * Lead detail (inbox right column; the whole page on phones). Status, assignment, branch, the duplicate warning with
+ * Merge / Not a duplicate (0023 RPCs), the Xero match, notes and the activity log. A merged lead is read-only and
+ * links to the lead it was merged into; an original lists the leads merged into it.
  */
-export function LeadDetail({ data, manage, members, backHref, className = '' }: {
+export function LeadDetail({ data, manage, members, branches = [], backHref, className = '' }: {
   data: DetailData;
   manage: boolean;
   members: ReadonlyArray<{ userId: string; label: string }>;
+  branches?: readonly string[];
   backHref: string;
   className?: string;
 }) {
-  const { lead, events, original, later } = data;
+  const { lead, events, original, later, merged, mergedInto } = data;
+  const editable = manage && !lead.merged_into;
+  const dupActions = duplicateActions(lead, original, manage);
   const who = new Map(members.map((m) => [m.userId, m.label]));
   const tel = telHref(lead.phone);
   const mail = mailHref(lead.email);
@@ -55,7 +58,7 @@ export function LeadDetail({ data, manage, members, backHref, className = '' }: 
         <div className="flex flex-wrap items-center gap-1.5">
           <LeadStatusChip status={lead.status} size="md" testId="lead-status" />
           <SourceTag source={lead.source} names={new Map(data.sourceName ? [[lead.source, data.sourceName]] : [])} prefix="Source: " />
-          {lead.duplicate_of ? <DuplicateTag /> : null}
+          {lead.merged_into ? <span className="inline-flex h-6 items-center rounded-pill bg-surface-2 px-2.5 text-[12px] font-semibold text-fg-muted" data-testid="lead-merged-tag">Merged</span> : lead.duplicate_of ? <DuplicateTag /> : null}
         </div>
       </div>
 
@@ -66,7 +69,16 @@ export function LeadDetail({ data, manage, members, backHref, className = '' }: 
         </div>
       ) : null}
 
-      {original ? (
+      {lead.merged_into ? (
+        <div className="flex items-start gap-2 rounded-md bg-surface-2 px-3.5 py-3 text-body" data-testid="lead-merged">
+          <Icon name="info" size={18} strokeWidth={2} className="mt-0.5 flex-none" />
+          <p className="m-0">
+            <strong>Merged into {mergedInto ? <Link href={`/admin/leads/${mergedInto.id}`} className="text-accent-text underline">{mergedInto.name || 'the original lead'}</Link> : 'a lead that is no longer available'}</strong>
+            {lead.merged_at ? ` on ${shortDateTime(lead.merged_at)} SAST` : ''}
+            {lead.merged_by && who.get(lead.merged_by) ? ` by ${who.get(lead.merged_by)}` : ''}. This lead is kept for its history and can no longer be changed.
+          </p>
+        </div>
+      ) : original ? (
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-md bg-status-yellow-bg px-3.5 py-3 text-status-yellow-fg" data-testid="lead-duplicate">
           <Icon name="warning" size={18} strokeWidth={2} className="flex-none" />
           <p className="m-0 min-w-0 flex-[1_1_260px] text-body">
@@ -74,12 +86,22 @@ export function LeadDetail({ data, manage, members, backHref, className = '' }: 
             {reason ? ` · ${reason}` : ''}, received {shortDateTime(original.created_at)} SAST
             {original.created_by && who.get(original.created_by) ? ` by ${who.get(original.created_by)}` : ''}.
           </p>
+          <DuplicateActions key={`${lead.id}:${original.id}`} id={lead.id} originalId={original.id} originalLabel={original.name || 'the earlier lead'} merge={dupActions.merge} notDuplicate={dupActions.notDuplicate} openOriginal />
         </div>
       ) : lead.duplicate_of ? (
-        <div className="flex items-center gap-2 rounded-md bg-status-yellow-bg px-3.5 py-3 text-body text-status-yellow-fg" data-testid="lead-duplicate">
+        <div className="flex flex-wrap items-center gap-2 rounded-md bg-status-yellow-bg px-3.5 py-3 text-body text-status-yellow-fg" data-testid="lead-duplicate">
           <Icon name="warning" size={18} strokeWidth={2} className="flex-none" />
           <p className="m-0"><strong>Possible duplicate</strong> of an earlier lead that is no longer available.</p>
+          <DuplicateActions key={lead.id} id={lead.id} originalId={lead.duplicate_of} originalLabel="the earlier lead" merge={false} notDuplicate={dupActions.notDuplicate} />
         </div>
+      ) : null}
+      {merged.length ? (
+        <p className="m-0 text-small text-fg-muted" data-testid="lead-merged-from">
+          {merged.length === 1 ? 'A duplicate lead was' : `${merged.length} duplicate leads were`} merged into this one:{' '}
+          {merged.map((d, i) => (
+            <span key={d.id}>{i ? ', ' : ''}<Link href={`/admin/leads/${d.id}`} className="text-accent-text">{d.name || 'merged lead'}</Link> ({shortDateTime(d.created_at)} SAST)</span>
+          ))}
+        </p>
       ) : null}
       {later.length ? (
         <p className="m-0 text-small text-fg-muted">
@@ -90,26 +112,23 @@ export function LeadDetail({ data, manage, members, backHref, className = '' }: 
         </p>
       ) : null}
 
-      {manage ? (
+      {editable ? (
         <>
           <div className="lg:hidden"><StagePills id={lead.id} status={lead.status} size={44} /></div>
           <div className="grid grid-cols-1 gap-x-3.5 gap-y-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)]">
             <div className="hidden lg:block"><StatusForm key={lead.status} id={lead.id} status={lead.status} /></div>
             <AssignForm key={lead.assigned_to ?? 'none'} id={lead.id} assigned={lead.assigned_to} members={members} />
-            <div className="flex flex-col">
-              <span className="mb-1.5 block text-small font-semibold">Branch</span>
-              <span className="flex h-[38px] items-center text-body">{lead.branch || <span className="text-fg-muted">Not set</span>}</span>
-            </div>
+            <BranchForm key={lead.branch ?? 'none'} id={lead.id} branch={lead.branch} branches={branches} />
           </div>
         </>
       ) : null}
 
       <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-md border border-border p-3.5 text-body sm:grid-cols-[120px_minmax(0,1fr)]">
-        {!manage ? (<><dt className="text-fg-muted">Owner</dt><dd className="m-0">{owner}</dd><dt className="text-fg-muted">Branch</dt><dd className="m-0">{lead.branch || '—'}</dd></>) : null}
+        {!editable ? (<><dt className="text-fg-muted">Owner</dt><dd className="m-0">{owner}</dd><dt className="text-fg-muted">Branch</dt><dd className="m-0">{lead.branch || '—'}</dd></>) : null}
         <dt className="text-fg-muted">Product / interest</dt><dd className="m-0 break-words">{lead.product || '—'}</dd>
         {lead.message ? (<><dt className="text-fg-muted">Message</dt><dd className="m-0 whitespace-pre-wrap break-words">{lead.message}</dd></>) : null}
         {lead.source_form ? (<><dt className="text-fg-muted">Form</dt><dd className="m-0">{lead.source_form}</dd></>) : null}
-        {manage ? (<><dt className="text-fg-muted lg:hidden">Owner</dt><dd className="m-0 lg:hidden">{owner}</dd></>) : null}
+        {editable ? (<><dt className="text-fg-muted lg:hidden">Owner</dt><dd className="m-0 lg:hidden">{owner}</dd></>) : null}
       </dl>
 
       <section aria-labelledby={`${titleId}-xero`} className="flex flex-col gap-2" data-testid="lead-xero">
@@ -150,7 +169,7 @@ export function LeadDetail({ data, manage, members, backHref, className = '' }: 
             ))}
           </ol>
         ) : <p className="m-0 text-small text-fg-muted">No notes yet.</p>}
-        {manage ? <NoteForm id={lead.id} /> : null}
+        {editable ? <NoteForm id={lead.id} /> : null}
       </section>
 
       <details className="group rounded-md border border-border">

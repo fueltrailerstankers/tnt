@@ -47,6 +47,7 @@ export function ProtectedEntryForm(props: {
       importQuote={slug === 'deal' ? importQuoteStaff.bind(null, slug) : undefined}
       timeZone={props.timeZone}
       currency={props.currency}
+      draftScope={{ kind: 'entry', number: props.number }}
     />
   );
 }

@@ -35,7 +35,7 @@ export function Toast({ tone = 'success', title, body, action, onDismiss, announ
     <div
       role={announce ? toastRole(tone) : undefined}
       data-tone={tone}
-      className="pointer-events-auto flex w-full max-w-[380px] items-start gap-2.5 rounded-md border border-border bg-surface px-3.5 py-3 text-fg shadow-overlay"
+      className="toast-enter pointer-events-auto flex w-full max-w-[380px] items-start gap-2.5 rounded-md border border-border bg-surface px-3.5 py-3 text-fg shadow-overlay"
       {...handlers}
     >
       <span className={`mt-px flex-none ${icon.className}`}>

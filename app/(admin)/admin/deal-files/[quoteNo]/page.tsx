@@ -4,11 +4,14 @@ import { DocumentsList } from '@/components/deals/DocumentsList';
 import { Journey } from '@/components/deals/Journey';
 import { XeroPanel, type PanelQuote } from '@/components/deals/XeroPanel';
 import { Card } from '@/components/ui/Card';
+import { Icon } from '@/components/ui/Icon';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { buttonClass } from '@/components/ui/styles';
 import { sastToday } from '@/lib/admin/mirror';
 import { buildTimeline, orderInvoices, stageEntryIds, type TimelineEntryRow, type TimelineFormRow } from '@/lib/deal-files/timeline';
 import { dealDocuments, type DocumentEntry, type DocumentRow } from '@/lib/deal-view/documents';
 import { loadFxRate } from '@/lib/deal-view/fx-server';
+import { packHref } from '@/lib/deal-view/pack';
 import { buildJourney, stepActivity, type JourneyEventRow } from '@/lib/deal-view/journey';
 import { dealParam, quoteLabel } from '@/lib/deal-view/search';
 import { awaitingPayment, type PanelInvoiceRow } from '@/lib/deal-view/xero';
@@ -107,9 +110,18 @@ export default async function DealFilePage({ params }: { params: Promise<{ quote
       </nav>
 
       <Card aria-labelledby="deal-h" data-testid="deal-header">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 id="deal-h" className="m-0 break-words text-[26px] font-semibold leading-8 tracking-[-0.3px]">{file.customer_name || `Deal ${label}`}</h1>
-          <span data-testid="deal-status"><StatusChip status={journey.headline.label} color={journey.headline.tone} /></span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 id="deal-h" className="m-0 break-words text-[26px] font-semibold leading-8 tracking-[-0.3px]">{file.customer_name || `Deal ${label}`}</h1>
+            <span data-testid="deal-status"><StatusChip status={journey.headline.label} color={journey.headline.tone} /></span>
+          </div>
+          {canEntries && docs.length ? (
+            // A ZIP of the latest version of each generated PDF plus manifest.txt (the route re-checks access and audits).
+            <a href={packHref(file.quote_no)} download className={buttonClass('secondary', 44, 'sm:h-9')} data-testid="deal-pack">
+              <Icon name="download" size={15} />
+              Download pack
+            </a>
+          ) : null}
         </div>
         <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(min(160px,100%),1fr))] gap-x-5 gap-y-3.5">
           {facts.map((f) => (

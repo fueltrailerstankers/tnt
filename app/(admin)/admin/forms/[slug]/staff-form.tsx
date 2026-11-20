@@ -41,6 +41,7 @@ export function StaffForm(props: {
       importQuote={slug === 'deal' ? importQuoteStaff.bind(null, slug) : undefined}
       timeZone={props.timeZone}
       currency={props.currency}
+      draftScope={props.number ? { kind: 'entry', number: props.number } : { kind: 'new' }}
     />
   );
 }

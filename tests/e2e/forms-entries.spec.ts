@@ -75,7 +75,8 @@ test.describe('desktop (1440)', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('textbox', { name: 'Public link' })).toHaveValue(/^http:\/\/127\.0\.0\.1:\d+\/f\/request-for-invoice$/);
     await dialog.getByRole('button', { name: 'Copy link' }).click();
-    await expect(dialog.getByRole('status')).toHaveText('Link copied.');
+    // The QR code adds its own status line to the dialog.
+    await expect(dialog.getByRole('status').filter({ hasText: 'Link copied.' })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/f\/request-for-invoice$/);
     await expect(dialog.getByRole('link', { name: /Open form/ })).toHaveAttribute('href', '/f/request-for-invoice');
     await page.keyboard.press('Escape');

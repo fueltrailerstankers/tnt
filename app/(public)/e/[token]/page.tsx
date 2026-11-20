@@ -105,6 +105,7 @@ export default async function RoleLinkPage({ params }: { params: Promise<{ token
         audience="public"
         timeZone={org.timezone}
         currency={org.currency}
+        draftScope={{ kind: 'link', number: entry.number }}
       />
     </>
   );

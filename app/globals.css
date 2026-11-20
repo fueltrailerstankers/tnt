@@ -187,3 +187,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .ink-adapt { filter: invert(1); }
 }
+
+/* Toast entrance (components/ui/Toast.tsx). Only with motion allowed: reduced motion shows toasts without movement. */
+@keyframes tt-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast-enter { animation: tt-toast-in 160ms ease-out; }
+}

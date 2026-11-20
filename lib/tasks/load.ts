@@ -138,7 +138,7 @@ export async function loadTasks(member: Member, now: Date, userDb?: SupabaseClie
   const leads = async (): Promise<LeadInput[]> => {
     if (!perms.leads) return [];
     const { data, error } = await db.from('leads').select('id, name, status, created_at, duplicate_of')
-      .eq('org_id', orgId).eq('assigned_to', member.userId).eq('status', 'new').order('created_at', { ascending: true }).limit(100);
+      .eq('org_id', orgId).eq('assigned_to', member.userId).eq('status', 'new').is('merged_into', null).order('created_at', { ascending: true }).limit(100);
     if (error) throw new Error('leads');
     const rows = data ?? [];
     const dupIds = [...new Set(rows.map((l) => l.duplicate_of as string | null).filter((x): x is string => !!x))];

@@ -9,7 +9,7 @@ export const DISPLAY_CURRENCIES = [
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number]['code'];
 
-/** Rate sources. Only a manual rate exists; a daily feed is not built. */
+/** Rate sources for the Organisation form. The daily feed is a separate toggle (app_settings fx.auto, lib/settings/fx-feed). */
 export const FX_SOURCES = [{ value: 'manual', label: 'Manual rate' }] as const;
 
 const OrgInput = z.object({

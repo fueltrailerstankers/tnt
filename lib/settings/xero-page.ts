@@ -107,17 +107,27 @@ export function entityRows(states: readonly SyncState[], now: TimeInput): Entity
 // ---------------------------------------------------------------------------------------------------
 export interface FailedRun { id: number | string; job: string; started_at: string; error: string | null }
 export interface FailedOutbox { id: string; queue: string; attempts: number; last_error: string | null; created_at: string; locked_at: string | null }
-export interface FailedEvent { id: string; received_at: string; status: string; attempts: number; error: string | null; category: string | null }
+/** `replayable` is decided by the loader with canReplay (lib/integrations/ops.ts), which this client-safe module does not import. */
+export interface FailedEvent { id: string; received_at: string; status: string; attempts: number; error: string | null; payload?: unknown; replayable?: boolean }
 
 /**
  * retry: re-runs the sync (the existing Sync now action).
- * replay: the webhook's change is fetched again by the same Sync now action (the webhook pipeline is idempotent).
+ * retry-job: re-queues that failed outbox job in place (retryJobAction; `target` is the job id).
+ * replay: re-queues processing of that stored webhook event from its raw payload (replayEventAction; `target` is
+ * the event id). Both are idempotent: the handlers only read Xero and upsert the mirror.
  */
-export type FailureAction = 'retry' | 'replay' | null;
+export type FailureAction = 'retry' | 'retry-job' | 'replay' | null;
 
-export interface FailureItem { key: string; job: string; error: string; meta: string; action: FailureAction; at: string }
+export interface FailureItem { key: string; job: string; error: string; meta: string; action: FailureAction; target: string | null; at: string }
 
 const DAY_MS = 86_400_000;
+
+/** A Xero event's category and type from its stored payload ("INVOICE", "UPDATE"); null when the payload has none. */
+export function eventKind(payload: unknown): { category: string | null; type: string | null } {
+  const p = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+  const word = (v: unknown) => (typeof v === 'string' && /^[A-Za-z_]{1,40}$/.test(v) ? v.toUpperCase() : null);
+  return { category: word(p.eventCategory), type: word(p.eventType) };
+}
 
 export function failureItems(input: { states: readonly SyncState[]; runs: readonly FailedRun[]; outbox: readonly FailedOutbox[]; events: readonly FailedEvent[] }, now: TimeInput): FailureItem[] {
   const since = ms(now) - DAY_MS;
@@ -125,11 +135,12 @@ export function failureItems(input: { states: readonly SyncState[]; runs: readon
   const items: FailureItem[] = [];
   for (const s of input.states) {
     if (!s.last_error) continue;
-    items.push({ key: `sync-${s.entity}`, job: `xero.sync · ${s.entity}`, error: jobErrorLabel(s.last_error), meta: s.last_run_at ? stampLabel(s.last_run_at, now) : DASH, action: 'retry', at: s.last_run_at ?? '' });
+    items.push({ key: `sync-${s.entity}`, job: `xero.sync · ${s.entity}`, error: jobErrorLabel(s.last_error), meta: s.last_run_at ? stampLabel(s.last_run_at, now) : DASH, action: 'retry', target: null, at: s.last_run_at ?? '' });
   }
   for (const r of input.runs) {
     if (!recent(r.started_at)) continue;
-    items.push({ key: `run-${r.id}`, job: r.job, error: jobErrorLabel(r.error), meta: `${stampLabel(r.started_at, now)} · run #${r.id}`, action: r.job.startsWith('xero.sync') ? 'retry' : null, at: r.started_at });
+    const sync = r.job.startsWith('xero.sync');
+    items.push({ key: `run-${r.id}`, job: r.job, error: jobErrorLabel(r.error), meta: `${stampLabel(r.started_at, now)} · run #${r.id}`, action: sync ? 'retry' : null, target: null, at: r.started_at });
   }
   for (const j of input.outbox) {
     const at = j.locked_at ?? j.created_at;
@@ -137,17 +148,51 @@ export function failureItems(input: { states: readonly SyncState[]; runs: readon
     const webhook = j.queue === 'xero.fetch';
     items.push({
       key: `job-${j.id}`, job: webhook ? 'webhook · xero.fetch' : j.queue, error: jobErrorLabel(j.last_error),
-      meta: `${stampLabel(at, now)} · ${plural(j.attempts, 'attempt')}`, action: webhook ? 'replay' : null, at,
+      meta: `${stampLabel(at, now)} · ${plural(j.attempts, 'attempt')}`, action: 'retry-job', target: j.id, at,
     });
   }
   for (const e of input.events) {
     if (!recent(e.received_at)) continue;
+    const kind = eventKind(e.payload);
+    const ok = e.replayable === true;
     items.push({
-      key: `event-${e.id}`, job: `webhook · ${(e.category ?? 'event').toLowerCase()}`, error: e.error ? jobErrorLabel(e.error) : e.status === 'queued' ? 'Not processed yet' : 'Failed',
-      meta: `${stampLabel(e.received_at, now)} · received`, action: 'replay', at: e.received_at,
+      key: `event-${e.id}`, job: `webhook · ${(kind.category ?? 'event').toLowerCase()}`, error: e.error ? jobErrorLabel(e.error) : e.status === 'queued' ? 'Not processed yet' : 'Failed',
+      meta: `${stampLabel(e.received_at, now)} · received`, action: ok ? 'replay' : null, target: ok ? e.id : null, at: e.received_at,
     });
   }
   return items.sort((a, b) => (ms(b.at) || 0) - (ms(a.at) || 0));
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Webhook events (recent, any status)
+// ---------------------------------------------------------------------------------------------------
+export interface WebhookEvent { id: string; received_at: string; status: string; attempts: number; error: string | null; payload: unknown; replayable: boolean }
+
+export interface WebhookEventRow { id: string; kind: string; when: string; status: string; tone: Tone; detail: string | null; replayable: boolean }
+
+const EVENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  received: { label: 'Received', tone: 'gray' },
+  queued: { label: 'Queued', tone: 'yellow' },
+  processed: { label: 'Processed', tone: 'green' },
+  failed: { label: 'Failed', tone: 'red' },
+  ignored: { label: 'Ignored', tone: 'gray' },
+};
+
+/** Rows for the "Webhook events" card: kind from the stored payload (resource ids are never shown), status, Replay when allowed. */
+export function webhookEventRows(events: readonly WebhookEvent[], now: TimeInput): WebhookEventRow[] {
+  return events.map((e) => {
+    const k = eventKind(e.payload);
+    const st = EVENT_STATUS[e.status] ?? { label: e.status, tone: 'gray' as Tone };
+    return {
+      id: e.id,
+      kind: [k.category, k.type].filter(Boolean).join(' · ') || 'Event',
+      when: stampLabel(e.received_at, now) || DASH,
+      status: st.label,
+      tone: st.tone,
+      detail: e.error ? jobErrorLabel(e.error) : null,
+      replayable: e.replayable,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------

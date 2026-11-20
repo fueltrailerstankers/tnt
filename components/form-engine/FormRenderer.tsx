@@ -12,6 +12,8 @@ import type { FieldSpec, FormSpec } from '@/lib/spec/types';
 import { applyLocks, checkPost, displayValue, lockedFor, publicSpec, readFormData, type Audience, type ChecklistRow, type EntryData } from '@/lib/spec/values';
 import { hasShowWhen, hiddenFields, isHeading } from '@/lib/spec/visibility';
 import { isQuoteField } from '@/lib/forms/quote-fields';
+import { useDraft } from './useDraft';
+import type { DraftScope } from '@/lib/forms/draft';
 import { Checklist } from './Checklist';
 import { ChoiceInput, CurrencyInput, pillCls, pillInputCls, RatingInput, YesNoInput } from './fields';
 import { a11y, ErrorText, FieldLabel, HelpText, Legend } from './parts';
@@ -54,6 +56,11 @@ export interface FormRendererProps {
   timeZone?: string;
   /** Org currency code for currency fields that do not name one. Default USD. */
   currency?: string;
+  /**
+   * Autosave typed answers to this browser (lib/forms/draft): `new` for a new entry, `entry`/`link` with the entry
+   * number when editing. Absent = no autosave (builder preview, tests). Encrypted forms never autosave.
+   */
+  draftScope?: DraftScope;
 }
 
 const SECONDARY_ACTION = /change|reject|cancel|decline/i;
@@ -62,7 +69,21 @@ export function FormRenderer(props: FormRendererProps) {
   const audience = props.audience ?? 'staff';
   const spec = useMemo(() => (audience === 'public' ? publicSpec(props.spec) : props.spec), [audience, props.spec]);
   const steps = useMemo(() => present(spec), [spec]);
-  const [state, formAction, pending] = useActionState(props.submit, {} as SubmitState);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Restored answers replace `initial` for the fields' defaults; `rev` remounts the fields so they pick them up.
+  const [base, setBase] = useState<EntryData>(props.initial);
+  const [rev, setRev] = useState(0);
+  const draft = useDraft({
+    spec, audience, scope: props.draftScope, version: props.hidden?.__version ?? null, formRef, submit: props.submit,
+    onRestore: (values) => {
+      const data = values(props.initial, { timeZone: props.timeZone, currency: props.currency });
+      setBase(data);
+      setLive(data);
+      setCounts(initialCounts(steps, data));
+      setRev((n) => n + 1);
+    },
+  });
+  const [state, formAction, pending] = useActionState(draft.submit, {} as SubmitState);
   // M8: errors found in the browser before posting (the same rules as the server; see checkPost).
   const [local, setLocal] = useState<SubmitState | null>(null);
   const shown = local ?? state;
@@ -83,7 +104,6 @@ export function FormRenderer(props: FormRendererProps) {
   const [review, setReview] = useState<Array<[string, string]>>([]);
   const [filesRev, setFilesRev] = useState(0);
   const [imported, setImported] = useState<Record<string, boolean>>({});
-  const formRef = useRef<HTMLFormElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const readOnly = props.actions.length === 0;
   const errors = useMemo(() => ({ ...(shown.errors ?? {}), ...gateErrors }), [shown.errors, gateErrors]);
@@ -169,7 +189,10 @@ export function FormRenderer(props: FormRendererProps) {
         setLocal(null);
         startTransition(() => formAction(fd));
       }}
-      onChange={track ? (e) => setLive(readFormData(spec, new FormData(e.currentTarget), readOpts).data) : undefined}
+      onChange={(e) => {
+        if (track) setLive(readFormData(spec, new FormData(e.currentTarget), readOpts).data);
+        draft.changed();
+      }}
     >
       {Object.entries(props.hidden ?? {}).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
@@ -199,6 +222,7 @@ export function FormRenderer(props: FormRendererProps) {
             </div>
           </div>
         ) : null}
+        {draft.banner}
         {shown.message ? <Alert tone="error">{shown.message}</Alert> : null}
         {errorList.length ? (
           <Alert tone="error" title={`Fix ${errorList.length} field${errorList.length === 1 ? '' : 's'} to continue`}>
@@ -216,12 +240,12 @@ export function FormRenderer(props: FormRendererProps) {
       </div>
 
       {steps.map((st) => (
-        <fieldset key={st.index} hidden={st.index !== step} disabled={readOnly} className="min-w-0 space-y-5">
+        <fieldset key={`${rev}-${st.index}`} hidden={st.index !== step} disabled={readOnly} className="min-w-0 space-y-5">
           {st.title ? <legend className="sr-only">{st.title}</legend> : null}
           {st.sections.map((sec) => (
             <SectionCard key={sec.key} section={sec} hidden={!!sec.heading && hidden.has(sec.heading)}>
               {sec.kind === 'lines' ? (
-                <LinesTable section={sec} initial={props.initial} errors={errors} imported={imported} />
+                <LinesTable section={sec} initial={base} errors={errors} imported={imported} />
               ) : sec.kind === 'count' ? (
                 <div className="grid gap-x-4 gap-y-4 [grid-template-columns:repeat(auto-fill,minmax(min(15.5rem,100%),1fr))]">
                   {sec.rows.flatMap((r) => r.cells).map((c) => {
@@ -230,7 +254,7 @@ export function FormRenderer(props: FormRendererProps) {
                     if (label.trim() === 'OTHER' || c.cell.field.type !== 'text') {
                       return (
                         <div key={name} className="[grid-column:1/-1]">
-                          <FieldView {...props} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} locked={false} />
+                          <FieldView {...props} initial={base} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead} setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} locked={false} />
                         </div>
                       );
                     }
@@ -253,7 +277,7 @@ export function FormRenderer(props: FormRendererProps) {
                         hidden={hidden.has(c.cell.field) || undefined}
                       >
                         <FieldView
-                          {...props} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead}
+                          {...props} initial={base} spec={spec} dc={c} step={st} errors={errors} readOnly={readOnly} panel={panel} setPanel={setPanel} termsRead={termsRead}
                           setTermsRead={setTermsRead} clearGate={clearGate} onFiles={onFiles} onImported={setImported} locked={'name' in c.cell.field && locked.has(c.cell.field.name)}
                         />
                       </div>
@@ -285,6 +309,7 @@ export function FormRenderer(props: FormRendererProps) {
 
       {props.turnstileSiteKey && !readOnly && step === steps.length - 1 ? <Turnstile siteKey={props.turnstileSiteKey} resetKey={state.at} /> : null}
 
+      {draft.status}
       <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {step > 0 && (current.backButton || multi) ? (

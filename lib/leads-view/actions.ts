@@ -4,7 +4,7 @@
 export const UI_SOURCES = ['manual', 'test'] as const;
 export type UiSource = (typeof UI_SOURCES)[number];
 
-export type ActionError = 'invalid' | 'notfound' | 'save';
+export type ActionError = 'invalid' | 'notfound' | 'save' | 'merged' | 'changed' | 'forbidden';
 export type ActionResult = { ok: true } | { ok: false; error: ActionError };
 export type AddLeadResult = { ok: true; id: string; duplicate: boolean } | { ok: false; error: ActionError; fields: string[] };
 
@@ -12,7 +12,29 @@ const MESSAGES: Record<ActionError, string> = {
   invalid: 'Check the value and try again.',
   notfound: 'This lead no longer exists or is not in your organisation.',
   save: 'That change could not be saved. Try again.',
+  merged: 'This lead was merged into another lead and can no longer be changed.',
+  changed: 'The duplicate flag on this lead changed since the page loaded. Reload and try again.',
+  forbidden: 'You do not have permission to change leads.',
 };
+
+/** Codes the 0023 lead RPCs raise (message = code, hint = 'leads'). */
+export const LEAD_RPC_CODES = ['FORBIDDEN', 'INVALID_INPUT', 'LEAD_NOT_FOUND', 'LEAD_MERGED', 'DUPLICATE_CHANGED'] as const;
+export type LeadRpcCode = (typeof LEAD_RPC_CODES)[number];
+
+const RPC_ERROR: Record<LeadRpcCode, ActionError> = {
+  FORBIDDEN: 'forbidden', INVALID_INPUT: 'invalid', LEAD_NOT_FOUND: 'notfound', LEAD_MERGED: 'merged', DUPLICATE_CHANGED: 'changed',
+};
+
+/**
+ * Maps an error from lead_merge / lead_not_duplicate / lead_set_branch (PostgREST { message, hint } or node-postgres)
+ * to the action error the page shows. Anything that is not one of our codes is a plain `save` failure.
+ */
+export function leadRpcError(err: unknown): ActionError {
+  if (!err || typeof err !== 'object') return 'save';
+  const { message, hint } = err as { message?: unknown; hint?: unknown };
+  if (hint !== 'leads' || typeof message !== 'string') return 'save';
+  return (LEAD_RPC_CODES as readonly string[]).includes(message) ? RPC_ERROR[message as LeadRpcCode] : 'save';
+}
 
 export function actionMessage(e: ActionError): string {
   return MESSAGES[e] ?? MESSAGES.save;

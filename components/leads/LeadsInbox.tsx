@@ -34,7 +34,6 @@ export async function LeadsInbox({ member, sp, selectedId }: { member: Member; s
   if (selectedId && !detail) notFound();
   const backHref = `/admin/leads${inboxQuery(data.params)}`;
   const rematched = one(sp.rematched);
-  const branches = [...new Set(data.rows.map((r) => (r.branch ?? '').trim()).filter(Boolean))].sort();
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,7 +46,7 @@ export async function LeadsInbox({ member, sp, selectedId }: { member: Member; s
               <button className="inline-flex h-9 items-center rounded-pill border border-border-strong bg-surface px-3.5 text-small font-semibold text-fg hover:bg-surface-2">Re-match with Xero</button>
             </form>
           ) : null}
-          {manage ? <AddLead sources={sources} branches={branches} /> : null}
+          {manage ? <AddLead sources={sources} branches={data.branches} /> : null}
         </div>
       </div>
       {rematched ? (
@@ -68,6 +67,7 @@ export async function LeadsInbox({ member, sp, selectedId }: { member: Member; s
             data={detail}
             manage={manage}
             members={data.members}
+            branches={data.branches}
             backHref={backHref}
             className={`flex-1 ${selectedId ? '' : 'max-lg:hidden'}`}
           />

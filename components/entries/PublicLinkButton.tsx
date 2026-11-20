@@ -1,11 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { QrCode } from '@/components/qr/QrCode';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { buttonClass } from '@/components/ui/styles';
 
-/** Forms index "Public link" button and its modal: the link in a read-only box with Copy and Open form. No QR code. */
+/** Forms index "Public link" button and its modal: its QR code (Download PNG/SVG), the link in a read-only box with Copy, and Open form. */
 export function PublicLinkButton({ formLabel, url, path }: { formLabel: string; url: string; path: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<'idle' | 'ok' | 'failed'>('idle');
@@ -41,6 +42,7 @@ export function PublicLinkButton({ formLabel, url, path }: { formLabel: string; 
         description="Customers open this without logging in. Turnstile protects the submit."
         size="sm"
       >
+        <QrCode value={url} label={formLabel} size={140} />
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             ref={box}

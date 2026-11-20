@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadConnection, type Connection } from '@/lib/integrations/xero/connection';
 import { parseMode, resolveMode, settingKey, type ActionMode, type ResolvedMode } from '@/lib/integrations/xero/write/modes';
 import { ACTIONS, type ActionName } from '@/lib/integrations/xero/write/types';
-import { liveBlockedReason, type DryRunRow, type FailedEvent, type FailedOutbox, type FailedRun, type RunStatRow, type SyncState } from './xero-page';
+import { canReplay } from '@/lib/integrations/ops';
+import { liveBlockedReason, type DryRunRow, type FailedEvent, type FailedOutbox, type FailedRun, type RunStatRow, type SyncState, type WebhookEvent } from './xero-page';
 
 // Reads for /admin/integrations/xero and /actions. Callers check the permission first (requirePerm) and pass the
 // service client: xero_connections, job_runs, outbox_jobs and integration_events are service-only tables. Token
@@ -44,6 +45,8 @@ export interface HealthData {
   runs: FailedRun[];
   outbox: FailedOutbox[];
   events: FailedEvent[];
+  /** The latest stored Xero webhook events, any status (Webhook events card, Replay per row). */
+  recent: WebhookEvent[];
   lastEventAt: string | null;
   eventsDay: number;
   queued: number;
@@ -52,25 +55,31 @@ export interface HealthData {
 export async function loadHealth(db: SupabaseClient, orgId: string, now: number): Promise<HealthData> {
   const since = new Date(now - DAY).toISOString();
   const stuck = new Date(now - 15 * 60_000).toISOString();
-  const [states, runs, outbox, failedEvents, stuckEvents, last, day, queued] = await Promise.all([
+  const EVENT_COLS = 'id, received_at, status, attempts, error, payload';
+  const [states, runs, outbox, failedEvents, stuckEvents, last, day, queued, recent] = await Promise.all([
     db.from('xero_sync_state').select('entity, backfill_done, pass, page, last_run_at, last_ok_at, last_error, records_synced').eq('org_id', orgId),
     db.from('job_runs').select('id, job, started_at, error').eq('org_id', orgId).like('job', 'xero.%').eq('ok', false).gte('started_at', since)
       .order('started_at', { ascending: false }).limit(20),
     db.from('outbox_jobs').select('id, queue, attempts, last_error, created_at, locked_at').eq('org_id', orgId).like('queue', 'xero.%').eq('status', 'failed')
       .gte('created_at', new Date(now - 7 * DAY).toISOString()).order('created_at', { ascending: false }).limit(20),
-    db.from('integration_events').select('id, received_at, status, attempts, error').eq('org_id', orgId).eq('source', 'xero').eq('status', 'failed')
+    db.from('integration_events').select(EVENT_COLS).eq('org_id', orgId).eq('source', 'xero').eq('status', 'failed')
       .gte('received_at', since).order('received_at', { ascending: false }).limit(20),
-    db.from('integration_events').select('id, received_at, status, attempts, error').eq('org_id', orgId).eq('source', 'xero').eq('status', 'queued')
+    db.from('integration_events').select(EVENT_COLS).eq('org_id', orgId).eq('source', 'xero').eq('status', 'queued')
       .gte('received_at', since).lt('received_at', stuck).order('received_at', { ascending: false }).limit(20),
     db.from('integration_events').select('received_at').eq('org_id', orgId).eq('source', 'xero').order('received_at', { ascending: false }).limit(1),
     db.from('integration_events').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('source', 'xero').gte('received_at', since),
     db.from('outbox_jobs').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('status', 'pending'),
+    db.from('integration_events').select(EVENT_COLS).eq('org_id', orgId).eq('source', 'xero').order('received_at', { ascending: false }).limit(20),
   ]);
+  // Replay is offered only where the action would accept it (same rule, lib/integrations/ops.ts).
+  type Ev = Omit<WebhookEvent, 'replayable'>;
+  const withReplay = (e: Ev): WebhookEvent => ({ ...e, replayable: canReplay({ id: e.id, org_id: orgId, source: 'xero', status: e.status, payload: e.payload }) });
   return {
     states: (states.data ?? []) as SyncState[],
     runs: (runs.data ?? []) as FailedRun[],
     outbox: (outbox.data ?? []) as FailedOutbox[],
-    events: [...(failedEvents.data ?? []), ...(stuckEvents.data ?? [])].map((e) => ({ ...e, category: null })) as FailedEvent[],
+    events: [...(failedEvents.data ?? []), ...(stuckEvents.data ?? [])].map((e) => withReplay(e as Ev)) as FailedEvent[],
+    recent: (recent.data ?? []).map((e) => withReplay(e as Ev)),
     lastEventAt: last.data?.[0]?.received_at ?? null,
     eventsDay: day.count ?? 0,
     queued: queued.count ?? 0,
