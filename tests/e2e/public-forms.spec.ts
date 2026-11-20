@@ -188,3 +188,35 @@ test('DEAL: defaults, multi-choice, POP upload, manual Total; encrypted at rest;
     expect((await res.body()).subarray(0, 5).toString()).toBe('%PDF-');
   }
 });
+
+test('large phone photos are shrunk in the browser before upload', async ({ page }) => {
+  await page.goto('/f/request-for-invoice');
+  // A 4032x3024 noisy JPEG (phone-camera size, several MB) drawn in the browser: no real photo in the repo.
+  const big = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 4032; c.height = 3024;
+    const ctx = c.getContext('2d')!;
+    const img = ctx.createImageData(c.width, c.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      img.data[i] = (i * 7919) % 256; img.data[i + 1] = (i * 104729) % 256; img.data[i + 2] = (i * 31) % 256; img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), 'image/jpeg', 0.95));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  const original = Buffer.from(big);
+  expect(original.length).toBeGreaterThan(2 * 1024 * 1024);
+
+  await page.getByLabel('First').fill('Photo');
+  await page.getByLabel('Last').fill('Shrink');
+  await attach(page, '_1stDeposit', { name: 'IMG_0001.JPEG', mimeType: 'image/jpeg', buffer: original });
+  await expect(page.getByText('IMG_0001.jpg')).toBeVisible();
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByText(THANKS)).toBeVisible();
+
+  const files = await sql<{ file_name: string; content_type: string; size_bytes: string }>(
+    `select ef.file_name, ef.content_type, ef.size_bytes from entry_files ef join entries e on e.id = ef.entry_id where e.summary = 'Photo Shrink'`);
+  expect(files).toHaveLength(1);
+  expect(files[0]).toMatchObject({ file_name: 'IMG_0001.jpg', content_type: 'image/jpeg' });
+  expect(Number(files[0].size_bytes)).toBeLessThan(original.length / 2);
+});

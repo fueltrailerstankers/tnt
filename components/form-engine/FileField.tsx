@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { compressPhoto } from './compress-image';
 import { errorCls, fileSize, labelCls } from './styles';
 import type { ExistingFile, UploadFn } from './types';
 
@@ -77,14 +78,19 @@ export function FileField({ name, label, multi, maxFiles, accept, existing, uplo
   async function onPick(list: FileList | null) {
     setProblem(null);
     if (!list?.length) return;
-    const picked = Array.from(list);
-    if (picked.some((f) => f.size > MAX)) return setProblem('Each file must be 20 MB or smaller.');
+    const chosen = Array.from(list);
     const room = multi ? limit - items.length : 1;
-    if (picked.length > room) return setProblem(`Upload at most ${limit} file${limit === 1 ? '' : 's'}.`);
-    const keys = picked.map((f, i) => `${Date.now()}-${i}-${f.name}`);
-    const urls = picked.map((f) => (f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined));
+    if (chosen.length > room) return setProblem(`Upload at most ${limit} file${limit === 1 ? '' : 's'}.`);
+    const keys = chosen.map((f, i) => `${Date.now()}-${i}-${f.name}`);
+    const urls = chosen.map((f) => (f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined));
     previews.current.push(...urls.filter((u): u is string => !!u));
-    setItems((cur) => [...(multi ? cur : []), ...picked.map((f, i) => ({ kind: 'uploading' as const, key: keys[i], name: f.name, size: f.size, preview: urls[i] }))]);
+    setItems((cur) => [...(multi ? cur : []), ...chosen.map((f, i) => ({ kind: 'uploading' as const, key: keys[i], name: f.name, size: f.size, preview: urls[i] }))]);
+    // Shrink phone photos before upload (falls back to the original file on any failure).
+    const picked = await Promise.all(chosen.map((f) => compressPhoto(f)));
+    if (picked.some((f) => f.size > MAX)) {
+      setItems((cur) => cur.filter((i) => !(i.kind === 'uploading' && keys.includes(i.key))));
+      return setProblem('Each file must be 20 MB or smaller.');
+    }
     const res = await upload(name, picked.map((f) => ({ name: f.name, size: f.size, type: f.type || 'application/octet-stream' })));
     if (!res.tickets) {
       setItems((cur) => cur.filter((i) => !(i.kind === 'uploading' && keys.includes(i.key))));
