@@ -120,3 +120,5 @@ Definition of done: typecheck, lint, tests pass; acceptance list shown working; 
 - Protected fields (`email` + `protected`) never reach the page: the form gets `formSpecForPage` (field hidden) and data without them, saves go through `saveEntryKeepingProtected` (stored value kept), recipients equal to a protected value are masked, and only admins Reveal (`entry.reveal` audit row with field keys).
 - Opening an encrypted entry (page or PDF) writes `entry.decrypt` (ids only); the page refuses to render if the row cannot be written.
 - Delete is a TypedConfirmModal (phrase = entry number) calling the shared `deleteEntry`; e2e: `tests/e2e/entry-detail.spec.ts`.
+## Repo notes (login outage message)
+- `/login` failures map through `lib/users/sign-in-error.ts`: account-specific errors stay the one generic "Check your email and password"; auth-service failures (402 project restricted, 5xx, network) redirect with `error=unavailable` and log status/code only (never the email).

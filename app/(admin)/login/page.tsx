@@ -1,6 +1,7 @@
 import { Input, Label } from '@/components/ui/Field';
 import { Logo } from '@/components/ui/Logo';
 import { buttonClass } from '@/components/ui/styles';
+import { loginErrorMessage } from '@/lib/users/sign-in-error';
 import { signIn } from './actions';
 
 export const metadata = { title: 'Sign in · Trailers & Tankers' };
@@ -23,9 +24,7 @@ export default async function LoginPage({
         </div>
         {error ? (
           <p role="alert" className="rounded-sm bg-status-red-bg p-3 text-body font-semibold text-status-red-fg">
-            {error === 'link'
-              ? 'This link is invalid or has expired. Ask an admin for a new invite link.'
-              : 'Sign in failed. Check your email and password.'}
+            {loginErrorMessage(error)}
           </p>
         ) : null}
         <input type="hidden" name="next" value={next ?? ''} />
